@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0e1116">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Usine Stellaire</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+:root{
+  --bg:#0e1116; --panel:#161c25; --panel2:#1d2530; --line:#2b3546;
+  --tx:#e4eaf3; --mut:#8f9db0; --amber:#f2a13d; --amber-soft:#ffc46b;
+  --good:#7ec97e; --bad:#e2705c; --sci:#5db3e8; --violet:#b08ae8;
+  --r:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  background:var(--bg); color:var(--tx);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:15px; line-height:1.45;
+  user-select:none; -webkit-user-select:none; touch-action:manipulation;
+  overscroll-behavior:none;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;touch-action:manipulation}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- shell ---------- */
+#app{display:flex;flex-direction:column;height:100dvh;max-width:560px;margin:0 auto}
+header{
+  padding:calc(10px + env(safe-area-inset-top)) 14px 8px;
+  display:flex;align-items:baseline;gap:10px;flex-shrink:0;
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#131a23,var(--bg));
+}
+header h1{
+  font-size:15px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--amber-soft);white-space:nowrap;
+}
+header h1 span{color:var(--mut);font-weight:600}
+#hud{margin-left:auto;display:flex;gap:12px;font-size:13px;color:var(--mut)}
+#hud b{color:var(--tx);font-weight:700}
+main{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 12px 20px;-webkit-overflow-scrolling:touch}
+main section{display:none;flex-direction:column;gap:10px}
+main section.on{display:flex}
+
+nav{
+  flex-shrink:0;display:flex;border-top:1px solid var(--line);
+  background:#12171f;padding-bottom:env(safe-area-inset-bottom);
+}
+nav button{
+  flex:1;padding:9px 0 10px;display:flex;flex-direction:column;align-items:center;gap:2px;
+  color:var(--mut);font-size:10.5px;font-weight:600;letter-spacing:.05em;position:relative;
+}
+nav button .ic{font-size:19px;line-height:1;filter:grayscale(1) opacity(.65)}
+nav button.on{color:var(--amber-soft)}
+nav button.on .ic{filter:none}
+nav button .dot{
+  position:absolute;top:6px;right:calc(50% - 17px);width:8px;height:8px;border-radius:50%;
+  background:var(--amber);display:none;
+}
+nav button .dot.show{display:block}
+
+/* ---------- shared cards ---------- */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.card h2{
+  font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--mut);margin-bottom:8px;
+}
+.hint{font-size:12.5px;color:var(--mut)}
+
+/* ---------- mine (tap) ---------- */
+#mineBtn{
+  width:100%;padding:20px 0;border-radius:var(--r);
+  background:linear-gradient(180deg,#f2a13d,#d97f1e);color:#241503;
+  font-size:17px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  box-shadow:0 3px 0 #8a4f10;
+}
+#mineBtn:active{transform:translateY(2px);box-shadow:0 1px 0 #8a4f10}
+.chips{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.chips button{
+  padding:7px 11px;border-radius:99px;border:1px solid var(--line);
+  background:var(--panel2);font-size:13px;color:var(--mut);
+}
+.chips button.on{border-color:var(--amber);color:var(--amber-soft);background:#2a2113}
+
+/* ---------- resources ---------- */
+.resRow{display:flex;align-items:center;gap:9px;padding:7px 2px;border-bottom:1px solid #1d2530}
+.resRow:last-child{border-bottom:none}
+.resRow .ic{width:24px;text-align:center;font-size:16px}
+.resRow .nm{flex:1;font-size:13.5px;color:#c6d0dd}
+.resRow .amt{font-weight:700;font-size:14px}
+.resRow .rate{width:76px;text-align:right;font-size:12px;color:var(--mut)}
+.rate.up{color:var(--good)} .rate.dn{color:var(--bad)}
+
+/* ---------- machines ---------- */
+.mach{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:11px 12px}
+.mach .top{display:flex;align-items:baseline;gap:8px}
+.mach .top .ic{font-size:17px}
+.mach .top .nm{font-weight:700;font-size:14.5px}
+.mach .top .own{margin-left:auto;font-size:13px;color:var(--amber-soft);font-weight:700}
+.mach .io{font-size:12px;color:var(--mut);margin:4px 0 7px}
+.effbar{height:4px;border-radius:2px;background:#242e3c;overflow:hidden;margin-bottom:8px}
+.effbar i{display:block;height:100%;background:var(--good);width:0%;transition:width .4s}
+.effbar i.low{background:var(--bad)}
+.cost{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px;margin-bottom:8px}
+.cost span.no{color:var(--bad)} .cost span.ok{color:var(--mut)}
+.buyRow{display:flex;gap:7px}
+.buyRow button{
+  flex:1;padding:9px 0;border-radius:9px;font-weight:700;font-size:13px;
+  background:#2a2113;color:var(--amber-soft);border:1px solid #5a4116;
+}
+.buyRow button:disabled{opacity:.35}
+.buyRow button.sell{flex:.8;background:var(--panel2);color:var(--mut);border-color:var(--line)}
+.catHead{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:6px 2px 0}
+
+/* ---------- research / milestones / rocket ---------- */
+.rsc{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:11px 12px}
+.rsc .nm{font-weight:700;font-size:14px}
+.rsc .ds{font-size:12.5px;color:var(--mut);margin:3px 0 8px}
+.rsc button{
+  width:100%;padding:9px 0;border-radius:9px;font-weight:700;font-size:13px;
+  background:#152836;color:var(--sci);border:1px solid #29465c;
+}
+.rsc button:disabled{opacity:.35}
+.rsc.done{opacity:.55}
+.rsc.done .badge{color:var(--good);font-weight:700;font-size:13px}
+.obj .rw{display:flex;align-items:center;gap:9px;padding:9px 2px;border-bottom:1px solid #1d2530}
+.obj .rw:last-child{border-bottom:none}
+.obj .st{width:22px;text-align:center}
+.obj .tx{flex:1}
+.obj .tx .t{font-size:13.5px;font-weight:600}
+.obj .tx .r{font-size:12px;color:var(--mut)}
+.obj button{
+  padding:7px 13px;border-radius:9px;font-weight:700;font-size:12.5px;
+  background:#213121;color:var(--good);border:1px solid #3a5a3a;
+}
+.reqbar{margin:7px 0}
+.reqbar .lb{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px}
+.reqbar .bar{height:6px;border-radius:3px;background:#242e3c;overflow:hidden}
+.reqbar .bar i{display:block;height:100%;background:var(--violet);width:0%}
+#launchBtn{
+  width:100%;padding:15px 0;border-radius:var(--r);margin-top:6px;
+  background:linear-gradient(180deg,#8a63d2,#6c44b8);color:#fff;
+  font-weight:800;font-size:15px;letter-spacing:.06em;text-transform:uppercase;
+}
+#launchBtn:disabled{opacity:.4}
+
+/* ---------- settings ---------- */
+.setBtns{display:flex;flex-direction:column;gap:8px}
+.setBtns button,.setBtns label.filebtn{
+  padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);
+  font-weight:600;font-size:13.5px;text-align:center;color:var(--tx);
+}
+.setBtns button.danger{color:var(--bad);border-color:#5a2c24}
+textarea#ioArea{
+  width:100%;min-height:80px;background:#0b0e13;color:var(--tx);border:1px solid var(--line);
+  border-radius:9px;padding:8px;font-size:12px;font-family:ui-monospace,monospace;
+  user-select:text;-webkit-user-select:text;
+}
+
+/* ---------- modal / toast ---------- */
+#modalBack{
+  position:fixed;inset:0;background:rgba(5,8,12,.75);display:none;
+  align-items:center;justify-content:center;padding:24px;z-index:50;
+}
+#modalBack.show{display:flex}
+#modal{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:18px;max-width:340px;width:100%;max-height:75dvh;overflow-y:auto}
+#modal h3{font-size:15px;margin-bottom:8px;color:var(--amber-soft)}
+#modal .body{font-size:13.5px;color:#c6d0dd;margin-bottom:14px}
+#modal .body .g{display:flex;justify-content:space-between;padding:2px 0}
+#modalBtns{display:flex;gap:8px}
+#modalBtns button{
+  flex:1;padding:10px 0;border-radius:9px;font-weight:700;font-size:13.5px;
+  background:#2a2113;color:var(--amber-soft);border:1px solid #5a4116;
+}
+#modalBtns button.ghost{background:var(--panel);color:var(--mut);border-color:var(--line)}
+#toast{
+  position:fixed;left:50%;bottom:calc(74px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
+  background:#242e3c;border:1px solid var(--line);color:var(--tx);
+  padding:9px 16px;border-radius:99px;font-size:13px;font-weight:600;
+  opacity:0;transition:.25s;pointer-events:none;z-index:60;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Usine <span>Stellaire</span></h1>
+    <div id="hud">
+      <div>🧪 <b id="hudSci" class="num">0</b></div>
+      <div id="hudFragWrap" style="display:none">✨ <b id="hudFrag" class="num">0</b></div>
+    </div>
+  </header>
+  <main id="main">
+    <section id="tab-usine" class="on">
+      <div class="card">
+        <h2>Extraction manuelle</h2>
+        <button id="mineBtn">⛏️ Miner <span id="mineWhat"></span></button>
+        <div class="chips" id="mineChips"></div>
+        <div class="hint" style="margin-top:8px" id="tapHint"></div>
+      </div>
+      <div class="card">
+        <h2>Ressources</h2>
+        <div id="resList"></div>
+      </div>
+    </section>
+    <section id="tab-mach"><div id="machList" style="display:flex;flex-direction:column;gap:10px"></div></section>
+    <section id="tab-lab">
+      <div class="card"><h2>Science</h2>
+        <div style="font-size:14px">🧪 <b id="labSci" class="num">0</b> <span class="hint" id="labRate"></span></div>
+        <div class="hint" style="margin-top:4px">Construis des laboratoires (onglet Machines) pour produire de la science.</div>
+      </div>
+      <div id="rscList" style="display:flex;flex-direction:column;gap:10px"></div>
+    </section>
+    <section id="tab-fusee"><div id="rocketBox" style="display:flex;flex-direction:column;gap:10px"></div></section>
+    <section id="tab-plus">
+      <div class="card obj"><h2>Objectifs</h2><div id="objList"></div></div>
+      <div class="card"><h2>Statistiques</h2><div id="statsBox" class="hint"></div></div>
+      <div class="card"><h2>Sauvegarde</h2>
+        <div class="setBtns">
+          <button id="btnExport">Exporter la sauvegarde</button>
+          <button id="btnImport">Importer la sauvegarde</button>
+          <textarea id="ioArea" style="display:none" placeholder="Colle ta sauvegarde ici puis appuie de nouveau sur Importer"></textarea>
+          <button id="btnReset" class="danger">Tout recommencer (efface tout)</button>
+        </div>
+        <div class="hint" style="margin-top:8px">Le jeu sauvegarde automatiquement toutes les 10 secondes, directement sur ton téléphone. Aucune connexion nécessaire.</div>
+      </div>
+    </section>
+  </main>
+  <nav id="nav">
+    <button data-tab="usine" class="on"><span class="ic">🏭</span>Usine<span class="dot"></span></button>
+    <button data-tab="mach"><span class="ic">⚙️</span>Machines<span class="dot"></span></button>
+    <button data-tab="lab"><span class="ic">🧪</span>Labo<span class="dot"></span></button>
+    <button data-tab="fusee"><span class="ic">🚀</span>Fusée<span class="dot"></span></button>
+    <button data-tab="plus"><span class="ic">📋</span>Plus<span class="dot"></span></button>
+  </nav>
+</div>
+<div id="modalBack"><div id="modal"><h3 id="modalTitle"></h3><div class="body" id="modalBody"></div><div id="modalBtns"></div></div></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   USINE STELLAIRE — jeu d'automatisation hors-ligne
+   ===================================================================== */
+
+/* ---------- données ---------- */
+const RES = {
+  ironOre:    {n:'Minerai de fer',    ic:'⛏️'},
+  copperOre:  {n:'Minerai de cuivre', ic:'🟠'},
+  coal:       {n:'Charbon',           ic:'⚫'},
+  stone:      {n:'Pierre',            ic:'🪨'},
+  ironPlate:  {n:'Plaque de fer',     ic:'🔩'},
+  copperPlate:{n:'Plaque de cuivre',  ic:'🟧'},
+  brick:      {n:'Brique',            ic:'🧱'},
+  gear:       {n:'Engrenage',         ic:'⚙️'},
+  wire:       {n:'Câble',             ic:'🔌'},
+  circuit:    {n:'Circuit',           ic:'💾'},
+  steel:      {n:'Acier',             ic:'⬜'},
+  module:     {n:'Module logique',    ic:'🧠'},
+  science:    {n:'Science',           ic:'🧪'},
+};
+const RAWS = ['ironOre','copperOre','coal','stone'];
+
+/* Machines : traitées dans l'ordre (les extracteurs alimentent les fours, etc.) */
+const MACHINES = [
+  {id:'mineIron',   nm:'Foreuse à fer',        ic:'⛏️', cat:'ext', out:{ironOre:.5},
+   cost:{ironOre:15,stone:5}, vis:s=>true},
+  {id:'quarry',     nm:'Carrière',             ic:'🪨', cat:'ext', out:{stone:.5},
+   cost:{ironOre:10}, vis:s=>true},
+  {id:'mineCopper', nm:'Foreuse à cuivre',     ic:'🟠', cat:'ext', out:{copperOre:.5},
+   cost:{ironOre:25,stone:10}, vis:s=>s.life.ironOre>=15},
+  {id:'mineCoal',   nm:'Extracteur de charbon',ic:'⚫', cat:'ext', out:{coal:.5},
+   cost:{ironOre:25,stone:10}, vis:s=>s.life.ironOre>=15},
+  {id:'furnIron',   nm:'Four à fer',           ic:'🔥', cat:'fou', inp:{ironOre:.5,coal:.1}, out:{ironPlate:.5},
+   cost:{stone:25,ironOre:15}, vis:s=>s.life.coal>=1},
+  {id:'furnCopper', nm:'Four à cuivre',        ic:'🔥', cat:'fou', inp:{copperOre:.5,coal:.1}, out:{copperPlate:.5},
+   cost:{stone:25,ironOre:15}, vis:s=>s.life.copperOre>=1&&s.life.coal>=1},
+  {id:'kiln',       nm:'Four à briques',       ic:'🧱', cat:'fou', inp:{stone:.6,coal:.1}, out:{brick:.3},
+   cost:{stone:40,ironPlate:10}, vis:s=>s.life.ironPlate>=10},
+  {id:'gearWorks',  nm:'Atelier d’engrenages', ic:'⚙️', cat:'asm', inp:{ironPlate:1}, out:{gear:.5},
+   cost:{ironPlate:30,stone:20}, vis:s=>s.life.ironPlate>=15},
+  {id:'wireMill',   nm:'Tréfilerie',           ic:'🔌', cat:'asm', inp:{copperPlate:.5}, out:{wire:1},
+   cost:{ironPlate:25,gear:10}, vis:s=>s.life.copperPlate>=5},
+  {id:'circuitAsm', nm:'Assembleur de circuits',ic:'💾', cat:'asm', inp:{ironPlate:.5,wire:1.5}, out:{circuit:.5},
+   cost:{ironPlate:60,gear:20}, vis:s=>s.life.wire>=10},
+  {id:'lab',        nm:'Laboratoire',          ic:'🧪', cat:'lab', inp:{gear:.25,circuit:.25}, out:{science:.1},
+   cost:{ironPlate:60,gear:25,circuit:10}, vis:s=>s.life.circuit>=5},
+  {id:'steelworks', nm:'Aciérie',              ic:'⬜', cat:'fou', inp:{ironPlate:1.25,coal:.5}, out:{steel:.25},
+   cost:{brick:50,gear:30,circuit:10}, vis:s=>s.rsc.steelTech},
+  {id:'moduleFab',  nm:'Fabrique de modules',  ic:'🧠', cat:'asm', inp:{circuit:.5,steel:.1,gear:.25}, out:{module:.1},
+   cost:{steel:50,circuit:60,brick:40}, vis:s=>s.rsc.moduleTech},
+];
+const MACH_BY_ID = Object.fromEntries(MACHINES.map(m=>[m.id,m]));
+const COST_MULT = 1.15;
+const CATS = [['ext','Extraction'],['fou','Fours'],['asm','Assembleurs'],['lab','Science']];
+const CAT_OF = {ext:'Extraction',fou:'Fours',asm:'Assembleurs',lab:'Science'};
+
+/* Recherches */
+const RESEARCH = [
+  {id:'tap1',    nm:'Outils en fer',        ds:'Extraction manuelle : 2 par coup.', cost:10},
+  {id:'mining1', nm:'Forage efficace I',    ds:'Extracteurs +50 %.', cost:15},
+  {id:'smelt1',  nm:'Métallurgie I',        ds:'Fours +50 %.', cost:25},
+  {id:'offline1',nm:'Tampons de stockage',  ds:'Production hors-ligne : jusqu’à 8 h.', cost:30},
+  {id:'asm1',    nm:'Automatisation I',     ds:'Assembleurs +50 %.', cost:40},
+  {id:'steelTech',nm:'Sidérurgie',          ds:'Débloque l’aciérie (acier).', cost:50},
+  {id:'tap2',    nm:'Outils en acier',      ds:'Extraction manuelle : 5 par coup.', cost:60, req:'tap1'},
+  {id:'logi1',   nm:'Logistique I',         ds:'Toute la production +25 %.', cost:75},
+  {id:'mining2', nm:'Forage efficace II',   ds:'Extracteurs ×2.', cost:80, req:'mining1'},
+  {id:'lab1',    nm:'Méthode scientifique', ds:'Laboratoires ×2.', cost:90},
+  {id:'moduleTech',nm:'Modules logiques',   ds:'Débloque la fabrique de modules.', cost:100, req:'steelTech'},
+  {id:'smelt2',  nm:'Métallurgie II',       ds:'Fours ×2.', cost:120, req:'smelt1'},
+  {id:'asm2',    nm:'Automatisation II',    ds:'Assembleurs ×2.', cost:150, req:'asm1'},
+  {id:'offline2',nm:'Silos automatisés',    ds:'Production hors-ligne : jusqu’à 24 h.', cost:150, req:'offline1'},
+  {id:'rocketTech',nm:'Programme spatial',  ds:'Débloque la fusée (onglet Fusée).', cost:200, req:'moduleTech'},
+  {id:'tap3',    nm:'Exosquelette',         ds:'Extraction manuelle : 15 par coup.', cost:300, req:'tap2'},
+  {id:'mining3', nm:'Forage efficace III',  ds:'Extracteurs ×2,5.', cost:400, req:'mining2'},
+  {id:'smelt3',  nm:'Métallurgie III',      ds:'Fours ×2,5.', cost:450, req:'smelt2'},
+  {id:'asm3',    nm:'Automatisation III',   ds:'Assembleurs ×2,5.', cost:500, req:'asm2'},
+  {id:'logi2',   nm:'Logistique II',        ds:'Toute la production +50 %.', cost:500, req:'logi1'},
+  {id:'lab2',    nm:'Publication galactique',ds:'Laboratoires ×3.', cost:600, req:'lab1'},
+];
+const RESEARCH_BY_ID = Object.fromEntries(RESEARCH.map(r=>[r.id,r]));
+
+/* Objectifs (persistants à travers les prestiges) */
+const MILESTONES = [
+  {id:'m1',  nm:'Mineur débutant',      ds:'Miner 25 fois à la main',        rw:{ironOre:25},   ok:s=>s.taps>=25},
+  {id:'m2',  nm:'Première machine',     ds:'Construire une foreuse à fer',   rw:{stone:20},     ok:s=>s.mach.mineIron>=1},
+  {id:'m3',  nm:'Chaîne du fer',        ds:'Produire 50 plaques de fer',     rw:{coal:25},      ok:s=>s.life.ironPlate>=50},
+  {id:'m4',  nm:'Ingénieur',            ds:'Produire 25 engrenages',         rw:{ironPlate:50}, ok:s=>s.life.gear>=25},
+  {id:'m5',  nm:'Électronicien',        ds:'Produire 25 circuits',           rw:{wire:50},      ok:s=>s.life.circuit>=25},
+  {id:'m6',  nm:'Scientifique',         ds:'Terminer une recherche',         rw:{science:10},   ok:s=>Object.keys(s.rsc).length>=1},
+  {id:'m7',  nm:'Industriel',           ds:'Posséder 25 machines',           rw:{ironPlate:100},ok:s=>totalMachines(s)>=25},
+  {id:'m8',  nm:'Maître de l’acier',ds:'Produire 100 aciers',           rw:{circuit:50},   ok:s=>s.life.steel>=100},
+  {id:'m9',  nm:'Vers les étoiles',     ds:'Lancer une fusée',               rw:{science:25},   ok:s=>s.rockets>=1},
+  {id:'m10', nm:'Automatisation totale',ds:'Posséder 100 machines',          rw:{ironPlate:500},ok:s=>totalMachines(s)>=100},
+];
+
+/* Fusée (prestige) : coût ×2 à chaque lancement, +20 % de production par fragment */
+const ROCKET_BASE = {module:25, steel:150, circuit:400};
+const FRAG_BONUS = 0.20;
+const fragGain = n => 3*(n+1);
+const rocketCost = n => Object.fromEntries(Object.entries(ROCKET_BASE).map(([r,q])=>[r,q*Math.pow(2,n)]));
+
+const TAP_POWER = s => s.rsc.tap3?15 : s.rsc.tap2?5 : s.rsc.tap1?2 : 1;
+const OFFLINE_CAP = s => (s.rsc.offline2?24 : s.rsc.offline1?8 : 2)*3600;
+
+/* ---------- état ---------- */
+const SAVE_KEY = 'usineStellaire.v1';
+function freshState(keep){
+  const res={}, life={}, mach={};
+  for(const r in RES){res[r]=0;life[r]=0}
+  for(const m of MACHINES) mach[m.id]=0;
+  return {
+    v:1, t:Date.now(),
+    res, life, mach, rsc:{},
+    taps:0, mine:'ironOre',
+    rockets: keep?keep.rockets:0,
+    frags:   keep?keep.frags:0,
+    done:    keep?keep.done:{},          // objectifs réclamés
+    stats:   keep?keep.stats:{taps:0, launches:0, started:Date.now()},
+  };
+}
+let S = freshState();
+
+function totalMachines(s){let t=0;for(const k in s.mach)t+=s.mach[k];return t}
+
+/* ---------- multiplicateurs ---------- */
+function catMult(cat,s){
+  s=s||S; let m=1;
+  if(cat==='ext'){ if(s.rsc.mining1)m*=1.5; if(s.rsc.mining2)m*=2; if(s.rsc.mining3)m*=2.5; }
+  if(cat==='fou'){ if(s.rsc.smelt1)m*=1.5;  if(s.rsc.smelt2)m*=2;  if(s.rsc.smelt3)m*=2.5; }
+  if(cat==='asm'){ if(s.rsc.asm1)m*=1.5;    if(s.rsc.asm2)m*=2;    if(s.rsc.asm3)m*=2.5; }
+  if(cat==='lab'){ if(s.rsc.lab1)m*=2;      if(s.rsc.lab2)m*=3; }
+  if(s.rsc.logi1)m*=1.25; if(s.rsc.logi2)m*=1.5;
+  m*= 1 + FRAG_BONUS*s.frags;
+  return m;
+}
+
+/* ---------- simulation ---------- */
+const EFF = {}; // efficacité courante par machine (pour l'affichage)
+function tick(dt){
+  for(const mc of MACHINES){
+    const cnt = S.mach[mc.id];
+    if(!cnt){EFF[mc.id]=1;continue}
+    const mult = catMult(mc.cat);
+    let f = 1;
+    if(mc.inp){
+      for(const r in mc.inp){
+        const need = mc.inp[r]*cnt*mult*dt;
+        if(need>1e-12) f = Math.min(f, S.res[r]/need);
+      }
+      f = Math.max(0, Math.min(1, f));
+      for(const r in mc.inp){
+        S.res[r] = Math.max(0, S.res[r] - mc.inp[r]*cnt*mult*dt*f);
+      }
+    }
+    for(const r in mc.out){
+      const g = mc.out[r]*cnt*mult*dt*f;
+      S.res[r]+=g; S.life[r]+=g;
+    }
+    EFF[mc.id]=f;
+  }
+}
+/* simule `sec` secondes par pas de 30 s max (hors-ligne) */
+function simulate(sec){
+  let s=sec;
+  while(s>1e-9){ const step=Math.min(30,s); tick(step); s-=step; }
+}
+/* débit net actuel par ressource (pour l'affichage) */
+function netRates(){
+  const rt={};
+  for(const mc of MACHINES){
+    const cnt=S.mach[mc.id]; if(!cnt)continue;
+    const k=cnt*catMult(mc.cat)*(EFF[mc.id]!==undefined?EFF[mc.id]:1);
+    if(mc.inp)for(const r in mc.inp) rt[r]=(rt[r]||0)-mc.inp[r]*k;
+    for(const r in mc.out) rt[r]=(rt[r]||0)+mc.out[r]*k;
+  }
+  return rt;
+}
+
+/* ---------- économie ---------- */
+function machCost(mc,owned,qty){
+  const c={};
+  for(const r in mc.cost){
+    let tot=0;
+    for(let i=0;i<qty;i++) tot+=Math.ceil(mc.cost[r]*Math.pow(COST_MULT,owned+i));
+    c[r]=tot;
+  }
+  return c;
+}
+function canPay(cost){ for(const r in cost) if(S.res[r]<cost[r]-1e-9) return false; return true }
+function pay(cost){ for(const r in cost) S.res[r]=Math.max(0,S.res[r]-cost[r]) }
+function maxBuy(mc){
+  let k=0, owned=S.mach[mc.id];
+  const left={...S.res};
+  while(k<5000){
+    let ok=true;
+    const c={};
+    for(const r in mc.cost){c[r]=Math.ceil(mc.cost[r]*Math.pow(COST_MULT,owned+k)); if(left[r]<c[r]-1e-9)ok=false}
+    if(!ok)break;
+    for(const r in c)left[r]-=c[r];
+    k++;
+  }
+  return k;
+}
+function buyMachine(id,qty){
+  const mc=MACH_BY_ID[id];
+  if(qty==='max'){qty=maxBuy(mc); if(!qty)return false}
+  const c=machCost(mc,S.mach[id],qty);
+  if(!canPay(c))return false;
+  pay(c); S.mach[id]+=qty;
+  dirty=true; toast(`+${qty} ${mc.nm}`);
+  return true;
+}
+function sellMachine(id){
+  const mc=MACH_BY_ID[id];
+  if(!mc||S.mach[id]<1)return false;
+  const c=machCost(mc,S.mach[id]-1,1);
+  S.mach[id]--;
+  for(const r in c)S.res[r]+=Math.floor(c[r]*0.5);
+  dirty=true; toast(`−1 ${mc.nm} (50 % remboursé)`);
+  return true;
+}
+function buyResearch(id){
+  const r=RESEARCH_BY_ID[id];
+  if(!r||S.rsc[id]||S.res.science<r.cost-1e-9)return false;
+  S.res.science-=r.cost; S.rsc[id]=1;
+  dirty=true; toast(`Recherche : ${r.nm}`);
+  return true;
+}
+function claimMilestone(id){
+  const m=MILESTONES.find(x=>x.id===id);
+  if(!m||S.done[id]||!m.ok(S))return false;
+  S.done[id]=1;
+  for(const r in m.rw){S.res[r]+=m.rw[r];S.life[r]+=m.rw[r]}
+  dirty=true; toast(`Objectif : ${m.nm} ✓`);
+  return true;
+}
+function launchRocket(){
+  const c=rocketCost(S.rockets);
+  if(!S.rsc.rocketTech||!canPay(c))return false;
+  const gained=fragGain(S.rockets);
+  const keep={rockets:S.rockets+1, frags:S.frags+gained, done:S.done, stats:S.stats};
+  keep.stats.launches=(keep.stats.launches||0)+1;
+  S=freshState(keep);
+  save(); dirty=true;
+  showModal('🚀 Fusée lancée !',
+    `<p>Ton usine est démantelée pour construire la fusée… et tu gagnes <b>${gained} fragments stellaires ✨</b>.</p>
+     <p style="margin-top:6px">Chaque fragment augmente <b>toute</b> ta production de ${Math.round(FRAG_BONUS*100)} %. Bonus total : <b>+${Math.round(S.frags*FRAG_BONUS*100)} %</b>.</p>`,
+    [['Reconstruire !',null]]);
+  return true;
+}
+
+/* ---------- format ---------- */
+const UNITS=['','k','M','Md','T','Q'];
+function fmt(x){
+  if(!isFinite(x))return'∞';
+  if(x<0)x=0;
+  if(x<1000){
+    const fl=Math.floor(x);
+    return (x<100 && x-fl>=.1) ? x.toFixed(1).replace('.',',') : String(fl);
+  }
+  let u=0;
+  while(x>=1000&&u<UNITS.length-1){x/=1000;u++}
+  if(x>=1000)return x.toExponential(1).replace('.',',');
+  return (x>=100?String(Math.floor(x)):x.toFixed(1).replace('.',','))+' '+UNITS[u];
+}
+function fmtRate(x){
+  const a=Math.abs(x);
+  if(a<1e-9)return'';
+  const s=a<10?a.toFixed(2):a<100?a.toFixed(1):fmt(a);
+  return (x>0?'+':'−')+String(s).replace('.',',')+'/s';
+}
+function fmtDur(sec){
+  sec=Math.floor(sec);
+  const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);
+  if(h>0)return`${h} h ${m.toString().padStart(2,'0')} min`;
+  if(m>0)return`${m} min`;
+  return`${sec} s`;
+}
+
+/* ---------- sauvegarde ---------- */
+function save(){
+  S.t=Date.now();
+  try{localStorage.setItem(SAVE_KEY,JSON.stringify(S))}catch(e){}
+}
+function load(){
+  let raw=null;
+  try{raw=localStorage.getItem(SAVE_KEY)}catch(e){}
+  if(!raw)return 0;
+  try{
+    const d=JSON.parse(raw);
+    if(!d||d.v!==1||typeof d.res!=='object')throw 0;
+    const f=freshState();
+    for(const r in f.res){ if(typeof d.res[r]==='number'&&isFinite(d.res[r]))f.res[r]=Math.max(0,d.res[r]);
+                           if(d.life&&typeof d.life[r]==='number'&&isFinite(d.life[r]))f.life[r]=Math.max(0,d.life[r]); }
+    for(const m in f.mach){ if(d.mach&&Number.isInteger(d.mach[m])&&d.mach[m]>=0)f.mach[m]=d.mach[m] }
+    if(d.rsc)for(const k in d.rsc)if(RESEARCH_BY_ID[k])f.rsc[k]=1;
+    if(d.done)for(const k in d.done)f.done[k]=1;
+    f.taps=Number.isFinite(d.taps)?d.taps:0;
+    f.mine=RAWS.includes(d.mine)?d.mine:'ironOre';
+    f.rockets=Number.isInteger(d.rockets)&&d.rockets>=0?d.rockets:0;
+    f.frags=Number.isFinite(d.frags)&&d.frags>=0?d.frags:0;
+    if(d.stats&&typeof d.stats==='object')f.stats={taps:0,launches:0,started:Date.now(),...d.stats};
+    f.t=Number.isFinite(d.t)?d.t:Date.now();
+    S=f;
+    return f.t;
+  }catch(e){return 0}
+}
+
+/* ---------- UI : construction ---------- */
+const $=id=>document.getElementById(id);
+let dirty=true;           // reconstruit les listes au prochain rafraîchissement
+let curTab='usine';
+const seen = r => S.life[r]>0 || S.res[r]>0;
+const el=(tag,cls,html)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(html!==undefined)e.innerHTML=html;return e};
+const refs={res:{},mach:{},rsc:{},obj:{}};
+
+function visSignature(){
+  let sig=curTab+'|';
+  for(const r in RES)sig+=seen(r)?1:0;
+  sig+='|';
+  for(const m of MACHINES)sig+=m.vis(S)?1:0;
+  sig+='|'+Object.keys(S.rsc).length+'|'+(S.rsc.rocketTech?1:0)+'|'+S.rockets;
+  for(const m of MILESTONES)sig+=S.done[m.id]?1:0;
+  return sig;
+}
+let lastSig='';
+
+function rebuild(){
+  dirty=false; lastSig=visSignature();
+
+  /* --- sélecteur de minage --- */
+  const chips=$('mineChips'); chips.innerHTML='';
+  for(const r of RAWS){
+    const b=el('button',S.mine===r?'on':'',`${RES[r].ic} ${RES[r].n.replace('Minerai de ','')}`);
+    b.addEventListener('click',()=>{S.mine=r;$('mineWhat').textContent=RES[r].n.toLowerCase();rebuild()});
+    chips.appendChild(b);
+  }
+  $('mineWhat').textContent=RES[S.mine].n.toLowerCase();
+  $('tapHint').textContent=`+${TAP_POWER(S)} par coup`;
+
+  /* --- ressources --- */
+  const rl=$('resList'); rl.innerHTML=''; refs.res={};
+  let any=false;
+  for(const r in RES){
+    if(!seen(r))continue;
+    any=true;
+    const row=el('div','resRow');
+    row.appendChild(el('span','ic',RES[r].ic));
+    row.appendChild(el('span','nm',RES[r].n));
+    const amt=el('span','amt num','0'); row.appendChild(amt);
+    const rate=el('span','rate num',''); row.appendChild(rate);
+    rl.appendChild(row);
+    refs.res[r]={amt,rate};
+  }
+  if(!any)rl.innerHTML='<div class="hint">Appuie sur MINER pour récolter tes premières ressources.</div>';
+
+  /* --- machines --- */
+  const ml=$('machList'); ml.innerHTML=''; refs.mach={};
+  let lastCat=null, shown=0;
+  for(const mc of MACHINES){
+    if(!mc.vis(S))continue;
+    shown++;
+    if(mc.cat!==lastCat){ml.appendChild(el('div','catHead',CAT_OF[mc.cat]));lastCat=mc.cat}
+    const card=el('div','mach');
+    const top=el('div','top');
+    top.appendChild(el('span','ic',mc.ic));
+    top.appendChild(el('span','nm',mc.nm));
+    const own=el('span','own num','×0'); top.appendChild(own);
+    card.appendChild(top);
+    const io=[];
+    if(mc.inp)io.push('Consomme '+Object.entries(mc.inp).map(([r,v])=>`${String(v).replace('.',',')} ${RES[r].n.toLowerCase()}/s`).join(' + '));
+    io.push('Produit '+Object.entries(mc.out).map(([r,v])=>`${String(v).replace('.',',')} ${RES[r].n.toLowerCase()}/s`).join(' + ')+' (par machine)');
+    card.appendChild(el('div','io',io.join('<br>')));
+    let effI=null;
+    if(mc.inp){const eb=el('div','effbar');effI=el('i');eb.appendChild(effI);card.appendChild(eb)}
+    const cost=el('div','cost'); card.appendChild(cost);
+    const row=el('div','buyRow');
+    const btns={};
+    for(const q of [1,10,'max']){
+      const b=el('button','',q==='max'?'Max':`×${q}`);
+      b.addEventListener('click',()=>{if(buyMachine(mc.id,q))updateAll()});
+      row.appendChild(b); btns[q]=b;
+    }
+    const sb=el('button','sell','Vendre');
+    sb.addEventListener('click',()=>{if(sellMachine(mc.id))updateAll()});
+    row.appendChild(sb); btns.sell=sb;
+    card.appendChild(row);
+    ml.appendChild(card);
+    refs.mach[mc.id]={own,cost,btns,effI};
+  }
+  if(!shown)ml.innerHTML='<div class="card hint">Récolte des ressources pour débloquer tes premières machines.</div>';
+
+  /* --- recherches --- */
+  const kl=$('rscList'); kl.innerHTML=''; refs.rsc={};
+  for(const r of RESEARCH){
+    if(r.req&&!S.rsc[r.req]&&!S.rsc[r.id])continue;
+    const card=el('div','rsc'+(S.rsc[r.id]?' done':''));
+    card.appendChild(el('div','nm',r.nm));
+    card.appendChild(el('div','ds',r.ds));
+    if(S.rsc[r.id]){
+      card.appendChild(el('div','badge','✓ Terminée'));
+    }else{
+      const b=el('button','',`Rechercher — 🧪 ${fmt(r.cost)}`);
+      b.addEventListener('click',()=>{if(buyResearch(r.id))updateAll()});
+      card.appendChild(b);
+      refs.rsc[r.id]=b;
+    }
+    kl.appendChild(card);
+  }
+
+  /* --- fusée --- */
+  const rb=$('rocketBox'); rb.innerHTML='';
+  if(!S.rsc.rocketTech){
+    rb.appendChild(el('div','card hint',
+      'La fusée est encore un rêve lointain…<br><br>Termine la recherche <b>Programme spatial</b> (onglet Labo) pour débloquer le prestige : lancer une fusée réinitialise ton usine mais donne des <b>fragments stellaires ✨</b> qui boostent définitivement toute ta production.'));
+    refs.rocket=null;
+  }else{
+    const card=el('div','card');
+    card.appendChild(el('h2',null,'Lancement de fusée'));
+    card.appendChild(el('div','hint',
+      `Lancement n° ${S.rockets+1} — récompense : <b>${fragGain(S.rockets)} fragments ✨</b> (+${Math.round(fragGain(S.rockets)*FRAG_BONUS*100)} % de production, permanent).<br>⚠️ Réinitialise ressources, machines et recherches. Les objectifs et fragments sont conservés.`));
+    const bars={};
+    const cost=rocketCost(S.rockets);
+    for(const r in cost){
+      const w=el('div','reqbar');
+      const lb=el('div','lb');
+      lb.appendChild(el('span',null,`${RES[r].ic} ${RES[r].n}`));
+      const v=el('span','num',''); lb.appendChild(v);
+      w.appendChild(lb);
+      const bar=el('div','bar'); const fill=el('i'); bar.appendChild(fill); w.appendChild(bar);
+      card.appendChild(w);
+      bars[r]={v,fill,need:cost[r]};
+    }
+    const lb=el('button',null,'🚀 Lancer la fusée'); lb.id='launchBtn';
+    lb.addEventListener('click',()=>{
+      showModal('Lancer la fusée ?',
+        `Tu vas gagner <b>${fragGain(S.rockets)} fragments ✨</b> mais ton usine (ressources, machines, recherches) sera réinitialisée. Continuer ?`,
+        [['Annuler',null,true],['🚀 Lancer !',()=>{launchRocket();updateAll()}]]);
+    });
+    card.appendChild(lb);
+    rb.appendChild(card);
+    refs.rocket={bars,btn:lb};
+  }
+
+  /* --- objectifs --- */
+  const ol=$('objList'); ol.innerHTML=''; refs.obj={};
+  for(const m of MILESTONES){
+    const rw=Object.entries(m.rw).map(([r,q])=>`${RES[r].ic} ${fmt(q)}`).join(' ');
+    const row=el('div','rw');
+    const st=el('span','st',S.done[m.id]?'✅':'⬜'); row.appendChild(st);
+    const tx=el('div','tx');
+    tx.appendChild(el('div','t',m.nm+' — '+m.ds));
+    tx.appendChild(el('div','r','Récompense : '+rw));
+    row.appendChild(tx);
+    let btn=null;
+    if(!S.done[m.id]){
+      btn=el('button',null,'Réclamer');
+      btn.style.display='none';
+      btn.addEventListener('click',()=>{if(claimMilestone(m.id))updateAll()});
+      row.appendChild(btn);
+    }
+    ol.appendChild(row);
+    refs.obj[m.id]={st,btn};
+  }
+}
+
+/* ---------- UI : rafraîchissement ---------- */
+function updateFast(){
+  const rates=netRates();
+  for(const r in refs.res){
+    refs.res[r].amt.textContent=fmt(S.res[r]);
+    const v=rates[r]||0;
+    const rEl=refs.res[r].rate;
+    rEl.textContent=fmtRate(v);
+    rEl.className='rate num '+(v>1e-9?'up':v<-1e-9?'dn':'');
+  }
+  $('hudSci').textContent=fmt(S.res.science);
+  $('labSci').textContent=fmt(S.res.science);
+  const sciRate=rates.science||0;
+  $('labRate').textContent=sciRate>1e-9?`(+${sciRate.toFixed(2).replace('.',',')}/s)`:'';
+  if(S.frags>0){$('hudFragWrap').style.display='';$('hudFrag').textContent=fmt(S.frags)}
+}
+function updateSlow(){
+  /* machines */
+  for(const id in refs.mach){
+    const mc=MACH_BY_ID[id], R2=refs.mach[id], owned=S.mach[id];
+    R2.own.textContent='×'+owned;
+    const c1=machCost(mc,owned,1);
+    R2.cost.innerHTML=Object.entries(c1).map(([r,q])=>
+      `<span class="${S.res[r]>=q-1e-9?'ok':'no'}">${RES[r].ic} ${fmt(q)}</span>`).join('');
+    R2.btns[1].disabled=!canPay(c1);
+    R2.btns[10].disabled=!canPay(machCost(mc,owned,10));
+    R2.btns['max'].disabled=!canPay(c1);
+    R2.btns.sell.disabled=owned<1;
+    if(R2.effI){
+      const e=owned?(EFF[id]!==undefined?EFF[id]:1):0;
+      R2.effI.style.width=Math.round(e*100)+'%';
+      R2.effI.className=e<.5&&owned?'low':'';
+    }
+  }
+  /* recherches */
+  for(const id in refs.rsc)refs.rsc[id].disabled=S.res.science<RESEARCH_BY_ID[id].cost-1e-9;
+  /* fusée */
+  if(refs.rocket){
+    let all=true;
+    for(const r in refs.rocket.bars){
+      const b=refs.rocket.bars[r];
+      const have=S.res[r];
+      b.v.textContent=`${fmt(Math.min(have,b.need))} / ${fmt(b.need)}`;
+      b.fill.style.width=Math.min(100,have/b.need*100)+'%';
+      if(have<b.need-1e-9)all=false;
+    }
+    refs.rocket.btn.disabled=!all;
+  }
+  /* objectifs + pastilles */
+  let claimable=false;
+  for(const m of MILESTONES){
+    const o=refs.obj[m.id];
+    if(!o||S.done[m.id])continue;
+    const ok=m.ok(S);
+    if(o.btn)o.btn.style.display=ok?'':'none';
+    if(ok){claimable=true;o.st.textContent='🟡'}
+  }
+  navDot('plus',claimable);
+  let rscAvail=false;
+  for(const r of RESEARCH)if(!S.rsc[r.id]&&(!r.req||S.rsc[r.req])&&S.res.science>=r.cost)rscAvail=true;
+  navDot('lab',rscAvail);
+  /* stats */
+  $('statsBox').innerHTML=
+    `Coups de pioche : <b class="num">${fmt(S.stats.taps||0)}</b><br>`+
+    `Machines : <b class="num">${totalMachines(S)}</b><br>`+
+    `Fusées lancées : <b class="num">${S.stats.launches||0}</b><br>`+
+    `Fragments stellaires : <b class="num">${fmt(S.frags)}</b> (+${Math.round(S.frags*FRAG_BONUS*100)} % production)<br>`+
+    `Production hors-ligne max : <b>${OFFLINE_CAP(S)/3600} h</b>`;
+  /* déblocages structurels */
+  if(visSignature()!==lastSig)dirty=true;
+}
+function updateAll(){if(dirty)rebuild();updateFast();updateSlow()}
+function navDot(tab,on){
+  const d=document.querySelector(`nav button[data-tab="${tab}"] .dot`);
+  if(d)d.classList.toggle('show',!!on);
+}
+
+/* ---------- modal & toast ---------- */
+function showModal(title,html,btns){
+  $('modalTitle').textContent=title;
+  $('modalBody').innerHTML=html;
+  const box=$('modalBtns'); box.innerHTML='';
+  for(const [label,fn,ghost] of btns){
+    const b=el('button',ghost?'ghost':'',label);
+    b.addEventListener('click',()=>{$('modalBack').classList.remove('show');if(fn)fn()});
+    box.appendChild(b);
+  }
+  $('modalBack').classList.add('show');
+}
+let toastTimer=null;
+function toast(msg){
+  const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),1600);
+}
+
+/* ---------- hors-ligne ---------- */
+function applyOffline(elapsedSec){
+  const capped=Math.min(elapsedSec,OFFLINE_CAP(S));
+  if(capped<10)return;
+  const before={...S.res};
+  simulate(capped);
+  const gains=[];
+  for(const r in RES){
+    const d=S.res[r]-before[r];
+    if(d>0.5)gains.push(`<div class="g"><span>${RES[r].ic} ${RES[r].n}</span><b class="num">+${fmt(d)}</b></div>`);
+  }
+  if(elapsedSec>=120&&gains.length){
+    showModal('⏳ Pendant ton absence…',
+      `<p>Ton usine a tourné pendant <b>${fmtDur(capped)}</b>${elapsedSec>capped+60?` (plafond hors-ligne : ${OFFLINE_CAP(S)/3600} h)`:''} :</p><div style="margin-top:8px">${gains.join('')}</div>`,
+      [['Reprendre le travail',null]]);
+  }
+}
+
+/* ---------- export / import ---------- */
+function exportSave(){
+  save();
+  const b64=btoa(unescape(encodeURIComponent(JSON.stringify(S))));
+  const ta=$('ioArea'); ta.style.display=''; ta.value=b64; ta.focus(); ta.select();
+  let copied=false;
+  try{copied=document.execCommand('copy')}catch(e){}
+  if(navigator.clipboard)navigator.clipboard.writeText(b64).then(()=>toast('Sauvegarde copiée !')).catch(()=>{});
+  else if(copied)toast('Sauvegarde copiée !');
+  else toast('Copie le texte ci-dessous');
+}
+function importSave(){
+  const ta=$('ioArea');
+  if(ta.style.display==='none'||!ta.value.trim()){
+    ta.style.display=''; ta.value=''; ta.focus();
+    toast('Colle ta sauvegarde puis appuie de nouveau');
+    return;
+  }
+  try{
+    const json=decodeURIComponent(escape(atob(ta.value.trim())));
+    const d=JSON.parse(json);
+    if(!d||d.v!==1)throw 0;
+    localStorage.setItem(SAVE_KEY,JSON.stringify(d));
+    load(); dirty=true; updateAll();
+    toast('Sauvegarde importée !');
+    ta.style.display='none';
+  }catch(e){toast('Sauvegarde invalide')}
+}
+
+/* ---------- boucle ---------- */
+let lastT=Date.now();
+function loop(){
+  const now=Date.now();
+  let dt=(now-lastT)/1000;
+  lastT=now;
+  if(dt<=0)return;
+  if(dt>60){applyOffline(dt);dt=0}
+  else tick(dt);
+  updateAll();
+}
+let slowAcc=0;
+
+/* ---------- démarrage ---------- */
+function init(){
+  const savedAt=load();
+  if(savedAt){
+    const elapsed=(Date.now()-savedAt)/1000;
+    if(elapsed>10)applyOffline(elapsed);
+  }
+
+  /* onglets */
+  document.querySelectorAll('nav button').forEach(b=>{
+    b.addEventListener('click',()=>{
+      curTab=b.dataset.tab;
+      document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+      document.querySelectorAll('main section').forEach(s=>s.classList.toggle('on',s.id==='tab-'+curTab));
+      $('main').scrollTop=0;
+      updateAll();
+    });
+  });
+
+  /* minage */
+  $('mineBtn').addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    const p=TAP_POWER(S);
+    S.res[S.mine]+=p; S.life[S.mine]+=p;
+    S.taps++; S.stats.taps=(S.stats.taps||0)+1;
+    if(dirty)rebuild();
+    updateFast();
+  });
+
+  /* réglages */
+  $('btnExport').addEventListener('click',exportSave);
+  $('btnImport').addEventListener('click',importSave);
+  $('btnReset').addEventListener('click',()=>{
+    showModal('Tout effacer ?','Toute ta progression (y compris les fragments ✨) sera définitivement supprimée.',
+      [['Annuler',null,true],['Tout effacer',()=>{
+        try{localStorage.removeItem(SAVE_KEY)}catch(e){}
+        S=freshState(); dirty=true; updateAll(); toast('Nouvelle partie');
+      }]]);
+  });
+
+  /* sauvegarde automatique */
+  setInterval(save,10000);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden)save();
+    else lastT=Date.now()-1; // évite un faux « hors-ligne » : loop gérera le vrai dt via applyOffline si besoin
+  });
+  window.addEventListener('pagehide',save);
+
+  /* boucle 4 Hz + rafraîchissement lent 1 Hz */
+  setInterval(()=>{
+    loop();
+    slowAcc++;
+    if(slowAcc>=4){slowAcc=0;/* updateSlow déjà appelé dans updateAll */}
+  },250);
+
+  rebuild(); updateAll();
+
+  /* PWA (ignoré si non https / non supporté) */
+  if('serviceWorker' in navigator&&location.protocol==='https:'){
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  }
+}
+init();
+
+/* accès pour tests automatisés */
+window.G={get S(){return S},set S(v){S=v},tick,simulate,buyMachine,sellMachine,buyResearch,claimMilestone,launchRocket,save,load,fmt,machCost,maxBuy,netRates,catMult,updateAll,freshState,applyOffline,MACHINES,RESEARCH,MILESTONES,rocketCost,fragGain};
+</script>
+</body>
+</html>
