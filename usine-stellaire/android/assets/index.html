@@ -117,6 +117,17 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;tou
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   box-shadow:0 4px 14px rgba(0,0,0,.4);
 }
+/* ---------- minimap ---------- */
+#minimap{
+  position:fixed;left:10px;bottom:calc(150px + env(safe-area-inset-bottom));z-index:10;
+  width:100px;height:100px;border-radius:12px;overflow:hidden;
+  border:1.5px solid rgba(242,161,61,.4);background:#12171f;
+  box-shadow:0 4px 16px rgba(0,0,0,.5);pointer-events:auto;
+}
+#mini{width:100%;height:100%;display:block;image-rendering:pixelated}
+@media (orientation:landscape){
+  #minimap{bottom:calc(12px + env(safe-area-inset-bottom));width:92px;height:92px}
+}
 /* mode construction */
 #buildCtl{
   position:fixed;left:0;right:0;bottom:calc(78px + env(safe-area-inset-bottom));
@@ -278,6 +289,7 @@ textarea#ioArea{
   </div>
 </div>
 
+<div id="minimap"><canvas id="mini" width="136" height="136"></canvas></div>
 <div id="ctxWrap"><button id="ctxBtn">⛏️ Miner</button></div>
 <button id="recenter">🎯</button>
 <div id="buildCtl">
@@ -640,6 +652,24 @@ function invTake(item,q){
 }
 function canAfford(cost){for(const k in cost)if((S.inv[k]||0)<cost[k])return false;return true}
 function payCost(cost){for(const k in cost)invTake(k,cost[k])}
+/* vider une partie/tout d'un objet du sac (anti-blocage : sac plein) */
+function invDrop(item,qty){
+  const t=Math.min(qty,S.inv[item]||0);
+  if(t>0){S.inv[item]-=t;if(S.inv[item]<=0)delete S.inv[item]}
+  return t;
+}
+/* déverser tout le sac dans un coffre voisin/sélectionné (garde ce qui déborde) */
+function dumpBagInto(e){
+  const b=BUILDINGS[e.t]; if(!b||!b.chest)return 0;
+  let moved=0;
+  for(const k of Object.keys(S.inv)){
+    let room=b.cap; for(const q in e.inb)room-=e.inb[q];
+    if(room<=0)break;
+    const t=Math.min(S.inv[k],room);
+    if(t>0){invTake(k,t);e.inb[k]=(e.inb[k]||0)+t;moved+=t}
+  }
+  return moved;
+}
 
 /* ---------- placement ---------- */
 function canPlace(type,x,y,silent){
@@ -700,6 +730,18 @@ function beltEntry(e,item){ // un objet peut-il entrer sur ce convoyeur ?
   return true;
 }
 function outTotal(e){let n=0;for(const k in e.outb)n+=e.outb[k];return n}
+/* machine bloquée ? (pour l'alerte ⚠️ anti-blocage) → 0:ok 1:sortie pleine 2:sans intrant */
+function blockedState(e){
+  const b=BUILDINGS[e.t];
+  if(b.mine)return outTotal(e)>=BCAP?1:0;
+  if(b.recipes){
+    if(e.ri>=0)return 0;                 // en cours de production
+    if(outTotal(e)>=BCAP+2)return 1;     // sortie saturée
+    for(const r of b.recipes){let okr=true;for(const k in r.in)if((e.inb[k]||0)<r.in[k]){okr=false;break}if(okr)return 0}
+    return 2;                            // aucun intrant complet
+  }
+  return 0; // coffres / convoyeurs / silo : pas d'alerte
+}
 
 function tick(dt){
   /* machines : production */
@@ -1011,6 +1053,60 @@ function buildTextures(){
   for(const dk in DEPOSITS)R3D.tex.ore[dk]=oreCanvas(DEPOSITS[dk].item==='ironOre'?'iron':DEPOSITS[dk].item==='copperOre'?'copper':DEPOSITS[dk].item==='coal'?'coal':'stone');
 }
 
+/* ---------- minimap (anti-perdu sur la grande carte) ---------- */
+const MINI=136;
+function buildMiniStatic(){
+  const cv=document.createElement('canvas'); cv.width=cv.height=MINI;
+  const g=cv.getContext('2d');
+  const img=g.createImageData(MINI,MINI), sc=MINI/MAP;
+  const depCol={};
+  for(const dk in DEPOSITS){const c=DEPOSITS[dk].col;depCol[dk]=[(c>>16)&255,(c>>8)&255,c&255]}
+  for(let py=0;py<MINI;py++)for(let px=0;px<MINI;px++){
+    const tx=Math.min(MAP-1,Math.floor(px/sc)), ty=Math.min(MAP-1,Math.floor(py/sc));
+    const t=terrAt(tx,ty), d=depAt(tx,ty);
+    let c;
+    if(t===3)c=[36,42,52];
+    else if(d)c=depCol[d];
+    else{
+      const bc=BIOMES[bioAt(tx,ty)].ground, r=(bc>>16)&255,gg=(bc>>8)&255,b=bc&255;
+      c=t===2?[Math.max(0,r-40),Math.max(0,gg-30),Math.max(0,b-40)]:[r,gg,b];
+    }
+    const o=(py*MINI+px)*4; img.data[o]=c[0];img.data[o+1]=c[1];img.data[o+2]=c[2];img.data[o+3]=255;
+  }
+  g.putImageData(img,0,0);
+  R3D.miniStatic=cv;
+}
+function drawMini(){
+  const cv=document.getElementById('mini'); if(!cv||!R3D.miniStatic)return;
+  const g=cv.getContext('2d'), sc=MINI/MAP;
+  g.clearRect(0,0,MINI,MINI);
+  g.drawImage(R3D.miniStatic,0,0);
+  // bâtiments (silo distinct)
+  for(const e of S.ents){
+    if(BUILDINGS[e.t].belt)continue;
+    if(BUILDINGS[e.t].silo){g.fillStyle='#b08ae8';g.fillRect(e.x*sc-1.5,e.y*sc-1.5,3.5,3.5)}
+    else{g.fillStyle='#ffd27a';g.fillRect(e.x*sc-1,e.y*sc-1,2,2)}
+  }
+  // vue caméra (cadre)
+  if(R3D.target){
+    const cx=(R3D.target.x+MAP/2)*sc, cy=(R3D.target.z+MAP/2)*sc, hw=R3D.zoom*sc*.6;
+    g.strokeStyle='rgba(255,255,255,.35)';g.lineWidth=1;g.strokeRect(cx-hw,cy-hw*.7,hw*2,hw*1.4);
+  }
+  // joueur
+  const jx=S.px*sc, jy=S.py*sc;
+  g.fillStyle='#ff5a4a';g.beginPath();g.arc(jx,jy,2.8,0,7);g.fill();
+  g.strokeStyle='#fff';g.lineWidth=1.2;g.beginPath();g.arc(jx,jy,2.8,0,7);g.stroke();
+}
+function miniTap(cx,cy){
+  const rect=document.getElementById('mini').getBoundingClientRect();
+  const sc=MINI/MAP;
+  const tx=(cx-rect.left)/rect.width*MINI/sc, ty=(cy-rect.top)/rect.height*MINI/sc;
+  if(tx<0||ty<0||tx>=MAP||ty>=MAP)return;
+  R3D.target.x=tx-MAP/2; R3D.target.z=ty-MAP/2; R3D.target.y=groundH(tx,ty);
+  R3D.follow=false; document.getElementById('recenter').style.display='block';
+  camUpdate();
+}
+
 function initRender(){
   const canvas=document.getElementById('c3d');
   let renderer;
@@ -1031,6 +1127,7 @@ function initRender(){
   /* --- textures & sol --- */
   buildTextures();
   genGroundMeshes(scene);
+  buildMiniStatic();
 
   /* --- perso --- */
   const ch=buildCharacter();
@@ -1360,8 +1457,19 @@ function rebuildWorldMeshes(){
   for(const [,m] of R3D.entMeshes)R3D.scene.remove(m);
   R3D.entMeshes.clear();
   genGroundMeshes(R3D.scene);
+  buildMiniStatic();
   for(const e of S.ents)addEntMesh(e);
   R3D.follow=true;
+}
+/* petit marqueur ⚠️ flottant au-dessus d'une machine bloquée */
+function makeWarn(){
+  const grp=new T.Group();
+  const bub=new T.Mesh(new T.SphereGeometry(.16,10,10),mat(0xf2a13d,{emissive:0xf2a13d,emissiveIntensity:.7}));
+  const bar=new T.Mesh(new T.BoxGeometry(.04,.13,.04),mat(0x241503));
+  bar.position.y=.02; const dot=new T.Mesh(new T.BoxGeometry(.04,.04,.04),mat(0x241503)); dot.position.y=-.06;
+  grp.add(bub);grp.add(bar);grp.add(dot);
+  grp.position.y=1.35;
+  return grp;
 }
 
 /* boucle de rendu */
@@ -1382,8 +1490,12 @@ function renderFrame(dt){
     R3D.target.y+=(ph-R3D.target.y)*Math.min(1,dt*6);
   }
   camUpdate();
-  // animations bâtiments
+  // animations bâtiments + marqueur ⚠️
   for(const [e,m] of R3D.entMeshes){
+    if(m.userData.warn&&m.userData.warn.visible){
+      m.userData.warn.position.y=1.35+Math.sin(animT*4)*.08;
+      m.userData.warn.rotation.y+=dt*1.5;
+    }
     const p=m.userData.animPart; if(!p)continue;
     const active=e.anim||((e.ri!==undefined&&e.ri>=0)?1:0);
     switch(m.userData.animKind){
@@ -1681,13 +1793,33 @@ function openInvSheet(){
   const body=openSheet(`Sac — ${invCount()}/${INV_CAP(S)}`,'inv');
   const ks=Object.keys(S.inv).filter(k=>S.inv[k]>0);
   if(!ks.length){body.innerHTML='<div class="hint">Sac vide. Approche-toi d’un gisement et mine, ou récupère la production de tes machines.</div>';return}
+  const full=invCount()>=INV_CAP(S);
+  if(full)body.insertAdjacentHTML('beforeend','<div class="hint" style="color:var(--bad);margin-bottom:6px">⚠️ Sac plein : jette ou dépose des objets pour continuer à miner.</div>');
   for(const k of ks){
+    const card=el('div','card');
     const row=el('div','invrow');
     row.appendChild(el('span',null,ITEMS[k].ic));
     row.appendChild(el('span','n',ITEMS[k].n));
     row.appendChild(el('b','num',fmt(S.inv[k])));
-    body.appendChild(row);
+    card.appendChild(row);
+    const btns=el('div',null); btns.style.cssText='display:flex;gap:7px;margin-top:7px';
+    const half=el('button','rowbtn red','Jeter la moitié'); half.style.margin='0';
+    half.addEventListener('click',()=>{invDrop(k,Math.ceil((S.inv[k]||0)/2));sfx('sell');buzz(12);openInvSheet();updateHUD()});
+    const all=el('button','rowbtn red','Tout jeter'); all.style.margin='0';
+    all.addEventListener('click',()=>{
+      const n=S.inv[k]||0;
+      if(n>=100){showModal('Tout jeter ?',`Jeter <b>${fmt(n)} ${ITEMS[k].n.toLowerCase()}</b> ? C’est définitif.`,
+        [['Annuler',null,true],['Jeter',()=>{invDrop(k,n);sfx('sell');buzz(20);openInvSheet();updateHUD()}]]);}
+      else{invDrop(k,n);sfx('sell');buzz(12);openInvSheet();updateHUD()}
+    });
+    btns.appendChild(half);btns.appendChild(all);
+    card.appendChild(btns);
+    body.appendChild(card);
   }
+  const hint=el('div','hint');
+  hint.textContent='Astuce : sélectionne un coffre 📦 sur la carte pour y déverser tout ton sac d’un coup.';
+  hint.style.marginTop='4px';
+  body.appendChild(hint);
 }
 
 /* --- feuille recherche --- */
@@ -1813,7 +1945,19 @@ function renderEntContents(e,box){
     box.appendChild(el('div','hint',`Objets sur le tapis : ${e.items.length}/${BELT_CAP} — direction : ${['→ est','↓ sud','← ouest','↑ nord'][e.d]}`));
     return;
   }
-  if(b.chest){mk('Contenu :',e.inb,true);return}
+  if(b.chest){
+    mk('Contenu :',e.inb,true);
+    if(invCount()>0){
+      const dp=el('button','rowbtn','⬇️ Déverser tout mon sac ici');
+      dp.addEventListener('click',()=>{
+        const n=dumpBagInto(e);
+        toast(n>0?`${n} objets rangés dans le coffre`:'Coffre plein !');
+        sfx('buy');buzz(15);renderEntContents(e,box);updateHUD();
+      });
+      box.appendChild(dp);
+    }
+    return;
+  }
   if(b.mine){mk('Production (récupère ou laisse les voisins se servir) :',e.outb,true);return}
   // machine à recettes
   mk('Entrées :',e.inb,false);
@@ -2050,6 +2194,20 @@ function slowUpdate(){
     if(lb)lb.disabled=!siloReady(R3D.selected);
   }
   if(SHEET==='rsc'){/* les boutons se mettent à jour à la réouverture */}
+  // marqueurs ⚠️ des machines bloquées (temporisés pour éviter le clignotement)
+  let stuck=0;
+  if(R3D.ready){
+    for(const [e,m] of R3D.entMeshes){
+      const blk=blockedState(e);
+      e.stuckT=blk?(e.stuckT||0)+0.5:0;
+      const show=e.stuckT>=2;
+      if(show)stuck++;
+      let w=m.userData.warn;
+      if(show&&!w){w=makeWarn();m.add(w);m.userData.warn=w}
+      if(w)w.visible=show;
+    }
+    drawMini();
+  }
   updateHUD();
 }
 
@@ -2105,6 +2263,7 @@ function init(){
   $('ctxBtn').addEventListener('pointerdown',e=>{e.preventDefault();mineAction()});
   $('btnGuide').addEventListener('click',()=>SHEET==='guide'?closeSheet():openGuideSheet());
   $('quest').addEventListener('click',()=>SHEET==='guide'?closeSheet():openGuideSheet());
+  $('mini').addEventListener('pointerdown',e=>{e.preventDefault();miniTap(e.clientX,e.clientY)});
   $('recenter').addEventListener('click',()=>{R3D.follow=true;$('recenter').style.display='none'});
   $('tbBuild').addEventListener('click',()=>{if(BUILD.active)exitBuild();SHEET==='build'?closeSheet():openBuildSheet()});
   $('tbInv').addEventListener('click',()=>SHEET==='inv'?closeSheet():openInvSheet());
@@ -2135,7 +2294,8 @@ window.G={
   WORLD,MAP,BUILDINGS,RESEARCH,QUESTS,ACHIEVEMENTS,ITEMS,DEPOSITS,
   tick,simulate,genWorld,findPath,walkable,terrAt,depAt,
   placeBuilding,canPlace,demolish,mineAction,goTo,movePlayer,
-  invAdd,invTake,invCount,canAfford,
+  invAdd,invTake,invCount,invDrop,dumpBagInto,canAfford,
+  blockedState,drawMini,buildMiniStatic,miniTap,openInvSheet,
   siloNeed,siloReady,launchRocket,fragGain,
   save,load,applyOffline,freshState,speedMult,beltSpeed,walkSpeed,globalMult,
   fmt,fmtDur,updateHUD,slowUpdate,rebuildWorldMeshes,

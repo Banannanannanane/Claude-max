@@ -1,5 +1,5 @@
 /* Usine Stellaire — service worker : tout en cache, 100 % hors-ligne */
-const CACHE = 'usine-stellaire-v5';
+const CACHE = 'usine-stellaire-v6';
 const ASSETS = ['./', './index.html', './three.bundle.js', './classique.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

@@ -19,6 +19,12 @@ Factorio et Satisfactory. **100 % hors-ligne, 100 % gratuit, sans pub, sans comp
   carte** : foreuses (sur gisements), fours, ateliers, assembleurs, labos…
 - ➡️ **Convoyeurs** : les objets circulent physiquement dessus ; les machines
   adjacentes s'alimentent aussi directement. Coffres de stockage.
+- 🗺️ **Minimap** (coin bas-gauche) : biomes, gisements, tes bâtiments et ta
+  position ; touche-la pour recadrer la caméra — impossible de se perdre
+- 🎒 **Gestion du sac anti-blocage** : jette la moitié / tout un objet, ou
+  **déverse tout ton sac dans un coffre** d'un seul geste (sac plein signalé)
+- ⚠️ **Alertes machines** : un panneau ⚠️ flotte au-dessus des machines
+  bloquées (sans intrant ou sortie pleine) — tu vois d'un coup d'œil où ça coince
 - ❓ **Guide** intégré (bouton en haut) + 16 objectifs façon tutoriel
 - 🧪 18 recherches · 🏆 11 succès (+2 % de vitesse chacun)
 - ⏳ L'usine tourne quand le jeu est fermé (2 h → 24 h par recherche)
@@ -55,10 +61,11 @@ puis ouvre `usine-stellaire/` et « Ajouter à l'écran d'accueil ».
 - Simulation à pas fixe (100 ms) : recettes, tampons, déversement par adjacence,
   files d'objets sur convoyeurs ; hors-ligne rejoué à pas de 250-500 ms
 - Sauvegarde `localStorage` versionnée et validée (résiste à la corruption)
-- **51 + 17 tests Playwright** (monde, biomes, relief, A*, placement, convoyeurs,
-  recettes, silo/prestige, sauvegarde, hors-ligne, robot, intro, guide, stress
-  méga-base) + **9 tests tactiles E2E** (tap-déplacement, minage, glisser-caméra
-  y compris **diagonale**, sélection sur relief)
+- **104 tests Playwright** répartis en 5 suites : monde/biomes/relief/A*/
+  placement/convoyeurs/recettes/silo-prestige/sauvegarde/hors-ligne (51),
+  biomes/relief/robot/intro/guide/HUD (21), tactile E2E dont glisser diagonal
+  et sélection sur relief (9), bug-hunt/fuzz d'interface (10), et anti-blocage :
+  vider le sac, déverser dans un coffre, minimap, alertes machines (13)
 - APK : WebView + pont de vibration natif, compilée sans Gradle
   (javac → D8 → aapt → zipalign → apksigner), signée v1+v2+v3, orientation libre,
   minSdk 23 / targetSdk 28
