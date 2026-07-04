@@ -35,31 +35,44 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;tou
   display:flex;gap:8px;align-items:flex-start;pointer-events:none;
 }
 #quest{
-  flex:1;background:rgba(22,28,37,.92);border:1px solid var(--line);border-radius:var(--r);
-  padding:8px 11px;pointer-events:auto;min-width:0;
+  flex:1;background:rgba(18,23,31,.82);border:1px solid rgba(242,161,61,.35);border-radius:14px;
+  padding:8px 12px 9px;pointer-events:auto;min-width:0;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:0 4px 16px rgba(0,0,0,.35);
 }
-#quest .q1{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--amber-soft)}
-#quest .q2{font-size:12.5px;color:#c6d0dd}
-#hudR{display:flex;flex-direction:column;gap:6px;pointer-events:auto}
+#quest .q1{font-size:10px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--amber-soft)}
+#quest .q1 span{color:var(--mut);letter-spacing:0}
+#quest .q2{font-size:12.5px;color:#dbe4ee;margin-top:1px}
+#questBar{height:3px;border-radius:2px;background:#2b3546;overflow:hidden;margin-top:7px}
+#questBar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#f2a13d,#ffc46b);transition:width .5s}
+#hudR{display:flex;flex-direction:column;gap:6px;pointer-events:auto;align-items:flex-end}
 .chip{
-  background:rgba(22,28,37,.92);border:1px solid var(--line);border-radius:99px;
+  background:rgba(18,23,31,.82);border:1px solid var(--line);border-radius:12px;
   padding:5px 11px;font-size:12.5px;font-weight:700;white-space:nowrap;text-align:right;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:0 4px 16px rgba(0,0,0,.35);
 }
-/* ---------- barre bas ---------- */
+#btnGuide{color:var(--sci);border-color:#29465c}
+#bagChip{position:relative;padding-bottom:8px}
+#bagBar{position:absolute;left:10px;right:10px;bottom:4px;height:2.5px;border-radius:2px;background:#2b3546;overflow:hidden}
+#bagBar i{display:block;height:100%;width:0;background:var(--amber);transition:width .3s}
+#bagBar i.full{background:var(--bad)}
+/* ---------- barre bas (dock) ---------- */
 #botbar{
-  position:fixed;left:0;right:0;bottom:0;z-index:10;
-  padding:8px 10px calc(10px + env(safe-area-inset-bottom));
-  display:flex;gap:8px;justify-content:center;pointer-events:none;
+  position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom));z-index:10;
+  display:flex;gap:4px;padding:6px;
+  background:rgba(18,23,31,.85);border:1px solid var(--line);border-radius:20px;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:0 6px 22px rgba(0,0,0,.45);
 }
 #botbar button{
-  pointer-events:auto;background:rgba(22,28,37,.94);border:1px solid var(--line);
-  border-radius:14px;padding:9px 0;width:74px;
+  background:transparent;border-radius:14px;padding:8px 0;width:76px;
   display:flex;flex-direction:column;align-items:center;gap:2px;
   font-size:10.5px;font-weight:600;color:var(--mut);position:relative;
 }
 #botbar button .ic{font-size:20px;line-height:1}
-#botbar button.on{border-color:var(--amber);color:var(--amber-soft)}
-#botbar button .dot{position:absolute;top:5px;right:9px;width:8px;height:8px;border-radius:50%;background:var(--amber);display:none}
+#botbar button.on{background:rgba(242,161,61,.14);color:var(--amber-soft)}
+#botbar button .dot{position:absolute;top:5px;right:11px;width:8px;height:8px;border-radius:50%;background:var(--amber);display:none}
 #botbar button .dot.show{display:block}
 /* bouton contextuel central (MINER / recentrer) */
 #ctxWrap{position:fixed;left:0;right:0;bottom:calc(78px + env(safe-area-inset-bottom));display:flex;justify-content:center;z-index:10;pointer-events:none}
@@ -156,6 +169,47 @@ textarea#ioArea{
 }
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 #glErr{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:30px;text-align:center;color:var(--mut);z-index:100;background:var(--bg)}
+/* ---------- intro / cinématique ---------- */
+#intro{position:fixed;inset:0;z-index:45;display:flex;align-items:flex-end;justify-content:center;
+  background:radial-gradient(ellipse at 50% 20%,rgba(28,38,58,.88),rgba(10,13,19,.94));
+  transition:opacity .6s}
+#intro.seeThrough{background:linear-gradient(180deg,rgba(10,13,19,.55) 0%,rgba(10,13,19,.1) 40%,rgba(10,13,19,.75) 78%)}
+#intro.out{opacity:0;pointer-events:none}
+#introCard{
+  width:100%;max-width:480px;margin:0 14px calc(24px + env(safe-area-inset-bottom));
+  background:rgba(18,23,31,.92);border:1px solid var(--line);border-radius:18px;padding:20px 18px;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+#introTx{font-size:15.5px;line-height:1.6;color:#dbe4ee;min-height:74px}
+#introTx .eyebrow{display:block;font-size:10.5px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--amber-soft);margin-bottom:8px}
+#introBtns{display:flex;gap:9px;margin-top:16px}
+#introBtns button{
+  flex:1;padding:12px 0;border-radius:12px;font-weight:800;font-size:14px;
+  background:linear-gradient(180deg,#f2a13d,#d97f1e);color:#241503;
+}
+#introBtns button.ghost{flex:.6;background:transparent;border:1px solid var(--line);color:var(--mut)}
+.cLbl{font-size:10.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--mut);margin:12px 0 6px}
+.cChips{display:flex;gap:7px;flex-wrap:wrap}
+.cChips button{
+  padding:8px 13px;border-radius:10px;border:1.5px solid var(--line);background:var(--panel2);
+  font-size:13px;font-weight:700;color:var(--mut);
+}
+.cChips button.on{border-color:var(--amber);color:var(--tx);background:#2a2113}
+.cChips button .sw{display:inline-block;width:13px;height:13px;border-radius:4px;vertical-align:-2px;margin-right:5px}
+
+/* ---------- paysage (téléphone tourné) ---------- */
+@media (orientation:landscape){
+  #sheet{
+    left:auto;right:0;top:0;bottom:0;margin:0;
+    width:min(430px,55vw);height:100dvh;max-height:100dvh;
+    border-radius:18px 0 0 18px;border-bottom:none;border-left:1px solid var(--line);
+  }
+  #quest{max-width:46vw}
+  #topbar{padding-top:8px}
+  #hudR{flex-direction:row;flex-wrap:wrap;justify-content:flex-end;max-width:46vw}
+  #ctxWrap{bottom:calc(86px + env(safe-area-inset-bottom))}
+  #introCard{margin-bottom:14px;max-height:88dvh;overflow-y:auto}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -164,11 +218,23 @@ textarea#ioArea{
 <div id="glErr"><div>⚠️ Ton navigateur ne supporte pas WebGL,<br>impossible d'afficher le monde 3D.</div></div>
 
 <div id="topbar">
-  <div id="quest"><div class="q1">Objectif</div><div class="q2" id="questTx"></div></div>
+  <div id="quest"><div class="q1">Objectif <span id="questN" class="num"></span></div><div class="q2" id="questTx"></div><div id="questBar"><i id="questFill"></i></div></div>
   <div id="hudR">
     <div class="chip">🧪 <span id="hudSci" class="num">0</span></div>
     <div class="chip" id="hudFrag" style="display:none">✨ <span id="hudFragN" class="num">0</span></div>
-    <div class="chip">🎒 <span id="hudInv" class="num">0</span></div>
+    <div class="chip" id="bagChip">🎒 <span id="hudInv" class="num">0</span><div id="bagBar"><i id="bagFill"></i></div></div>
+    <button class="chip" id="btnGuide">❓ Guide</button>
+  </div>
+</div>
+
+<div id="intro" style="display:none">
+  <div id="introCard">
+    <div id="introTx"></div>
+    <div id="customBox" style="display:none">
+      <div class="cLbl">Tête</div><div class="cChips headChips"></div>
+      <div class="cLbl">Couleur</div><div class="cChips colorChips"></div>
+    </div>
+    <div id="introBtns"></div>
   </div>
 </div>
 
@@ -315,8 +381,17 @@ const QUESTS=[
   {tx:'Colonie établie ! Agrandis ton usine, relance des fusées (coût ×2, fragments ✨ permanents)',ok:s=>false,rw:{}},
 ];
 
+/* ---------- biomes ---------- */
+const BIOMES={
+  prairie: {n:'Prairie',  ground:0x3e5c44, alt:0x476549, tree:'pine',   leaf:0x2f6b46, trunk:0x5a4630, density:.55},
+  savane:  {n:'Savane',   ground:0x8f7d43, alt:0x99884d, tree:'acacia', leaf:0x6d8a3a, trunk:0x7a5a35, density:.30},
+  neige:   {n:'Neige',    ground:0xc7d2db, alt:0xd5dee6, tree:'spruce', leaf:0x3d6b55, trunk:0x4a3d33, density:.50},
+  badlands:{n:'Badlands', ground:0x8a5a40, alt:0x966549, tree:'dead',   leaf:0x8a795f, trunk:0x6a4a35, density:.15},
+};
+const BIOME_LIST=Object.keys(BIOMES);
+
 /* ---------- constantes ---------- */
-const MAP=56;               // taille de la carte
+const MAP=160;              // taille de la carte (~8x la version d'origine)
 const SIM_DT=0.1;           // pas de simulation (s)
 const BELT_GAP=0.34;        // espacement min des objets sur un convoyeur
 const BELT_CAP=3;
@@ -329,7 +404,7 @@ const MINE_POW=s=>s.rsc.mine1?4:2;
 const DIRS=[[1,0],[0,1],[-1,0],[0,-1]]; // 0:+x 1:+z 2:-x 3:-z
 
 /* ---------- état ---------- */
-const SAVE_KEY='usineColonie.v1';
+const SAVE_KEY='usineColonie.v2';
 function freshState(keep){
   return {
     v:3, t:Date.now(), seed:(Math.random()*1e9)|0,
@@ -341,6 +416,8 @@ function freshState(keep){
     rockets: keep&&keep.rockets||0,
     frags:   keep&&keep.frags||0,
     ach:     keep&&keep.ach||{},
+    robot:   keep&&keep.robot||{color:0,head:0},
+    introDone: keep&&keep.introDone?1:0,
     set:     keep&&keep.set||{sound:true,vib:true},
     stats:   keep&&keep.stats||{mined:0,walked:0,built:0,belts:0,crits:0,launches:0,playTime:0},
   };
@@ -365,32 +442,74 @@ function walkSpeed(s){s=s||S;return 3.2*(s.rsc.walk1?1.4:1)*(s.rsc.walk2?1.4:1)}
 
 /* ---------- génération du monde (déterministe par graine) ---------- */
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-const WORLD={terr:null,dep:null,rng:null};
-// terr : 0 herbe, 1 rocher (bloquant), 2 arbre (bloquant), 3 montagne bord
+const WORLD={terr:null,dep:null,bio:null,rng:null};
+// terr : 0 sol, 1 rocher (bloquant), 2 arbre (bloquant), 3 montagne bord
+const hash2=(x,y)=>{let h=(x*374761393+y*668265263)|0;h=(h^(h>>>13))*1274126177|0;return ((h^(h>>>16))>>>0)/4294967296};
 function genWorld(seed){
   const rng=mulberry32(seed); WORLD.rng=rng;
-  const terr=new Uint8Array(MAP*MAP), dep=new Array(MAP*MAP).fill(null);
+  const terr=new Uint8Array(MAP*MAP), dep=new Array(MAP*MAP).fill(null), bio=new Uint8Array(MAP*MAP);
   for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++){
     if(x<2||y<2||x>=MAP-2||y>=MAP-2)terr[y*MAP+x]=3;
   }
-  // amas de rochers
-  for(let i=0;i<26;i++){
+  // biomes : voronoï bruité, prairie garantie au centre (zone de départ)
+  const seeds=[[MAP/2,MAP/2,0]];
+  const pool=[1,2,3,1,2,3,0];
+  for(let i=0;i<9;i++)seeds.push([4+rng()*(MAP-8),4+rng()*(MAP-8),pool[(rng()*pool.length)|0]]);
+  for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++){
+    let bi=0,bd=1e9;
+    for(const [sx,sy,b] of seeds){
+      const d=(x-sx)*(x-sx)+(y-sy)*(y-sy)+hash2(x+seed,y-seed)*260;
+      if(d<bd){bd=d;bi=b}
+    }
+    bio[y*MAP+x]=bi;
+  }
+  // ---- relief : champ de hauteur (value noise 3 octaves) ----
+  const H=new Float32Array(MAP*MAP);
+  const oct=(fx,fy,sh)=>{ // bruit de valeur bilinéaire
+    const gx=Math.floor(fx),gy=Math.floor(fy),tx=fx-gx,ty=fy-gy;
+    const sm=t=>t*t*(3-2*t);
+    const v=(ax,ay)=>hash2(ax+sh*97,ay-sh*57);
+    const a=v(gx,gy),b=v(gx+1,gy),c2=v(gx,gy+1),d2=v(gx+1,gy+1);
+    const u=sm(tx),w=sm(ty);
+    return (a*(1-u)+b*u)*(1-w)+(c2*(1-u)+d2*u)*w;
+  };
+  for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++){
+    const h=oct(x/22,y/22,1)*.62+oct(x/9,y/9,2)*.26+oct(x/4,y/4,3)*.12;
+    let hv=(h-.5)*3.4;               // amplitude du relief
+    const dc=Math.hypot(x-MAP/2,y-MAP/2);
+    if(dc<13)hv*=Math.min(1,dc/13);  // zone de départ aplatie
+    if(terr[y*MAP+x]===3)hv=2.2+h*1.6; // rempart montagneux au bord
+    H[y*MAP+x]=hv;
+  }
+  WORLD.h=H;
+  // amas de rochers (densité ~carte)
+  for(let i=0;i<190;i++){
     let x=3+((rng()*(MAP-6))|0), y=3+((rng()*(MAP-6))|0);
-    const n=2+(rng()*5|0);
+    const n=2+(rng()*6|0);
     for(let j=0;j<n;j++){
-      if(Math.abs(x-MAP/2)<5&&Math.abs(y-MAP/2)<5)break;
+      if(Math.abs(x-MAP/2)<7&&Math.abs(y-MAP/2)<7)break;
       if(x>2&&y>2&&x<MAP-3&&y<MAP-3)terr[y*MAP+x]=1;
       x+=(rng()*3|0)-1; y+=(rng()*3|0)-1;
     }
   }
-  // arbres épars
-  for(let i=0;i<110;i++){
+  // arbres : densité selon le biome (attempts ~carte)
+  for(let i=0;i<7000;i++){
     const x=3+((rng()*(MAP-6))|0), y=3+((rng()*(MAP-6))|0);
-    if(terr[y*MAP+x]===0&&!(Math.abs(x-MAP/2)<4&&Math.abs(y-MAP/2)<4))terr[y*MAP+x]=2;
+    const b=BIOMES[BIOME_LIST[bio[y*MAP+x]]];
+    if(terr[y*MAP+x]===0&&rng()<b.density&&!(Math.abs(x-MAP/2)<6&&Math.abs(y-MAP/2)<6))terr[y*MAP+x]=2;
   }
+  // troncs couchés au sol (décor, non bloquant)
+  const logs=[];
+  for(let i=0;i<260;i++){
+    const x=3+((rng()*(MAP-6))|0), y=3+((rng()*(MAP-6))|0);
+    if(terr[y*MAP+x]===0&&!dep[y*MAP+x]&&!(Math.abs(x-MAP/2)<6&&Math.abs(y-MAP/2)<6)&&rng()<.6){
+      logs.push([x,y,rng()*Math.PI,BIOME_LIST[bio[y*MAP+x]]]);
+    }
+  }
+  WORLD.logs=logs;
   // gisements : amas par marche aléatoire
   function blob(type,cx,cy,size){
-    let x=cx,y=cy;
+    let x=Math.round(cx),y=Math.round(cy);
     for(let i=0;i<size;i++){
       if(x>2&&y>2&&x<MAP-3&&y<MAP-3&&terr[y*MAP+x]!==3){
         terr[y*MAP+x]=0; dep[y*MAP+x]=type;
@@ -399,18 +518,33 @@ function genWorld(seed){
     }
   }
   const c=MAP/2;
-  blob('iron',  c-6+(rng()*4|0), c-2+(rng()*4|0), 26);
-  blob('stone', c+4+(rng()*4|0), c-6+(rng()*4|0), 22);
-  blob('coal',  c-2+(rng()*4|0), c+5+(rng()*4|0), 24);
-  blob('copper',c+8+(rng()*5|0), c+7+(rng()*5|0), 24);
-  blob('iron',  6+(rng()*10|0), 6+(rng()*10|0), 34);
-  blob('copper',MAP-14+(rng()*6|0), 8+(rng()*10|0), 30);
-  blob('coal',  8+(rng()*10|0), MAP-14+(rng()*6|0), 30);
-  blob('stone', MAP-14+(rng()*6|0), MAP-14+(rng()*6|0), 26);
-  blob('iron',  MAP-16+(rng()*8|0), c-4+(rng()*8|0), 28);
-  WORLD.terr=terr; WORLD.dep=dep;
+  // zone de départ : les 4 ressources à portée
+  blob('iron',  c-7+(rng()*4|0), c-3+(rng()*4|0), 28);
+  blob('stone', c+5+(rng()*4|0), c-7+(rng()*4|0), 24);
+  blob('coal',  c-3+(rng()*4|0), c+6+(rng()*4|0), 26);
+  blob('copper',c+9+(rng()*5|0), c+8+(rng()*5|0), 26);
+  // richesses lointaines, réparties sur la grande carte
+  const types=['iron','copper','coal','stone'];
+  for(let i=0;i<34;i++){
+    const fx=.1+rng()*.8, fy=.1+rng()*.8;
+    if(Math.abs(fx-.5)<.09&&Math.abs(fy-.5)<.09)continue;
+    blob(types[i%4], fx*MAP, fy*MAP, 40+(rng()*26|0));
+  }
+  WORLD.terr=terr; WORLD.dep=dep; WORLD.bio=bio;
 }
+const bioAt=(x,y)=>(x<0||y<0||x>=MAP||y>=MAP)?'prairie':BIOME_LIST[WORLD.bio[y*MAP+x]];
 const terrAt=(x,y)=>(x<0||y<0||x>=MAP||y>=MAP)?3:WORLD.terr[y*MAP+x];
+const hTile=(x,y)=>{ // hauteur à la tuile (entiers), bornée
+  if(!WORLD.h)return 0;
+  x=x<0?0:x>=MAP?MAP-1:x; y=y<0?0:y>=MAP?MAP-1:y;
+  return WORLD.h[y*MAP+x];
+};
+function groundH(fx,fy){ // hauteur lissée à une position fractionnaire (monde tuile)
+  const x=fx-.5, y=fy-.5;               // centres de tuiles alignés
+  const gx=Math.floor(x),gy=Math.floor(y),tx=x-gx,ty=y-gy;
+  const a=hTile(gx,gy),b=hTile(gx+1,gy),c=hTile(gx,gy+1),d=hTile(gx+1,gy+1);
+  return (a*(1-tx)+b*tx)*(1-ty)+(c*(1-tx)+d*tx)*ty;
+}
 const depAt=(x,y)=>(x<0||y<0||x>=MAP||y>=MAP)?null:WORLD.dep[y*MAP+x];
 function walkable(x,y){
   const t=terrAt(x,y);
@@ -419,29 +553,33 @@ function walkable(x,y){
   return !e||!!BUILDINGS[e.t].belt;
 }
 
-/* ---------- A* ---------- */
+/* ---------- A* (tas binaire, adapté à la grande carte) ---------- */
 function findPath(x0,y0,x1,y1){
   if(!walkable(x1,y1))return null;
   if(x0===x1&&y0===y1)return [];
-  const open=[[0,x0,y0]], came={}, g={}; g[key(x0,y0)]=0;
+  const N=MAP*MAP;
+  const g=new Float32Array(N).fill(Infinity);
+  const came=new Int32Array(N).fill(-1);
+  const heap=[]; // [f, idx]
+  const push=(f,i)=>{heap.push([f,i]);let c=heap.length-1;while(c>0){const par=(c-1)>>1;if(heap[par][0]<=heap[c][0])break;[heap[par],heap[c]]=[heap[c],heap[par]];c=par}};
+  const pop=()=>{const top=heap[0],last=heap.pop();if(heap.length){heap[0]=last;let i=0;for(;;){const l=2*i+1,r=l+1;let m=i;if(l<heap.length&&heap[l][0]<heap[m][0])m=l;if(r<heap.length&&heap[r][0]<heap[m][0])m=r;if(m===i)break;[heap[m],heap[i]]=[heap[i],heap[m]];i=m}}return top};
   const h=(x,y)=>Math.abs(x-x1)+Math.abs(y-y1);
+  const i0=y0*MAP+x0, i1=y1*MAP+x1;
+  g[i0]=0; push(h(x0,y0),i0);
   let iter=0;
-  while(open.length&&iter++<4000){
-    let bi=0;for(let i=1;i<open.length;i++)if(open[i][0]<open[bi][0])bi=i;
-    const [,x,y]=open.splice(bi,1)[0];
-    if(x===x1&&y===y1){
-      const path=[];let k=key(x,y);
-      while(came[k]){path.push(k.split(',').map(Number));k=came[k]}
+  while(heap.length&&iter++<20000){
+    const [,idx]=pop();
+    if(idx===i1){
+      const path=[];let k=idx;
+      while(k!==i0){path.push([k%MAP,(k/MAP)|0]);k=came[k]}
       return path.reverse();
     }
+    const x=idx%MAP,y=(idx/MAP)|0;
     for(const d of DIRS){
       const nx=x+d[0],ny=y+d[1];
       if(!walkable(nx,ny))continue;
-      const ng=g[key(x,y)]+1;
-      if(g[key(nx,ny)]===undefined||ng<g[key(nx,ny)]){
-        g[key(nx,ny)]=ng; came[key(nx,ny)]=key(x,y);
-        open.push([ng+h(nx,ny),nx,ny]);
-      }
+      const ni=ny*MAP+nx, ng=g[idx]+1;
+      if(ng<g[ni]){g[ni]=ng;came[ni]=idx;push(ng+h(nx,ny),ni)}
     }
   }
   return null;
@@ -634,7 +772,7 @@ function siloReady(e){
 function launchRocket(e){
   if(!e||!BUILDINGS[e.t].silo||!siloReady(e))return false;
   const gained=fragGain(S.rockets);
-  const keep={rockets:S.rockets+1,frags:S.frags+gained,ach:S.ach,set:S.set,stats:S.stats,quest:Math.max(S.quest,15)};
+  const keep={rockets:S.rockets+1,frags:S.frags+gained,ach:S.ach,set:S.set,stats:S.stats,quest:Math.max(S.quest,15),robot:S.robot,introDone:1};
   keep.stats.launches=(keep.stats.launches||0)+1;
   S=freshState(keep);
   ENT_AT={};
@@ -670,6 +808,8 @@ function load(){
     const d=JSON.parse(raw);
     if(!d||d.v!==3||!Array.isArray(d.ents))throw 0;
     const f=freshState();
+    if(d.robot&&typeof d.robot==='object')f.robot={color:(d.robot.color|0)%6,head:(d.robot.head|0)%4};
+    f.introDone=d.introDone?1:0;
     f.seed=(d.seed|0)||f.seed;
     f.science=Number.isFinite(d.science)?Math.max(0,d.science):0;
     f.sciLife=Number.isFinite(d.sciLife)?d.sciLife:0;
@@ -782,6 +922,54 @@ const R3D={ready:false};
 const T=window.THREE;
 function mat(c,opts){return new T.MeshLambertMaterial({color:c,...(opts||{})})}
 const wx=x=>x+0.5-MAP/2, wz=y=>y+0.5-MAP/2; // tuile -> monde
+const gyTile=(x,y)=>hTile(x,y);              // hauteur au centre de tuile
+
+/* --- textures de minerai façon Satisfactory (canvas) --- */
+function oreCanvas(kind){
+  const S2=64, cv=document.createElement('canvas'); cv.width=cv.height=S2;
+  const g=cv.getContext('2d');
+  const P={
+    iron:  {base:'#8a949e', dark:'#565e68', fleck:'#c4ccd4', extra:null},
+    copper:{base:'#b06a3a', dark:'#7a4522', fleck:'#e8b483', oxide:'#3f9e6b', sulfur:'#c9c24a'},
+    coal:  {base:'#2b2f36', dark:'#14161a', fleck:'#565d68', extra:null},
+    stone: {base:'#a89e8c', dark:'#7c7263', fleck:'#c8c1b2', extra:null},
+  }[kind]||{base:'#888',dark:'#555',fleck:'#bbb'};
+  g.fillStyle=P.base; g.fillRect(0,0,S2,S2);
+  // veines sombres
+  for(let i=0;i<70;i++){g.fillStyle=P.dark;const r=1+Math.random()*2.4;g.globalAlpha=.5+Math.random()*.4;g.beginPath();g.arc(Math.random()*S2,Math.random()*S2,r,0,7);g.fill()}
+  // éclats clairs (métal)
+  for(let i=0;i<50;i++){g.fillStyle=P.fleck;g.globalAlpha=.4+Math.random()*.5;g.fillRect(Math.random()*S2,Math.random()*S2,1+Math.random()*1.6,1+Math.random()*1.6)}
+  // cuivre : oxydation verte + soufre verdâtre
+  if(kind==='copper'){
+    for(let i=0;i<34;i++){g.fillStyle=P.oxide;g.globalAlpha=.25+Math.random()*.45;g.beginPath();g.arc(Math.random()*S2,Math.random()*S2,1.5+Math.random()*3.5,0,7);g.fill()}
+    for(let i=0;i<18;i++){g.fillStyle=P.sulfur;g.globalAlpha=.3+Math.random()*.4;g.beginPath();g.arc(Math.random()*S2,Math.random()*S2,1+Math.random()*2,0,7);g.fill()}
+  }
+  g.globalAlpha=1;
+  const tex=new T.CanvasTexture(cv);
+  tex.colorSpace=T.SRGBColorSpace||undefined;
+  return tex;
+}
+/* --- texture de sol (bruit subtil, tuilable) --- */
+function groundCanvas(){
+  const S2=128, cv=document.createElement('canvas'); cv.width=cv.height=S2;
+  const g=cv.getContext('2d');
+  g.fillStyle='#ffffff'; g.fillRect(0,0,S2,S2);
+  for(let i=0;i<2600;i++){
+    const v=200+Math.random()*55;
+    g.fillStyle=`rgba(${v|0},${v|0},${v|0},.14)`;
+    g.fillRect(Math.random()*S2,Math.random()*S2,1+Math.random()*2,1+Math.random()*2);
+  }
+  for(let i=0;i<600;i++){g.fillStyle='rgba(60,55,45,.10)';g.fillRect(Math.random()*S2,Math.random()*S2,1,1)}
+  const tex=new T.CanvasTexture(cv);
+  tex.wrapS=tex.wrapT=T.RepeatWrapping;
+  tex.repeat.set(MAP/3.5,MAP/3.5);
+  return tex;
+}
+function buildTextures(){
+  if(R3D.tex)return;
+  R3D.tex={ground:groundCanvas(),ore:{}};
+  for(const dk in DEPOSITS)R3D.tex.ore[dk]=oreCanvas(DEPOSITS[dk].item==='ironOre'?'iron':DEPOSITS[dk].item==='copperOre'?'copper':DEPOSITS[dk].item==='coal'?'coal':'stone');
+}
 
 function initRender(){
   const canvas=document.getElementById('c3d');
@@ -792,15 +980,16 @@ function initRender(){
   renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
   const scene=new T.Scene();
   scene.background=new T.Color(0x10141b);
-  scene.fog=new T.Fog(0x10141b,46,90);
+  scene.fog=new T.Fog(0x10141b,54,120);
   const cam=new T.OrthographicCamera(-1,1,1,-1,1,200);
-  R3D.zoom=15;
+  R3D.zoom=15; R3D.zoomT=15;
   scene.add(new T.HemisphereLight(0xa8bdd8,0x35301f,1.05));
   const sun=new T.DirectionalLight(0xffd9a0,1.15);
   sun.position.set(18,30,10);
   scene.add(sun);
 
-  /* --- sol --- */
+  /* --- textures & sol --- */
+  buildTextures();
   genGroundMeshes(scene);
 
   /* --- perso --- */
@@ -843,83 +1032,130 @@ function resize(){
 }
 function camUpdate(){
   const t=R3D.target;
-  R3D.cam.position.set(t.x+22,26,t.z+22);
-  R3D.cam.lookAt(t.x,0,t.z);
+  R3D.cam.position.set(t.x+22,26+t.y,t.z+22);
+  R3D.cam.lookAt(t.x,t.y,t.z);
 }
 
-/* sol, gisements, décor */
+/* sol, gisements, décor (avec relief) */
 function genGroundMeshes(scene){
   if(R3D.groundGroup)scene.remove(R3D.groundGroup);
   const g=new T.Group();
-  // sol : un plan par teinte via vertex colors
+  // ---- sol : relief (vertices déplacés) + couleur par biome + texture ----
   const geo=new T.PlaneGeometry(MAP,MAP,MAP,MAP);
   geo.rotateX(-Math.PI/2);
-  const cols=new Float32Array(geo.attributes.position.count*3);
-  const col=new T.Color(), base=new T.Color(0x3e5c44), dirt=new T.Color(0x60523a), mnt=new T.Color(0x232a35);
   const pos=geo.attributes.position;
+  const cols=new Float32Array(pos.count*3);
+  const col=new T.Color(), dirt=new T.Color(0x60523a), mnt=new T.Color(0x2b3441), tmp=new T.Color();
   for(let i=0;i<pos.count;i++){
-    const x=Math.min(MAP-1,Math.max(0,Math.floor(pos.getX(i)+MAP/2)));
-    const y=Math.min(MAP-1,Math.max(0,Math.floor(pos.getZ(i)+MAP/2)));
-    const t=terrAt(x,y), d=depAt(x,y);
+    const wxv=pos.getX(i), wzv=pos.getZ(i);
+    const tileX=Math.round(wxv+MAP/2), tileY=Math.round(wzv+MAP/2);
+    const x=Math.min(MAP-1,Math.max(0,tileX)), y=Math.min(MAP-1,Math.max(0,tileY));
+    pos.setY(i, groundH(wxv+MAP/2, wzv+MAP/2)); // relief lissé
+    const t=terrAt(x,y), d=depAt(x,y), b=BIOMES[bioAt(x,y)];
     if(t===3)col.copy(mnt);
-    else if(d)col.copy(dirt).offsetHSL(0,0,((x*7+y*13)%5)*.01);
-    else col.copy(base).offsetHSL(0,0,((x*31+y*17)%7)*.008-.02);
+    else if(d)col.copy(dirt).lerp(tmp.setHex(b.ground),.25).offsetHSL(0,0,((x*7+y*13)%5)*.01);
+    else col.setHex(hash2(x,y)>.5?b.ground:b.alt).offsetHSL(0,0,((x*31+y*17)%7)*.008-.02);
     cols[i*3]=col.r;cols[i*3+1]=col.g;cols[i*3+2]=col.b;
   }
   geo.setAttribute('color',new T.BufferAttribute(cols,3));
-  g.add(new T.Mesh(geo,new T.MeshLambertMaterial({vertexColors:true})));
+  geo.computeVertexNormals();
+  g.add(new T.Mesh(geo,new T.MeshLambertMaterial({vertexColors:true,map:R3D.tex&&R3D.tex.ground})));
 
-  // bord montagnes
-  const mgeo=new T.BoxGeometry(1,1.6,1);
+  // ---- rempart montagneux (posé sur le relief) ----
   const mts=[];
   for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++)if(terrAt(x,y)===3&&((x+y)%2===0))mts.push([x,y]);
-  const mIn=new T.InstancedMesh(mgeo,mat(0x2b3441),mts.length);
+  const mIn=new T.InstancedMesh(new T.BoxGeometry(1,1.6,1),mat(0x2b3441),mts.length);
   mts.forEach((p,i)=>{
-    const m=new T.Matrix4().makeTranslation(wx(p[0]),0.5,wz(p[1]));
-    m.multiply(new T.Matrix4().makeScale(1,0.6+((p[0]*13+p[1]*7)%8)/8,1));
+    const sc=0.7+((p[0]*13+p[1]*7)%8)/8;
+    const m=new T.Matrix4().makeScale(1,sc,1);
+    m.setPosition(wx(p[0]),gyTile(p[0],p[1])+0.5*sc,wz(p[1]));
     mIn.setMatrixAt(i,m);
   });
   g.add(mIn);
 
-  // rochers
+  // ---- rochers ----
   const rocks=[];
   for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++)if(terrAt(x,y)===1)rocks.push([x,y]);
   if(rocks.length){
     const rIn=new T.InstancedMesh(new T.DodecahedronGeometry(.42),mat(0x5d6570),rocks.length);
     rocks.forEach((p,i)=>{
+      const sc=.75+((p[0]*17+p[1]*5)%6)*.09;
       const m=new T.Matrix4().makeRotationY((p[0]*31+p[1])%7);
-      m.setPosition(wx(p[0]),.3,wz(p[1]));
+      m.premultiply(new T.Matrix4().makeScale(sc,sc,sc));
+      m.setPosition(wx(p[0]),gyTile(p[0],p[1])+.28*sc,wz(p[1]));
       rIn.setMatrixAt(i,m);
     });
     g.add(rIn);
   }
-  // arbres
-  const trees=[];
-  for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++)if(terrAt(x,y)===2)trees.push([x,y]);
-  if(trees.length){
-    const trunk=new T.InstancedMesh(new T.CylinderGeometry(.07,.1,.5,6),mat(0x5a4630),trees.length);
-    const crown=new T.InstancedMesh(new T.ConeGeometry(.38,.9,7),mat(0x2f6b46),trees.length);
-    trees.forEach((p,i)=>{
-      const s=.8+((p[0]*7+p[1]*3)%5)*.1;
-      let m=new T.Matrix4().makeScale(s,s,s);m.setPosition(wx(p[0]),.25*s,wz(p[1]));
-      trunk.setMatrixAt(i,m);
-      m=new T.Matrix4().makeScale(s,s,s);m.setPosition(wx(p[0]),.85*s,wz(p[1]));
-      crown.setMatrixAt(i,m);
+
+  // ---- troncs couchés au sol ----
+  if(WORLD.logs&&WORLD.logs.length){
+    const lg=new T.CylinderGeometry(.11,.13,.9,6);
+    const li=new T.InstancedMesh(lg,mat(0x5a4630),WORLD.logs.length);
+    WORLD.logs.forEach((L,i)=>{
+      const [x,y,ang]=L, b=BIOMES[L[3]||'prairie'];
+      li.setColorAt&&li.setColorAt(i,new T.Color(b.trunk));
+      const m=new T.Matrix4().makeRotationZ(Math.PI/2); // couché
+      m.premultiply(new T.Matrix4().makeRotationY(ang));
+      m.setPosition(wx(x),gyTile(x,y)+.12,wz(y));
+      li.setMatrixAt(i,m);
     });
-    g.add(trunk);g.add(crown);
+    if(li.instanceColor)li.instanceColor.needsUpdate=true;
+    g.add(li);
   }
-  // gisements : petits cristaux par type
+
+  // ---- arbres : un style par biome ----
+  const byStyle={};
+  for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++)if(terrAt(x,y)===2){
+    const bk=bioAt(x,y);(byStyle[bk]=byStyle[bk]||[]).push([x,y]);
+  }
+  for(const bk in byStyle){
+    const b=BIOMES[bk], tiles=byStyle[bk];
+    const put=(im,i,p,sc,yOff)=>{const m=new T.Matrix4().makeScale(sc,sc,sc);m.setPosition(wx(p[0]),gyTile(p[0],p[1])+yOff*sc,wz(p[1]));im.setMatrixAt(i,m)};
+    const trunkGeo=b.tree==='acacia'?new T.CylinderGeometry(.06,.09,.8,6):
+                   b.tree==='dead'  ?new T.CylinderGeometry(.05,.09,.8,5):
+                                     new T.CylinderGeometry(.07,.1,.5,6);
+    const trunk=new T.InstancedMesh(trunkGeo,mat(b.trunk),tiles.length);
+    let crown=null,cap=null;
+    if(b.tree==='pine'||b.tree==='spruce'){
+      crown=new T.InstancedMesh(new T.ConeGeometry(.38,.9,7),mat(b.leaf),tiles.length);
+      if(b.tree==='spruce')cap=new T.InstancedMesh(new T.ConeGeometry(.2,.34,7),mat(0xe8eef4),tiles.length);
+    }else if(b.tree==='acacia'){
+      crown=new T.InstancedMesh(new T.CylinderGeometry(.5,.42,.2,8),mat(b.leaf),tiles.length);
+    }else if(b.tree==='dead'){
+      crown=new T.InstancedMesh(new T.CylinderGeometry(.035,.05,.4,4),mat(b.trunk),tiles.length);
+    }
+    tiles.forEach((p,i)=>{
+      const sc=.8+((p[0]*7+p[1]*3)%5)*.1;
+      put(trunk,i,p,sc,b.tree==='acacia'||b.tree==='dead'?.4:.25);
+      if(b.tree==='pine'||b.tree==='spruce'){put(crown,i,p,sc,.85);if(cap)put(cap,i,p,sc,1.28)}
+      else if(b.tree==='acacia')put(crown,i,p,sc,.88);
+      else{
+        const m=new T.Matrix4().makeRotationZ(.9);
+        m.premultiply(new T.Matrix4().makeScale(sc,sc,sc));
+        m.setPosition(wx(p[0])+.12*sc,gyTile(p[0],p[1])+.62*sc,wz(p[1]));
+        crown.setMatrixAt(i,m);
+      }
+    });
+    g.add(trunk);if(crown)g.add(crown);if(cap)g.add(cap);
+  }
+
+  // ---- gisements : amas de cristaux texturés (façon Satisfactory) ----
   for(const dk in DEPOSITS){
     const tiles=[];
     for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++)if(depAt(x,y)===dk)tiles.push([x,y]);
     if(!tiles.length)continue;
-    const im=new T.InstancedMesh(new T.OctahedronGeometry(.16),mat(DEPOSITS[dk].col,{emissive:DEPOSITS[dk].col,emissiveIntensity:.15}),tiles.length*3);
+    const m3=new T.MeshLambertMaterial({map:R3D.tex&&R3D.tex.ore[dk],color:0xffffff});
+    const im=new T.InstancedMesh(new T.OctahedronGeometry(.2,0),m3,tiles.length*3);
     let idx=0;
     tiles.forEach(p=>{
+      const gh=gyTile(p[0],p[1]);
       for(let j=0;j<3;j++){
         const ox=((p[0]*13+j*29+p[1]*7)%10)/10*.6-.3, oz=((p[1]*17+j*31)%10)/10*.6-.3;
+        const sc=.7+((p[0]*7+j*11+p[1])%6)*.13;
         const m=new T.Matrix4().makeRotationY(j*2.1+p[0]);
-        m.setPosition(wx(p[0])+ox,.1,wz(p[1])+oz);
+        m.premultiply(new T.Matrix4().makeScale(sc,sc*1.4,sc));
+        m.setPosition(wx(p[0])+ox,gh+.12*sc,wz(p[1])+oz);
         im.setMatrixAt(idx++,m);
       }
     });
@@ -929,25 +1165,61 @@ function genGroundMeshes(scene){
   R3D.groundGroup=g;
 }
 
-/* perso : petit robot */
-function buildCharacter(){
+/* perso : petit robot personnalisable */
+const ROBOT_COLORS=[
+  {n:'Ambre',   c:0xf2a13d},{n:'Rouge',  c:0xe2705c},{n:'Bleu',  c:0x5db3e8},
+  {n:'Vert',    c:0x7ec97e},{n:'Violet', c:0xb08ae8},{n:'Jaune', c:0xe8d44d},
+];
+const ROBOT_HEADS=[
+  {n:'Antenne',   ic:'📡'},{n:'Radar',    ic:'🛰️'},
+  {n:'Casquette', ic:'🧢'},{n:'Cornes',   ic:'😈'},
+];
+function buildCharacter(cfg){
+  cfg=cfg||(S.robot||{color:0,head:0});
+  const base=new T.Color(ROBOT_COLORS[cfg.color%ROBOT_COLORS.length].c);
+  const light=base.clone().lerp(new T.Color(0xffffff),.35);
   const g=new T.Group();
-  const body=new T.Mesh(new T.BoxGeometry(.42,.4,.3),mat(0xf2a13d));
+  const body=new T.Mesh(new T.BoxGeometry(.42,.4,.3),mat(base.getHex()));
   body.position.y=.42;g.add(body);
-  const head=new T.Mesh(new T.BoxGeometry(.3,.24,.26),mat(0xffc46b));
+  const head=new T.Mesh(new T.BoxGeometry(.3,.24,.26),mat(light.getHex()));
   head.position.y=.76;g.add(head);
   const eye1=new T.Mesh(new T.BoxGeometry(.05,.06,.02),mat(0x10141b,{emissive:0x5db3e8,emissiveIntensity:.9}));
   eye1.position.set(-.07,.78,.14);g.add(eye1);
   const eye2=eye1.clone();eye2.position.x=.07;g.add(eye2);
-  const ant=new T.Mesh(new T.CylinderGeometry(.015,.015,.18,4),mat(0x8f9db0));
-  ant.position.y=.97;g.add(ant);
-  const tip=new T.Mesh(new T.SphereGeometry(.04,6,6),mat(0xe2705c,{emissive:0xe2705c,emissiveIntensity:.8}));
-  tip.position.y=1.07;g.add(tip);
+  const hk=cfg.head%ROBOT_HEADS.length;
+  if(hk===0){ // antenne classique
+    const ant=new T.Mesh(new T.CylinderGeometry(.015,.015,.18,4),mat(0x8f9db0));
+    ant.position.y=.97;g.add(ant);
+    const tip=new T.Mesh(new T.SphereGeometry(.04,6,6),mat(0xe2705c,{emissive:0xe2705c,emissiveIntensity:.8}));
+    tip.position.y=1.07;g.add(tip);
+  }else if(hk===1){ // radar
+    const ant=new T.Mesh(new T.CylinderGeometry(.013,.013,.14,4),mat(0x8f9db0));
+    ant.position.y=.95;g.add(ant);
+    const dish=new T.Mesh(new T.CylinderGeometry(.09,.05,.05,8),mat(0xd8dee8));
+    dish.position.y=1.03;dish.rotation.z=.6;g.add(dish);
+  }else if(hk===2){ // casquette
+    const cap=new T.Mesh(new T.BoxGeometry(.32,.07,.28),mat(base.getHex()));
+    cap.position.y=.91;g.add(cap);
+    const brim=new T.Mesh(new T.BoxGeometry(.3,.03,.14),mat(base.getHex()));
+    brim.position.set(0,.885,.2);g.add(brim);
+  }else{ // cornes
+    for(const sx of [-1,1]){
+      const horn=new T.Mesh(new T.ConeGeometry(.045,.16,6),mat(0xe2705c,{emissive:0x8a2a1a,emissiveIntensity:.4}));
+      horn.position.set(.13*sx,.94,0);horn.rotation.z=-.5*sx;g.add(horn);
+    }
+  }
   const legs=new T.Mesh(new T.BoxGeometry(.3,.22,.24),mat(0x39424f));
   legs.position.y=.13;g.add(legs);
   const shadow=new T.Mesh(new T.CircleGeometry(.32,16),new T.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.35}));
   shadow.rotation.x=-Math.PI/2;shadow.position.y=.02;g.add(shadow);
   return g;
+}
+function applyRobot(){
+  if(!R3D.ready)return;
+  const old=R3D.char;
+  R3D.char=buildCharacter(S.robot);
+  if(old){R3D.char.position.copy(old.position);R3D.char.rotation.y=old.rotation.y;R3D.scene.remove(old)}
+  R3D.scene.add(R3D.char);
 }
 
 /* bâtiments */
@@ -1036,7 +1308,7 @@ function buildMeshFor(type,dir){
 }
 function addEntMesh(e){
   const m=buildMeshFor(e.t,e.d);
-  m.position.set(wx(e.x),0,wz(e.y));
+  m.position.set(wx(e.x),gyTile(e.x,e.y),wz(e.y));
   R3D.scene.add(m);
   R3D.entMeshes.set(e,m);
 }
@@ -1056,12 +1328,18 @@ function rebuildWorldMeshes(){
 let animT=0;
 function renderFrame(dt){
   animT+=dt;
-  // perso
-  R3D.char.position.set(S.px-MAP/2,0,S.py-MAP/2);
+  if(Math.abs(R3D.zoom-R3D.zoomT)>.02){
+    R3D.zoom+=(R3D.zoomT-R3D.zoom)*Math.min(1,dt*4);
+    resize();
+  }
+  // perso posé sur le relief
+  const ph=groundH(S.px,S.py);
+  R3D.char.position.set(S.px-MAP/2,ph,S.py-MAP/2);
   R3D.char.rotation.y=PLAYER.face;
   R3D.char.children[0].position.y=.42+(PLAYER.moving?Math.abs(Math.sin(animT*9))*.07:0);
   if(R3D.follow){
     R3D.target.x=S.px-MAP/2; R3D.target.z=S.py-MAP/2;
+    R3D.target.y+=(ph-R3D.target.y)*Math.min(1,dt*6);
   }
   camUpdate();
   // animations bâtiments
@@ -1192,7 +1470,7 @@ function makeGhost(){
 function updateGhost(){
   if(!R3D.ghost)return;
   const v=canPlace(BUILD.type,BUILD.x,BUILD.y);
-  R3D.ghost.position.set(wx(BUILD.x),0,wz(BUILD.y));
+  R3D.ghost.position.set(wx(BUILD.x),gyTile(BUILD.x,BUILD.y),wz(BUILD.y));
   R3D.ghost.rotation.y=-BUILD.dir*Math.PI/2;
   R3D.ghost.traverse(o=>{if(o.isMesh)o.material=v.ok?R3D.ghostG:R3D.ghostR});
   const ok=document.getElementById('bOk');
@@ -1216,11 +1494,33 @@ function setupInput(){
   const ptrs=new Map();
   let start=null,panning=false,pinch0=0,zoom0=0;
   const ray=new T.Raycaster(), ndc=new T.Vector2(), plane=new T.Plane(new T.Vector3(0,1,0),0), hit=new T.Vector3();
-  function groundAt(cx,cy){
+  function groundPt(cx,cy){ // point exact du sol sous le doigt (coordonnées monde)
     ndc.x=(cx/innerWidth)*2-1;ndc.y=-(cy/innerHeight)*2+1;
     ray.setFromCamera(ndc,R3D.cam);
+    plane.constant=-(R3D.target?R3D.target.y:0); // plan de sol à la hauteur locale
     if(!ray.ray.intersectPlane(plane,hit))return null;
-    return [Math.floor(hit.x+MAP/2),Math.floor(hit.z+MAP/2)];
+    return {x:hit.x,z:hit.z};
+  }
+  function groundAt(cx,cy){
+    const p=groundPt(cx,cy);
+    if(!p)return null;
+    return [Math.floor(p.x+MAP/2),Math.floor(p.z+MAP/2)];
+  }
+  // sélection/déplacement : raycast sur la vraie géométrie (précis même sur le relief)
+  const rp=new T.Raycaster();
+  function pickTile(cx,cy){
+    ndc.x=(cx/innerWidth)*2-1;ndc.y=-(cy/innerHeight)*2+1;
+    rp.setFromCamera(ndc,R3D.cam);
+    const targets=[];
+    if(R3D.groundGroup)targets.push(R3D.groundGroup);
+    for(const [,m] of R3D.entMeshes)targets.push(m);
+    const hits=rp.intersectObjects(targets,true);
+    if(hits.length){
+      const pt=hits[0].point;
+      const tx=Math.floor(pt.x+MAP/2),ty=Math.floor(pt.z+MAP/2);
+      if(tx>=0&&ty>=0&&tx<MAP&&ty<MAP)return [tx,ty];
+    }
+    return groundAt(cx,cy);
   }
   cv.addEventListener('pointerdown',e=>{
     try{cv.setPointerCapture(e.pointerId)}catch(err){}
@@ -1238,19 +1538,20 @@ function setupInput(){
     if(ptrs.size===2){
       const a=[...ptrs.values()];
       const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);
-      if(pinch0>0){R3D.zoom=Math.min(34,Math.max(9,zoom0*pinch0/d));resize()}
+      if(pinch0>0){R3D.zoom=R3D.zoomT=Math.min(40,Math.max(8,zoom0*pinch0/d));resize()}
       return;
     }
     if(!start)return;
     const totDx=e.clientX-start.x,totDy=e.clientY-start.y;
-    if(!panning&&Math.hypot(totDx,totDy)>10)panning=true;
+    if(!panning&&Math.hypot(totDx,totDy)>12)panning=true;
     if(panning){
-      const scale=R3D.zoom/innerHeight;
-      const dx=(e.clientX-px)*scale, dy=(e.clientY-py)*scale;
-      // caméra orientée à 45° : convertir le déplacement écran en monde
-      const k=Math.SQRT1_2;
-      R3D.target.x-=(dx*k - dy*k)*1.4;
-      R3D.target.z-=(-dx*k - dy*k)*1.4;
+      // le point du sol saisi reste sous le doigt : delta exact par raycast
+      const g1=groundPt(px,py), g2=groundPt(e.clientX,e.clientY);
+      if(g1&&g2){
+        R3D.target.x-=g2.x-g1.x;
+        R3D.target.z-=g2.z-g1.z;
+        camUpdate();
+      }
       R3D.follow=false;
       document.getElementById('recenter').style.display='block';
     }
@@ -1264,7 +1565,7 @@ function setupInput(){
     const sx=start.x,sy=start.y;
     start=null;
     if(!tap)return;
-    const g=groundAt(e.clientX!==undefined?e.clientX:sx,e.clientY!==undefined?e.clientY:sy);
+    const g=pickTile(e.clientX!==undefined?e.clientX:sx,e.clientY!==undefined?e.clientY:sy);
     if(!g)return;
     const [tx,ty]=g;
     if(BUILD.active){BUILD.x=tx;BUILD.y=ty;updateGhost();return}
@@ -1276,13 +1577,13 @@ function setupInput(){
   cv.addEventListener('pointerup',end);
   cv.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);start=null});
   cv.addEventListener('wheel',e=>{
-    R3D.zoom=Math.min(34,Math.max(9,R3D.zoom*(e.deltaY>0?1.1:0.9)));resize();
+    R3D.zoom=R3D.zoomT=Math.min(40,Math.max(8,R3D.zoom*(e.deltaY>0?1.1:0.9)));resize();
   },{passive:true});
 }
 function hideRing(){R3D.ring.visible=false;R3D.selected=null}
 function selectEnt(e){
   R3D.selected=e;
-  R3D.ring.position.set(wx(e.x),.06,wz(e.y));
+  R3D.ring.position.set(wx(e.x),gyTile(e.x,e.y)+.06,wz(e.y));
   R3D.ring.visible=true;
   openEntSheet(e);
 }
@@ -1493,6 +1794,87 @@ function renderEntContents(e,box){
   mk('Sorties :',e.outb,true);
 }
 
+/* --- cinématique d'introduction & personnalisation --- */
+const INTRO_SLIDES=[
+  '<span class="eyebrow">📡 Année 2387</span>Le vaisseau-usine <b>ÉTOILE-9</b> balaie la galaxie à la recherche de mondes riches en minerais. Les capteurs s’allument : <b>planète détectée</b>.',
+  '<span class="eyebrow">🪐 Rapport de mission</span>Fer, cuivre, charbon, pierre… tout y est. Un <b>robot-colon</b> est largué en capsule. Sa mission : <b>bâtir une usine, tout automatiser</b>, et construire une fusée pour repartir vers les étoiles.',
+];
+let introStep=0;
+function buildCustomChips(root,onChange){
+  const hc=root.querySelector('.headChips'); hc.innerHTML='';
+  ROBOT_HEADS.forEach((h,i)=>{
+    const b=el('button',S.robot.head===i?'on':'',`${h.ic} ${h.n}`);
+    b.addEventListener('click',()=>{S.robot.head=i;applyRobot();buildCustomChips(root,onChange);sfx('tap');if(onChange)onChange()});
+    hc.appendChild(b);
+  });
+  const cc=root.querySelector('.colorChips'); cc.innerHTML='';
+  ROBOT_COLORS.forEach((c,i)=>{
+    const b=el('button',S.robot.color===i?'on':'',`<span class="sw" style="background:#${c.c.toString(16).padStart(6,'0')}"></span>${c.n}`);
+    b.addEventListener('click',()=>{S.robot.color=i;applyRobot();buildCustomChips(root,onChange);sfx('tap');if(onChange)onChange()});
+    cc.appendChild(b);
+  });
+}
+function showIntroStep(){
+  const box=$('introBtns'); box.innerHTML='';
+  if(introStep<INTRO_SLIDES.length){
+    $('intro').classList.remove('seeThrough');
+    $('introTx').style.display='';
+    $('introTx').innerHTML=INTRO_SLIDES[introStep];
+    $('customBox').style.display='none';
+    const skip=el('button','ghost','Passer ⏭');
+    skip.addEventListener('click',()=>{introStep=INTRO_SLIDES.length;showIntroStep()});
+    const next=el('button',null,'Suivant →');
+    next.addEventListener('click',()=>{introStep++;showIntroStep();sfx('tap')});
+    box.appendChild(skip);box.appendChild(next);
+  }else{
+    // personnalisation : on voit le vrai robot derrière
+    $('intro').classList.add('seeThrough');
+    $('introTx').innerHTML='<span class="eyebrow">🤖 Assemblage du robot-colon</span>Choisis son style — tu pourras le changer plus tard dans le Menu.';
+    $('customBox').style.display='';
+    buildCustomChips($('customBox'));
+    R3D.zoomT=9;
+    const go=el('button',null,'🚀 Commencer l’aventure');
+    go.addEventListener('click',endIntro);
+    box.appendChild(go);
+  }
+}
+function showIntro(){
+  introStep=0;
+  $('intro').style.display='flex';
+  $('intro').classList.remove('out');
+  R3D.zoomT=20;
+  showIntroStep();
+}
+function endIntro(){
+  S.introDone=1;save();
+  $('intro').classList.add('out');
+  setTimeout(()=>{$('intro').style.display='none'},700);
+  R3D.zoomT=14;
+  sfx('obj');buzz(30);
+  toast('Suis les OBJECTIFS en haut — le bouton ❓ Guide explique tout');
+  updateHUD();
+}
+
+/* --- guide --- */
+function openGuideSheet(){
+  const body=openSheet('❓ Guide de survie','guide');
+  const sec=(t,h)=>{const c=el('div','card');c.appendChild(el('h3',null,t));c.appendChild(el('div','hint',h));body.appendChild(c)};
+  sec('🎯 Le but du jeu',
+    'Tu es un robot-colon sur une planète sauvage. Construis une usine <b>entièrement automatisée</b> : mine → fond → assemble → recherche… jusqu’à construire un <b>silo</b> et lancer une <b>fusée 🚀</b>. Chaque fusée t’emmène sur une nouvelle planète avec des bonus permanents ✨.');
+  sec('⛏️ Miner à la main',
+    'Approche-toi d’un gisement (taches de terre avec des cristaux : fer, cuivre, charbon, pierre) : le bouton <b>MINER</b> apparaît. Tape dessus pour remplir ton sac 🎒. C’est comme ça qu’on démarre — mais ton but est de ne plus jamais miner à la main !');
+  sec('🔨 Construire',
+    'Bouton <b>Construire</b> → choisis un bâtiment → touche une case pour placer le fantôme (vert = OK) → ✓. Les <b>foreuses</b> se posent SUR un gisement et minent toutes seules. Les <b>fours</b> fondent le minerai (ils veulent du charbon !). Touche n’importe quel bâtiment pour voir son contenu, y déposer ou récupérer des objets.');
+  sec('➡️ Automatiser',
+    'Une machine <b>collée</b> à une autre lui transmet directement sa production si l’autre en a besoin. Pour les distances, pose des <b>convoyeurs</b> (oriente-les avec ↻) : les objets circulent dessus. Les <b>coffres 📦</b> stockent les surplus — indispensable pour produire pendant que le jeu est fermé, sinon la chaîne sature et s’arrête.');
+  sec('🧪 La science',
+    'Le <b>laboratoire</b> consomme engrenages + circuits et produit de la science. Dépense-la dans l’onglet <b>Recherche</b> : machines plus rapides, plus grand sac, nouvelles technologies (acier, modules, silo…).');
+  sec('🚀 La fusée (prestige)',
+    'Recherche le <b>Programme spatial</b>, construis le silo, alimente-le en modules, acier et circuits, et LANCE. Tu repars sur une <b>nouvelle planète</b> (nouveaux biomes !) avec des <b>fragments stellaires ✨</b> : +20 % de vitesse permanente chacun. La fusée suivante coûte ×2.');
+  sec('💡 Astuces',
+    '• Détruire un bâtiment rembourse 50 % et rend son contenu.<br>• Un four sans charbon ne fait rien ; une foreuse pleine s’arrête — récupère ou évacue !<br>• Glisse un doigt pour déplacer la caméra, pince pour zoomer, 🎯 pour revenir au robot.<br>• Le jeu tourne aussi en mode paysage 📱↔️.<br>• Les succès 🏆 (Menu) donnent +2 % de vitesse chacun.');
+}
+
 /* --- feuille menu --- */
 function openMenuSheet(){
   const body=openSheet('Menu','menu');
@@ -1514,6 +1896,19 @@ function openMenuSheet(){
     ach.appendChild(el('div','hint',`${got?'🏆':'⬜'} <b style="color:${got?'var(--tx)':'inherit'}">${a.nm}</b> — ${a.ds}`));
   }
   body.appendChild(ach);
+
+  const gb=el('button','rowbtn blue','❓ Ouvrir le guide de survie');
+  gb.addEventListener('click',()=>{openGuideSheet()});
+  body.insertBefore(gb,stats);
+  const rb2=el('button','rowbtn','🤖 Personnaliser le robot');
+  rb2.addEventListener('click',()=>{
+    const b2=openSheet('🤖 Personnaliser le robot','robot');
+    b2.innerHTML='<div class="hint" style="margin-bottom:4px">Les changements sont appliqués immédiatement.</div>'+
+      '<div class="cLbl">Tête</div><div class="cChips headChips"></div>'+
+      '<div class="cLbl">Couleur</div><div class="cChips colorChips"></div>';
+    buildCustomChips(b2,()=>save());
+  });
+  body.insertBefore(rb2,stats.nextSibling);
 
   const reg=el('div','card');
   reg.appendChild(el('h3',null,'Réglages'));
@@ -1569,8 +1964,14 @@ function openMenuSheet(){
 function updateHUD(){
   $('hudSci').textContent=fmt(S.science);
   $('hudInv').textContent=fmt(invCount())+'/'+INV_CAP(S);
+  const fill=invCount()/INV_CAP(S);
+  const bf=$('bagFill');
+  bf.style.width=Math.min(100,fill*100)+'%';
+  bf.className=fill>=.92?'full':'';
   if(S.frags>0){$('hudFrag').style.display='';$('hudFragN').textContent=S.frags}
   $('questTx').textContent=(S.quest<QUESTS.length?QUESTS[S.quest].tx:'');
+  $('questN').textContent=`${Math.min(S.quest+1,QUESTS.length-1)}/${QUESTS.length-1}`;
+  $('questFill').style.width=Math.min(100,S.quest/(QUESTS.length-1)*100)+'%';
   // bouton contextuel
   const d=nearestDeposit();
   const ctx=$('ctxBtn');
@@ -1658,6 +2059,7 @@ function init(){
     if(elapsed>15)applyOffline(elapsed);
   }
   $('ctxBtn').addEventListener('pointerdown',e=>{e.preventDefault();mineAction()});
+  $('btnGuide').addEventListener('click',()=>SHEET==='guide'?closeSheet():openGuideSheet());
   $('recenter').addEventListener('click',()=>{R3D.follow=true;$('recenter').style.display='none'});
   $('tbBuild').addEventListener('click',()=>{if(BUILD.active)exitBuild();SHEET==='build'?closeSheet():openBuildSheet()});
   $('tbInv').addEventListener('click',()=>SHEET==='inv'?closeSheet():openInvSheet());
@@ -1671,6 +2073,8 @@ function init(){
   setInterval(save,10000);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)save();else lastT=Date.now()});
   window.addEventListener('pagehide',save);
+  applyRobot();
+  if(!S.introDone)showIntro();
   updateHUD();
   frame();
   if('serviceWorker' in navigator&&location.protocol==='https:'){
@@ -1690,8 +2094,9 @@ window.G={
   siloNeed,siloReady,launchRocket,fragGain,
   save,load,applyOffline,freshState,speedMult,beltSpeed,walkSpeed,globalMult,
   fmt,fmtDur,updateHUD,slowUpdate,rebuildWorldMeshes,
-  openEntSheet,openBuildSheet,enterBuild,exitBuild,confirmBuild,BUILD,PLAYER,R3D,
-  key,cntType,INV_CAP,MINE_POW,OFFLINE_CAP,
+  openEntSheet,openBuildSheet,openGuideSheet,enterBuild,exitBuild,confirmBuild,updateGhost,BUILD,PLAYER,R3D,
+  applyRobot,buildCharacter,showIntro,endIntro,ROBOT_COLORS,ROBOT_HEADS,BIOMES,bioAt,hash2,
+  key,cntType,INV_CAP,MINE_POW,OFFLINE_CAP,groundH,hTile,WORLD,SAVE_KEY,
 };
 </script>
 </body>

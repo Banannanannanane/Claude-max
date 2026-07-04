@@ -5,25 +5,29 @@ Factorio et Satisfactory. **100 % hors-ligne, 100 % gratuit, sans pub, sans comp
 
 ## Le jeu
 
-- 🗺️ Une **carte 3D procédurale** (nouvelle à chaque partie) : gisements de fer,
-  cuivre, charbon et pierre, forêts, rochers, montagnes
-- 🤖 Un **petit robot** que tu déplaces en touchant le sol (pathfinding), caméra
-  libre (glisser pour bouger, pincer pour zoomer)
+- 🎬 **Cinématique d'intro** + création de ton **robot-colon** (4 têtes, 6 couleurs,
+  modifiable ensuite dans le Menu)
+- 🗺️ **Grande carte 3D procédurale** (~8× la version d'origine, 160×160) avec du
+  **relief** (collines, vallées, rempart montagneux) et **4 biomes** : prairie,
+  savane, neige, badlands — chacun avec ses arbres et ses teintes
+- 🪨 Décor riche : rochers, forêts par biome, **troncs couchés au sol**, texture de
+  sol, et des **gisements texturés façon Satisfactory** (fer gris métal, cuivre
+  brun avec oxydation verte et soufre verdâtre, charbon, pierre)
+- 🤖 Déplace ton robot en touchant le sol (pathfinding A*), **caméra corrigée** :
+  glisser = le sol reste sous le doigt (même en diagonale), pincer pour zoomer
 - ⛏️ Mine à la main près des gisements, puis **pose de vraies machines sur la
-  carte** : foreuses (sur les gisements), fours, ateliers, assembleurs, labos…
-- ➡️ **Convoyeurs** : les objets circulent physiquement dessus, d'une machine à
-  l'autre ; les machines adjacentes s'alimentent aussi directement
-- 📦 Coffres de stockage, panneau par machine (déposer/récupérer les objets)
-- 🧪 18 recherches (vitesses, capacités, déblocages)
-- 📋 16 objectifs façon tutoriel qui t'apprennent le jeu pas à pas
-- 🏆 11 succès (+2 % de vitesse permanente chacun)
+  carte** : foreuses (sur gisements), fours, ateliers, assembleurs, labos…
+- ➡️ **Convoyeurs** : les objets circulent physiquement dessus ; les machines
+  adjacentes s'alimentent aussi directement. Coffres de stockage.
+- ❓ **Guide** intégré (bouton en haut) + 16 objectifs façon tutoriel
+- 🧪 18 recherches · 🏆 11 succès (+2 % de vitesse chacun)
 - ⏳ L'usine tourne quand le jeu est fermé (2 h → 24 h par recherche)
-- 🚀 **Prestige** : construis le silo, alimente la fusée, décolle vers une
-  **nouvelle planète** (carte inédite) avec des fragments ✨ permanents (+20 %
-  chacun, coût de fusée ×2 à chaque lancement)
-- 💾 Sauvegarde auto locale + export/import ; sons et vibrations désactivables
+- 🚀 **Prestige** : construis le silo, lance la fusée, décolle vers une **nouvelle
+  planète** (biomes inédits) avec des fragments ✨ permanents (+20 % chacun)
+- 📱↔️ **Mode paysage** (téléphone tourné) + portrait ; sons & vibrations
+- 💾 Sauvegarde auto locale + export/import
 
-Le mode « idle » précédent reste disponible : [`classique.html`](./classique.html).
+Le mode « idle » d'origine reste disponible : [`classique.html`](./classique.html).
 
 ## Installer sur ton téléphone
 
@@ -35,22 +39,26 @@ Le mode « idle » précédent reste disponible : [`classique.html`](./classique
 **Option 2 — GitHub Pages (PWA)** : Settings → Pages → Deploy from a branch,
 puis ouvre `usine-stellaire/` et « Ajouter à l'écran d'accueil ».
 
-**Option 3 — local** : ouvre `index.html` via un petit serveur web
-(`python3 -m http.server`) — le module three.js est un fichier séparé.
+**Option 3 — local** : sers le dossier via un petit serveur
+(`python3 -m http.server`) — three.js est un fichier séparé.
 
 ## Technique
 
-- three.js (bundlé hors-ligne, 653 Ko) + vanilla JS, aucun autre framework
-- Rendu : caméra orthographique isométrique, low-poly, meshes instanciés
-  (sol, arbres, rochers, cristaux, objets sur convoyeurs)
-- Simulation à pas fixe (100 ms) : recettes, tampons d'entrée/sortie,
-  déversement par adjacence, files d'objets sur convoyeurs ; le hors-ligne
-  rejoue la même simulation à pas de 250-500 ms
-- Carte 56×56 déterministe par graine (mulberry32), A* pour le robot
+- three.js (bundlé hors-ligne) + vanilla JS, aucun autre framework
+- Rendu : caméra ortho isométrique, relief par déplacement de vertices, meshes
+  instanciés (sol, arbres/biome, rochers, troncs, cristaux), **textures de
+  minerai générées au canvas** (fer/cuivre-oxydé/charbon/pierre) + texture de sol
+- Sélection & déplacement par **raycast sur la géométrie réelle** (précis sur le
+  relief) ; caméra pan par raycast (le point saisi reste sous le doigt)
+- Carte 160×160 déterministe par graine (biomes voronoï bruités, hauteur value-noise
+  3 octaves, zone de départ aplatie) ; A* sur tas binaire
+- Simulation à pas fixe (100 ms) : recettes, tampons, déversement par adjacence,
+  files d'objets sur convoyeurs ; hors-ligne rejoué à pas de 250-500 ms
 - Sauvegarde `localStorage` versionnée et validée (résiste à la corruption)
-- **51 tests Playwright** (monde, A*, placement, convoyeurs, recettes, silo,
-  sauvegarde, hors-ligne, quêtes, stress 1 h) + **8 tests tactiles E2E**
-  (tap-déplacement, minage, glisser-caméra, panneaux)
+- **51 + 17 tests Playwright** (monde, biomes, relief, A*, placement, convoyeurs,
+  recettes, silo/prestige, sauvegarde, hors-ligne, robot, intro, guide, stress
+  méga-base) + **9 tests tactiles E2E** (tap-déplacement, minage, glisser-caméra
+  y compris **diagonale**, sélection sur relief)
 - APK : WebView + pont de vibration natif, compilée sans Gradle
-  (javac → D8 → aapt → zipalign → apksigner), signée v1+v2+v3,
-  minSdk 23 / targetSdk 28, ~250 Ko
+  (javac → D8 → aapt → zipalign → apksigner), signée v1+v2+v3, orientation libre,
+  minSdk 23 / targetSdk 28
