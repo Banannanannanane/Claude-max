@@ -3,643 +3,753 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#0e1116">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Usine Stellaire</title>
+<meta name="theme-color" content="#10141b">
+<title>Usine Stellaire — Colonie</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <style>
 :root{
-  --bg:#0e1116; --panel:#161c25; --panel2:#1d2530; --line:#2b3546;
+  --bg:#10141b; --panel:#161c25; --panel2:#1d2530; --line:#2b3546;
   --tx:#e4eaf3; --mut:#8f9db0; --amber:#f2a13d; --amber-soft:#ffc46b;
   --good:#7ec97e; --bad:#e2705c; --sci:#5db3e8; --violet:#b08ae8;
   --r:12px;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%}
+html,body{height:100%;overflow:hidden}
 body{
   background:var(--bg); color:var(--tx);
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   font-size:15px; line-height:1.45;
-  user-select:none; -webkit-user-select:none; touch-action:manipulation;
+  user-select:none; -webkit-user-select:none; touch-action:none;
   overscroll-behavior:none;
 }
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;touch-action:manipulation}
 .num{font-variant-numeric:tabular-nums}
+#c3d{position:fixed;inset:0;display:block}
 
-/* ---------- shell ---------- */
-#app{display:flex;flex-direction:column;height:100dvh;max-width:560px;margin:0 auto}
-header{
-  padding:calc(10px + env(safe-area-inset-top)) 14px 8px;
-  display:flex;align-items:baseline;gap:10px;flex-shrink:0;
-  border-bottom:1px solid var(--line);
-  background:linear-gradient(180deg,#131a23,var(--bg));
+/* ---------- HUD haut ---------- */
+#topbar{
+  position:fixed;top:0;left:0;right:0;z-index:10;
+  padding:calc(8px + env(safe-area-inset-top)) 10px 8px;
+  display:flex;gap:8px;align-items:flex-start;pointer-events:none;
 }
-header h1{
-  font-size:15px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--amber-soft);white-space:nowrap;
+#quest{
+  flex:1;background:rgba(22,28,37,.92);border:1px solid var(--line);border-radius:var(--r);
+  padding:8px 11px;pointer-events:auto;min-width:0;
 }
-header h1 span{color:var(--mut);font-weight:600}
-#hud{margin-left:auto;display:flex;gap:12px;font-size:13px;color:var(--mut)}
-#hud b{color:var(--tx);font-weight:700}
-main{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 12px 20px;-webkit-overflow-scrolling:touch}
-main section{display:none;flex-direction:column;gap:10px}
-main section.on{display:flex}
-
-nav{
-  flex-shrink:0;display:flex;border-top:1px solid var(--line);
-  background:#12171f;padding-bottom:env(safe-area-inset-bottom);
+#quest .q1{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--amber-soft)}
+#quest .q2{font-size:12.5px;color:#c6d0dd}
+#hudR{display:flex;flex-direction:column;gap:6px;pointer-events:auto}
+.chip{
+  background:rgba(22,28,37,.92);border:1px solid var(--line);border-radius:99px;
+  padding:5px 11px;font-size:12.5px;font-weight:700;white-space:nowrap;text-align:right;
 }
-nav button{
-  flex:1;padding:9px 0 10px;display:flex;flex-direction:column;align-items:center;gap:2px;
-  color:var(--mut);font-size:10.5px;font-weight:600;letter-spacing:.05em;position:relative;
+/* ---------- barre bas ---------- */
+#botbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:10;
+  padding:8px 10px calc(10px + env(safe-area-inset-bottom));
+  display:flex;gap:8px;justify-content:center;pointer-events:none;
 }
-nav button .ic{font-size:19px;line-height:1;filter:grayscale(1) opacity(.65)}
-nav button.on{color:var(--amber-soft)}
-nav button.on .ic{filter:none}
-nav button .dot{
-  position:absolute;top:6px;right:calc(50% - 17px);width:8px;height:8px;border-radius:50%;
-  background:var(--amber);display:none;
+#botbar button{
+  pointer-events:auto;background:rgba(22,28,37,.94);border:1px solid var(--line);
+  border-radius:14px;padding:9px 0;width:74px;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  font-size:10.5px;font-weight:600;color:var(--mut);position:relative;
 }
-nav button .dot.show{display:block}
-
-/* ---------- shared cards ---------- */
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px}
-.card h2{
-  font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--mut);margin-bottom:8px;
-}
-.hint{font-size:12.5px;color:var(--mut)}
-
-/* ---------- mine (tap) ---------- */
-#mineBtn{
-  width:100%;padding:20px 0;border-radius:var(--r);
+#botbar button .ic{font-size:20px;line-height:1}
+#botbar button.on{border-color:var(--amber);color:var(--amber-soft)}
+#botbar button .dot{position:absolute;top:5px;right:9px;width:8px;height:8px;border-radius:50%;background:var(--amber);display:none}
+#botbar button .dot.show{display:block}
+/* bouton contextuel central (MINER / recentrer) */
+#ctxWrap{position:fixed;left:0;right:0;bottom:calc(78px + env(safe-area-inset-bottom));display:flex;justify-content:center;z-index:10;pointer-events:none}
+#ctxBtn{
+  pointer-events:auto;display:none;position:relative;overflow:visible;
   background:linear-gradient(180deg,#f2a13d,#d97f1e);color:#241503;
-  font-size:17px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
-  box-shadow:0 3px 0 #8a4f10;
+  font-weight:800;font-size:16px;letter-spacing:.06em;text-transform:uppercase;
+  border-radius:99px;padding:14px 34px;box-shadow:0 3px 0 #8a4f10;
 }
-#mineBtn:active{transform:translateY(2px);box-shadow:0 1px 0 #8a4f10}
-.chips{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
-.chips button{
-  padding:7px 11px;border-radius:99px;border:1px solid var(--line);
-  background:var(--panel2);font-size:13px;color:var(--mut);
+#ctxBtn:active{transform:translateY(2px);box-shadow:0 1px 0 #8a4f10}
+#recenter{
+  position:fixed;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:10;
+  background:rgba(22,28,37,.94);border:1px solid var(--line);border-radius:50%;
+  width:44px;height:44px;font-size:19px;display:none;
 }
-.chips button.on{border-color:var(--amber);color:var(--amber-soft);background:#2a2113}
+/* mode construction */
+#buildCtl{
+  position:fixed;left:0;right:0;bottom:calc(78px + env(safe-area-inset-bottom));
+  display:none;justify-content:center;gap:10px;z-index:10;
+}
+#buildCtl button{
+  background:rgba(22,28,37,.94);border:1px solid var(--line);border-radius:99px;
+  padding:12px 22px;font-weight:800;font-size:15px;
+}
+#buildCtl #bOk{background:linear-gradient(180deg,#7ec97e,#4e9a4e);color:#0c1a0c;border:none}
+#buildCtl #bOk:disabled{opacity:.4}
+.flt{position:fixed;font-weight:800;color:var(--amber-soft);pointer-events:none;z-index:30;
+ animation:fltUp .9s ease-out forwards;font-size:16px;text-shadow:0 1px 3px #000}
+.flt.crit{color:#ffe08a;font-size:22px}
+@keyframes fltUp{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-52px)}}
 
-/* ---------- resources ---------- */
-.resRow{display:flex;align-items:center;gap:9px;padding:7px 2px;border-bottom:1px solid #1d2530}
-.resRow:last-child{border-bottom:none}
-.resRow .ic{width:24px;text-align:center;font-size:16px}
-.resRow .nm{flex:1;font-size:13.5px;color:#c6d0dd}
-.resRow .amt{font-weight:700;font-size:14px}
-.resRow .rate{width:76px;text-align:right;font-size:12px;color:var(--mut)}
-.rate.up{color:var(--good)} .rate.dn{color:var(--bad)}
-
-/* ---------- machines ---------- */
-.mach{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:11px 12px}
-.mach .top{display:flex;align-items:baseline;gap:8px}
-.mach .top .ic{font-size:17px}
-.mach .top .nm{font-weight:700;font-size:14.5px}
-.mach .top .own{margin-left:auto;font-size:13px;color:var(--amber-soft);font-weight:700}
-.mach .io{font-size:12px;color:var(--mut);margin:4px 0 7px}
-.effbar{height:4px;border-radius:2px;background:#242e3c;overflow:hidden;margin-bottom:8px}
-.effbar i{display:block;height:100%;background:var(--good);width:0%;transition:width .4s}
-.effbar i.low{background:var(--bad)}
-.cost{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px;margin-bottom:8px}
-.cost span.no{color:var(--bad)} .cost span.ok{color:var(--mut)}
-.buyRow{display:flex;gap:7px}
-.buyRow button{
-  flex:1;padding:9px 0;border-radius:9px;font-weight:700;font-size:13px;
+/* ---------- feuilles (bottom sheets) ---------- */
+#sheetBack{position:fixed;inset:0;z-index:20;background:rgba(5,8,12,.45);display:none}
+#sheetBack.show{display:block}
+#sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:21;max-width:560px;margin:0 auto;
+  background:var(--panel);border:1px solid var(--line);border-bottom:none;
+  border-radius:18px 18px 0 0;max-height:72dvh;display:none;flex-direction:column;
+}
+#sheet.show{display:flex}
+#sheetHead{display:flex;align-items:center;padding:12px 14px 8px;gap:8px}
+#sheetHead h2{font-size:13px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--amber-soft);flex:1}
+#sheetHead button{font-size:20px;color:var(--mut);padding:0 6px}
+#sheetBody{overflow-y:auto;padding:2px 12px calc(14px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:11px 12px;margin-bottom:9px}
+.card h3{font-size:14px;margin-bottom:4px}
+.hint{font-size:12.5px;color:var(--mut)}
+.cost{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:12.5px;margin-top:5px}
+.cost .no{color:var(--bad)} .cost .ok{color:var(--mut)}
+.bgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.bcard{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:10px}
+.bcard .t{font-weight:700;font-size:13.5px}
+.bcard .ic{font-size:22px}
+.bcard.locked{opacity:.45}
+.rowbtn{
+  width:100%;padding:10px 0;border-radius:9px;font-weight:700;font-size:13.5px;margin-top:8px;
   background:#2a2113;color:var(--amber-soft);border:1px solid #5a4116;
 }
-.buyRow button:disabled{opacity:.35}
-.buyRow button.sell{flex:.8;background:var(--panel2);color:var(--mut);border-color:var(--line)}
-.catHead{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:6px 2px 0}
-
-/* ---------- research / milestones / rocket ---------- */
-.rsc{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:11px 12px}
-.rsc .nm{font-weight:700;font-size:14px}
-.rsc .ds{font-size:12.5px;color:var(--mut);margin:3px 0 8px}
-.rsc button{
-  width:100%;padding:9px 0;border-radius:9px;font-weight:700;font-size:13px;
-  background:#152836;color:var(--sci);border:1px solid #29465c;
-}
-.rsc button:disabled{opacity:.35}
-.rsc.done{opacity:.55}
-.rsc.done .badge{color:var(--good);font-weight:700;font-size:13px}
-.obj .rw{display:flex;align-items:center;gap:9px;padding:9px 2px;border-bottom:1px solid #1d2530}
-.obj .rw:last-child{border-bottom:none}
-.obj .st{width:22px;text-align:center}
-.obj .tx{flex:1}
-.obj .tx .t{font-size:13.5px;font-weight:600}
-.obj .tx .r{font-size:12px;color:var(--mut)}
-.obj button{
-  padding:7px 13px;border-radius:9px;font-weight:700;font-size:12.5px;
-  background:#213121;color:var(--good);border:1px solid #3a5a3a;
-}
-.reqbar{margin:7px 0}
-.reqbar .lb{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px}
-.reqbar .bar{height:6px;border-radius:3px;background:#242e3c;overflow:hidden}
-.reqbar .bar i{display:block;height:100%;background:var(--violet);width:0%}
-#launchBtn{
-  width:100%;padding:15px 0;border-radius:var(--r);margin-top:6px;
-  background:linear-gradient(180deg,#8a63d2,#6c44b8);color:#fff;
-  font-weight:800;font-size:15px;letter-spacing:.06em;text-transform:uppercase;
-}
-#launchBtn:disabled{opacity:.4}
-
-/* ---------- settings ---------- */
-.setBtns{display:flex;flex-direction:column;gap:8px}
-.setBtns button,.setBtns label.filebtn{
-  padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);
-  font-weight:600;font-size:13.5px;text-align:center;color:var(--tx);
-}
-.setBtns button.danger{color:var(--bad);border-color:#5a2c24}
+.rowbtn.blue{background:#152836;color:var(--sci);border-color:#29465c}
+.rowbtn.green{background:#213121;color:var(--good);border-color:#3a5a3a}
+.rowbtn.red{background:#312019;color:var(--bad);border-color:#5a2c24}
+.rowbtn:disabled{opacity:.35}
+.invrow{display:flex;align-items:center;gap:9px;padding:6px 2px;border-bottom:1px solid #232d3a;font-size:13.5px}
+.invrow:last-child{border-bottom:none}
+.invrow .n{flex:1;color:#c6d0dd}
+.invrow b{font-size:14px}
+.pbar{height:6px;border-radius:3px;background:#242e3c;overflow:hidden;margin-top:4px}
+.pbar i{display:block;height:100%;background:var(--violet)}
+.tgl{display:flex;justify-content:space-between;align-items:center;padding:8px 2px;font-size:14px}
+.tgl button{width:52px;height:28px;border-radius:99px;background:#242e3c;position:relative;flex-shrink:0}
+.tgl button i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#8f9db0;transition:left .2s}
+.tgl button.on{background:#2a5a2a}
+.tgl button.on i{left:27px;background:#7ec97e}
 textarea#ioArea{
   width:100%;min-height:80px;background:#0b0e13;color:var(--tx);border:1px solid var(--line);
   border-radius:9px;padding:8px;font-size:12px;font-family:ui-monospace,monospace;
-  user-select:text;-webkit-user-select:text;
+  user-select:text;-webkit-user-select:text;margin-top:8px;
 }
-
-/* ---------- boost / caisse quotidienne ---------- */
-#boostBtn{width:100%;padding:13px 0;border-radius:var(--r);font-weight:800;font-size:14px;letter-spacing:.05em;
- background:linear-gradient(180deg,#3d77c2,#2b5a9a);color:#fff;text-transform:uppercase}
-#boostBtn:disabled{opacity:.45}
-#boostBtn.hot{background:linear-gradient(180deg,#f2a13d,#d97f1e);color:#241503}
-#dailyCard{border-color:#5a4116}
-#dailyBtn{width:100%;padding:13px 0;border-radius:var(--r);font-weight:800;font-size:14px;
- background:linear-gradient(180deg,#7ec97e,#4e9a4e);color:#0c1a0c;text-transform:uppercase;letter-spacing:.05em}
-/* ---------- paliers de machines ---------- */
-.palier{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--mut);margin:0 0 7px}
-.palier .pb{flex:1;height:4px;border-radius:2px;background:#242e3c;overflow:hidden}
-.palier .pb i{display:block;height:100%;background:var(--violet)}
-/* ---------- texte flottant (minage) ---------- */
-#tapZone{position:relative}
-.flt{position:absolute;font-weight:800;color:var(--amber-soft);pointer-events:none;z-index:5;
- animation:fltUp .9s ease-out forwards;font-size:15px;text-shadow:0 1px 3px #000}
-.flt.crit{color:#ffe08a;font-size:20px}
-@keyframes fltUp{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-48px)}}
-/* ---------- succès ---------- */
-.ach .rw{display:flex;gap:9px;padding:8px 2px;border-bottom:1px solid #1d2530;align-items:center}
-.ach .rw:last-child{border-bottom:none}
-.ach .rw.off{opacity:.45}
-.ach .st{width:22px;text-align:center}
-.ach .tx .t{font-size:13.5px;font-weight:600}
-.ach .tx .d{font-size:12px;color:var(--mut)}
-/* ---------- interrupteurs ---------- */
-.tgl{display:flex;justify-content:space-between;align-items:center;padding:8px 2px;font-size:14px}
-.tgl button{width:52px;height:28px;border-radius:99px;background:#242e3c;position:relative;transition:background .2s;flex-shrink:0}
-.tgl button i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#8f9db0;transition:left .2s,background .2s}
-.tgl button.on{background:#2a5a2a}
-.tgl button.on i{left:27px;background:#7ec97e}
 /* ---------- modal / toast ---------- */
-#modalBack{
-  position:fixed;inset:0;background:rgba(5,8,12,.75);display:none;
-  align-items:center;justify-content:center;padding:24px;z-index:50;
-}
+#modalBack{position:fixed;inset:0;background:rgba(5,8,12,.75);display:none;align-items:center;justify-content:center;padding:24px;z-index:50}
 #modalBack.show{display:flex}
 #modal{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:18px;max-width:340px;width:100%;max-height:75dvh;overflow-y:auto}
 #modal h3{font-size:15px;margin-bottom:8px;color:var(--amber-soft)}
 #modal .body{font-size:13.5px;color:#c6d0dd;margin-bottom:14px}
 #modal .body .g{display:flex;justify-content:space-between;padding:2px 0}
 #modalBtns{display:flex;gap:8px}
-#modalBtns button{
-  flex:1;padding:10px 0;border-radius:9px;font-weight:700;font-size:13.5px;
-  background:#2a2113;color:var(--amber-soft);border:1px solid #5a4116;
-}
+#modalBtns button{flex:1;padding:10px 0;border-radius:9px;font-weight:700;font-size:13.5px;background:#2a2113;color:var(--amber-soft);border:1px solid #5a4116}
 #modalBtns button.ghost{background:var(--panel);color:var(--mut);border-color:var(--line)}
 #toast{
-  position:fixed;left:50%;bottom:calc(74px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
+  position:fixed;left:50%;top:calc(64px + env(safe-area-inset-top));transform:translateX(-50%) translateY(-8px);
   background:#242e3c;border:1px solid var(--line);color:var(--tx);
   padding:9px 16px;border-radius:99px;font-size:13px;font-weight:600;
   opacity:0;transition:.25s;pointer-events:none;z-index:60;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis;
 }
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#glErr{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:30px;text-align:center;color:var(--mut);z-index:100;background:var(--bg)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
-<div id="app">
-  <header>
-    <h1>Usine <span>Stellaire</span></h1>
-    <div id="hud">
-      <div id="hudBoost" style="display:none">⚡<b id="hudBoostT" class="num"></b></div>
-      <div>🧪 <b id="hudSci" class="num">0</b></div>
-      <div id="hudFragWrap" style="display:none">✨ <b id="hudFrag" class="num">0</b></div>
-    </div>
-  </header>
-  <main id="main">
-    <section id="tab-usine" class="on">
-      <div class="card">
-        <h2>Extraction manuelle</h2>
-        <div id="tapZone"><button id="mineBtn">⛏️ Miner <span id="mineWhat"></span></button></div>
-        <div class="chips" id="mineChips"></div>
-        <div class="hint" style="margin-top:8px" id="tapHint"></div>
-      </div>
-      <div class="card" id="dailyCard" style="display:none">
-        <h2>Caisse quotidienne</h2>
-        <button id="dailyBtn">🎁 Ouvrir la caisse du jour</button>
-        <div class="hint" style="margin-top:8px">Une caisse gratuite par jour : 30 minutes de production instantanée.</div>
-      </div>
-      <div class="card">
-        <h2>Surcadençage</h2>
-        <button id="boostBtn">⚡ Activer ×2 (30 min)</button>
-        <div class="hint" style="margin-top:8px">Double toute la production pendant 30 minutes. Recharge : 3 h.</div>
-      </div>
-      <div class="card">
-        <h2>Ressources</h2>
-        <div id="resList"></div>
-      </div>
-    </section>
-    <section id="tab-mach"><div id="machList" style="display:flex;flex-direction:column;gap:10px"></div></section>
-    <section id="tab-lab">
-      <div class="card"><h2>Science</h2>
-        <div style="font-size:14px">🧪 <b id="labSci" class="num">0</b> <span class="hint" id="labRate"></span></div>
-        <div class="hint" style="margin-top:4px">Construis des laboratoires (onglet Machines) pour produire de la science.</div>
-      </div>
-      <div id="rscList" style="display:flex;flex-direction:column;gap:10px"></div>
-    </section>
-    <section id="tab-fusee"><div id="rocketBox" style="display:flex;flex-direction:column;gap:10px"></div></section>
-    <section id="tab-plus">
-      <div class="card obj"><h2>Objectifs</h2><div id="objList"></div></div>
-      <div class="card ach"><h2 id="achHead">Succès</h2><div id="achList"></div></div>
-      <div class="card"><h2>Statistiques</h2><div id="statsBox" class="hint"></div></div>
-      <div class="card"><h2>Réglages</h2>
-        <div class="tgl"><span>🔊 Effets sonores</span><button id="tglSound"><i></i></button></div>
-        <div class="tgl"><span>📳 Vibrations</span><button id="tglVib"><i></i></button></div>
-      </div>
-      <div class="card"><h2>Sauvegarde</h2>
-        <div class="setBtns">
-          <button id="btnExport">Exporter la sauvegarde</button>
-          <button id="btnImport">Importer la sauvegarde</button>
-          <textarea id="ioArea" style="display:none" placeholder="Colle ta sauvegarde ici puis appuie de nouveau sur Importer"></textarea>
-          <button id="btnReset" class="danger">Tout recommencer (efface tout)</button>
-        </div>
-        <div class="hint" style="margin-top:8px">Le jeu sauvegarde automatiquement toutes les 10 secondes, directement sur ton téléphone. Aucune connexion nécessaire.</div>
-      </div>
-    </section>
-  </main>
-  <nav id="nav">
-    <button data-tab="usine" class="on"><span class="ic">🏭</span>Usine<span class="dot"></span></button>
-    <button data-tab="mach"><span class="ic">⚙️</span>Machines<span class="dot"></span></button>
-    <button data-tab="lab"><span class="ic">🧪</span>Labo<span class="dot"></span></button>
-    <button data-tab="fusee"><span class="ic">🚀</span>Fusée<span class="dot"></span></button>
-    <button data-tab="plus"><span class="ic">📋</span>Plus<span class="dot"></span></button>
-  </nav>
+<canvas id="c3d"></canvas>
+<div id="glErr"><div>⚠️ Ton navigateur ne supporte pas WebGL,<br>impossible d'afficher le monde 3D.</div></div>
+
+<div id="topbar">
+  <div id="quest"><div class="q1">Objectif</div><div class="q2" id="questTx"></div></div>
+  <div id="hudR">
+    <div class="chip">🧪 <span id="hudSci" class="num">0</span></div>
+    <div class="chip" id="hudFrag" style="display:none">✨ <span id="hudFragN" class="num">0</span></div>
+    <div class="chip">🎒 <span id="hudInv" class="num">0</span></div>
+  </div>
 </div>
+
+<div id="ctxWrap"><button id="ctxBtn">⛏️ Miner</button></div>
+<button id="recenter">🎯</button>
+<div id="buildCtl">
+  <button id="bCancel">✕</button>
+  <button id="bRot">↻</button>
+  <button id="bOk">✓ Construire</button>
+</div>
+
+<div id="botbar">
+  <button id="tbBuild"><span class="ic">🔨</span>Construire<span class="dot"></span></button>
+  <button id="tbInv"><span class="ic">🎒</span>Sac<span class="dot"></span></button>
+  <button id="tbRsc"><span class="ic">🧪</span>Recherche<span class="dot" id="rscDot"></span></button>
+  <button id="tbMenu"><span class="ic">☰</span>Menu<span class="dot"></span></button>
+</div>
+
+<div id="sheetBack"></div>
+<div id="sheet">
+  <div id="sheetHead"><h2 id="sheetTitle"></h2><button id="sheetClose">✕</button></div>
+  <div id="sheetBody"></div>
+</div>
+
 <div id="modalBack"><div id="modal"><h3 id="modalTitle"></h3><div class="body" id="modalBody"></div><div id="modalBtns"></div></div></div>
 <div id="toast"></div>
 
+<script src="./three.bundle.js"></script>
 <script>
 'use strict';
 /* =====================================================================
-   USINE STELLAIRE — jeu d'automatisation hors-ligne
+   USINE STELLAIRE : COLONIE — jeu de construction d'usine en 3D
    ===================================================================== */
+if(!window.THREE){document.getElementById('glErr').style.display='flex';throw new Error('three manquant')}
 
-/* ---------- données ---------- */
-const RES = {
-  ironOre:    {n:'Minerai de fer',    ic:'⛏️'},
-  copperOre:  {n:'Minerai de cuivre', ic:'🟠'},
-  coal:       {n:'Charbon',           ic:'⚫'},
-  stone:      {n:'Pierre',            ic:'🪨'},
-  ironPlate:  {n:'Plaque de fer',     ic:'🔩'},
-  copperPlate:{n:'Plaque de cuivre',  ic:'🟧'},
-  brick:      {n:'Brique',            ic:'🧱'},
-  gear:       {n:'Engrenage',         ic:'⚙️'},
-  wire:       {n:'Câble',             ic:'🔌'},
-  circuit:    {n:'Circuit',           ic:'💾'},
-  steel:      {n:'Acier',             ic:'⬜'},
-  module:     {n:'Module logique',    ic:'🧠'},
-  science:    {n:'Science',           ic:'🧪'},
+/* ---------- objets ---------- */
+const ITEMS={
+  ironOre:    {n:'Minerai de fer',   ic:'⛏️', col:0x9fb6cc},
+  copperOre:  {n:'Minerai de cuivre',ic:'🟠', col:0xd97a3e},
+  coal:       {n:'Charbon',          ic:'⚫', col:0x33383f},
+  stone:      {n:'Pierre',           ic:'🪨', col:0xb0aa9c},
+  ironPlate:  {n:'Plaque de fer',    ic:'🔩', col:0xcdd8e4},
+  copperPlate:{n:'Plaque de cuivre', ic:'🟧', col:0xe8935a},
+  gear:       {n:'Engrenage',        ic:'⚙️', col:0x8b98a8},
+  wire:       {n:'Câble',            ic:'🔌', col:0xd9a066},
+  circuit:    {n:'Circuit',          ic:'💾', col:0x4fa96f},
+  steel:      {n:'Acier',            ic:'⬜', col:0xdfe6ee},
+  module:     {n:'Module logique',   ic:'🧠', col:0xb08ae8},
 };
-const RAWS = ['ironOre','copperOre','coal','stone'];
+const DEPOSITS={
+  iron:  {item:'ironOre',   n:'Gisement de fer',    col:0x8fa9c4},
+  copper:{item:'copperOre', n:'Gisement de cuivre', col:0xc96f38},
+  coal:  {item:'coal',      n:'Veine de charbon',   col:0x454c57},
+  stone: {item:'stone',     n:'Carrière de pierre', col:0xa39e90},
+};
 
-/* Machines : traitées dans l'ordre (les extracteurs alimentent les fours, etc.) */
-const MACHINES = [
-  {id:'mineIron',   nm:'Foreuse à fer',        ic:'⛏️', cat:'ext', out:{ironOre:.5},
-   cost:{ironOre:15,stone:5}, vis:s=>true},
-  {id:'quarry',     nm:'Carrière',             ic:'🪨', cat:'ext', out:{stone:.5},
-   cost:{ironOre:10}, vis:s=>true},
-  {id:'mineCopper', nm:'Foreuse à cuivre',     ic:'🟠', cat:'ext', out:{copperOre:.5},
-   cost:{ironOre:25,stone:10}, vis:s=>s.life.ironOre>=15},
-  {id:'mineCoal',   nm:'Extracteur de charbon',ic:'⚫', cat:'ext', out:{coal:.5},
-   cost:{ironOre:25,stone:10}, vis:s=>s.life.ironOre>=15},
-  {id:'furnIron',   nm:'Four à fer',           ic:'🔥', cat:'fou', inp:{ironOre:.5,coal:.1}, out:{ironPlate:.5},
-   cost:{stone:25,ironOre:15}, vis:s=>s.life.coal>=1},
-  {id:'furnCopper', nm:'Four à cuivre',        ic:'🔥', cat:'fou', inp:{copperOre:.5,coal:.1}, out:{copperPlate:.5},
-   cost:{stone:25,ironOre:15}, vis:s=>s.life.copperOre>=1&&s.life.coal>=1},
-  {id:'kiln',       nm:'Four à briques',       ic:'🧱', cat:'fou', inp:{stone:.6,coal:.1}, out:{brick:.3},
-   cost:{stone:40,ironPlate:10}, vis:s=>s.life.ironPlate>=10},
-  {id:'gearWorks',  nm:'Atelier d’engrenages', ic:'⚙️', cat:'asm', inp:{ironPlate:1}, out:{gear:.5},
-   cost:{ironPlate:30,stone:20}, vis:s=>s.life.ironPlate>=15},
-  {id:'wireMill',   nm:'Tréfilerie',           ic:'🔌', cat:'asm', inp:{copperPlate:.5}, out:{wire:1},
-   cost:{ironPlate:25,gear:10}, vis:s=>s.life.copperPlate>=5},
-  {id:'circuitAsm', nm:'Assembleur de circuits',ic:'💾', cat:'asm', inp:{ironPlate:.5,wire:1.5}, out:{circuit:.5},
-   cost:{ironPlate:60,gear:20}, vis:s=>s.life.wire>=10},
-  {id:'lab',        nm:'Laboratoire',          ic:'🧪', cat:'lab', inp:{gear:.25,circuit:.25}, out:{science:.1},
-   cost:{ironPlate:60,gear:25,circuit:10}, vis:s=>s.life.circuit>=5},
-  {id:'steelworks', nm:'Aciérie',              ic:'⬜', cat:'fou', inp:{ironPlate:1.25,coal:.5}, out:{steel:.25},
-   cost:{brick:50,gear:30,circuit:10}, vis:s=>s.rsc.steelTech},
-  {id:'moduleFab',  nm:'Fabrique de modules',  ic:'🧠', cat:'asm', inp:{circuit:.5,steel:.1,gear:.25}, out:{module:.1},
-   cost:{steel:50,circuit:60,brick:40}, vis:s=>s.rsc.moduleTech},
+/* ---------- bâtiments ---------- */
+const BCAP=12; // capacité des tampons machine (par objet)
+const BUILDINGS={
+  drill:{nm:'Foreuse',ic:'⛏️',ds:'À poser sur un gisement. Extrait le minerai toute seule.',
+    cost:{ironOre:10,stone:5},needsDeposit:true,mine:{t:2.5,q:1},cat:'ext'},
+  furnace:{nm:'Four',ic:'🔥',ds:'Fond le minerai en plaques. Consomme du charbon.',
+    cost:{stone:15,ironOre:8},cat:'fou',
+    recipes:[{in:{ironOre:2,coal:1},out:{ironPlate:2},t:5},{in:{copperOre:2,coal:1},out:{copperPlate:2},t:5}]},
+  gearw:{nm:'Atelier d’engrenages',ic:'⚙️',ds:'Usine des engrenages à partir de plaques de fer.',
+    cost:{ironPlate:8,stone:5},cat:'asm',recipes:[{in:{ironPlate:2},out:{gear:1},t:3}]},
+  wirem:{nm:'Tréfilerie',ic:'🔌',ds:'Étire les plaques de cuivre en câbles.',
+    cost:{ironPlate:8,gear:4},cat:'asm',recipes:[{in:{copperPlate:1},out:{wire:2},t:3}]},
+  circm:{nm:'Assembleur de circuits',ic:'💾',ds:'Assemble des circuits (fer + câbles).',
+    cost:{ironPlate:15,gear:8},cat:'asm',recipes:[{in:{ironPlate:1,wire:3},out:{circuit:1},t:4}]},
+  lab:{nm:'Laboratoire',ic:'🧪',ds:'Consomme engrenages et circuits, produit de la science.',
+    cost:{ironPlate:15,gear:8,circuit:4},cat:'lab',recipes:[{in:{gear:1,circuit:1},out:{},sci:1,t:6}]},
+  steelw:{nm:'Aciérie',ic:'🏭',ds:'Fond plaques + charbon en acier.',rsc:'steelTech',
+    cost:{ironPlate:30,circuit:10},cat:'fou',recipes:[{in:{ironPlate:5,coal:2},out:{steel:1},t:8}]},
+  modf:{nm:'Fabrique de modules',ic:'🧠',ds:'Le sommet de ta chaîne de production.',rsc:'moduleTech',
+    cost:{steel:15,circuit:20},cat:'asm',recipes:[{in:{circuit:4,gear:2,steel:1},out:{module:1},t:10}]},
+  belt:{nm:'Convoyeur',ic:'➡️',ds:'Transporte les objets d’une machine à l’autre. Oriente-le avec ↻.',
+    cost:{ironPlate:1},belt:true,cat:'log'},
+  chest:{nm:'Coffre',ic:'📦',ds:'Stocke jusqu’à 200 objets. Les machines adjacentes y déversent.',
+    cost:{ironPlate:5,stone:5},chest:true,cap:200,cat:'log'},
+  silo:{nm:'Silo à fusée',ic:'🚀',ds:'Alimente-le pour lancer la fusée (prestige !).',rsc:'rocketTech',
+    cost:{steel:40,circuit:60,gear:40},silo:true,need:{module:15,steel:40,circuit:80},cat:'log'},
+};
+const BUILD_ORDER=['drill','furnace','belt','gearw','wirem','circm','chest','lab','steelw','modf','silo'];
+
+/* ---------- recherches ---------- */
+const RESEARCH=[
+  {id:'speed1',nm:'Forage rapide I',ds:'Foreuses +50 %.',cost:10},
+  {id:'inv1',nm:'Grand sac',ds:'Capacité du sac : 200 → 400.',cost:12},
+  {id:'smelt1',nm:'Métallurgie I',ds:'Fours +50 %.',cost:15},
+  {id:'walk1',nm:'Jambes hydrauliques',ds:'Vitesse de marche +40 %.',cost:15},
+  {id:'belt1',nm:'Convoyeurs rapides',ds:'Convoyeurs +50 %.',cost:25},
+  {id:'asm1',nm:'Automatisation I',ds:'Assembleurs +50 %.',cost:25},
+  {id:'steelTech',nm:'Sidérurgie',ds:'Débloque l’aciérie.',cost:30},
+  {id:'offline1',nm:'Tampons de stockage',ds:'Production hors-ligne : jusqu’à 8 h.',cost:30},
+  {id:'mine1',nm:'Piolet renforcé',ds:'Minage manuel : 4 par coup.',cost:20},
+  {id:'inv2',nm:'Exosac',ds:'Capacité du sac : 400 → 800.',cost:50,req:'inv1'},
+  {id:'moduleTech',nm:'Modules logiques',ds:'Débloque la fabrique de modules.',cost:50,req:'steelTech'},
+  {id:'speed2',nm:'Forage rapide II',ds:'Foreuses ×2.',cost:60,req:'speed1'},
+  {id:'smelt2',nm:'Métallurgie II',ds:'Fours ×2.',cost:60,req:'smelt1'},
+  {id:'walk2',nm:'Servomoteurs',ds:'Vitesse de marche +40 %.',cost:60,req:'walk1'},
+  {id:'asm2',nm:'Automatisation II',ds:'Assembleurs ×2.',cost:80,req:'asm1'},
+  {id:'rocketTech',nm:'Programme spatial',ds:'Débloque le silo à fusée.',cost:100,req:'moduleTech'},
+  {id:'offline2',nm:'Silos automatisés',ds:'Production hors-ligne : jusqu’à 24 h.',cost:100,req:'offline1'},
+  {id:'logi1',nm:'Logistique intégrée',ds:'Toutes les machines +25 %.',cost:120},
 ];
-const MACH_BY_ID = Object.fromEntries(MACHINES.map(m=>[m.id,m]));
-const COST_MULT = 1.15;
-const CATS = [['ext','Extraction'],['fou','Fours'],['asm','Assembleurs'],['lab','Science']];
-const CAT_OF = {ext:'Extraction',fou:'Fours',asm:'Assembleurs',lab:'Science'};
+const RESEARCH_BY_ID=Object.fromEntries(RESEARCH.map(r=>[r.id,r]));
 
-/* Recherches */
-const RESEARCH = [
-  {id:'tap1',    nm:'Outils en fer',        ds:'Extraction manuelle : 2 par coup.', cost:10},
-  {id:'mining1', nm:'Forage efficace I',    ds:'Extracteurs +50 %.', cost:15},
-  {id:'smelt1',  nm:'Métallurgie I',        ds:'Fours +50 %.', cost:25},
-  {id:'offline1',nm:'Tampons de stockage',  ds:'Production hors-ligne : jusqu’à 8 h.', cost:30},
-  {id:'asm1',    nm:'Automatisation I',     ds:'Assembleurs +50 %.', cost:40},
-  {id:'steelTech',nm:'Sidérurgie',          ds:'Débloque l’aciérie (acier).', cost:50},
-  {id:'tap2',    nm:'Outils en acier',      ds:'Extraction manuelle : 5 par coup.', cost:60, req:'tap1'},
-  {id:'logi1',   nm:'Logistique I',         ds:'Toute la production +25 %.', cost:75},
-  {id:'mining2', nm:'Forage efficace II',   ds:'Extracteurs ×2.', cost:80, req:'mining1'},
-  {id:'lab1',    nm:'Méthode scientifique', ds:'Laboratoires ×2.', cost:90},
-  {id:'moduleTech',nm:'Modules logiques',   ds:'Débloque la fabrique de modules.', cost:100, req:'steelTech'},
-  {id:'smelt2',  nm:'Métallurgie II',       ds:'Fours ×2.', cost:120, req:'smelt1'},
-  {id:'asm2',    nm:'Automatisation II',    ds:'Assembleurs ×2.', cost:150, req:'asm1'},
-  {id:'offline2',nm:'Silos automatisés',    ds:'Production hors-ligne : jusqu’à 24 h.', cost:150, req:'offline1'},
-  {id:'rocketTech',nm:'Programme spatial',  ds:'Débloque la fusée (onglet Fusée).', cost:200, req:'moduleTech'},
-  {id:'tap3',    nm:'Exosquelette',         ds:'Extraction manuelle : 15 par coup.', cost:300, req:'tap2'},
-  {id:'mining3', nm:'Forage efficace III',  ds:'Extracteurs ×2,5.', cost:400, req:'mining2'},
-  {id:'smelt3',  nm:'Métallurgie III',      ds:'Fours ×2,5.', cost:450, req:'smelt2'},
-  {id:'asm3',    nm:'Automatisation III',   ds:'Assembleurs ×2,5.', cost:500, req:'asm2'},
-  {id:'logi2',   nm:'Logistique II',        ds:'Toute la production +50 %.', cost:500, req:'logi1'},
-  {id:'lab2',    nm:'Publication galactique',ds:'Laboratoires ×3.', cost:600, req:'lab1'},
+/* ---------- succès (+2 % de vitesse chacun, permanents) ---------- */
+const ACH_BONUS=0.02;
+const ACHIEVEMENTS=[
+  {id:'a_mine1',nm:'Prospecteur',ds:'Miner 100 ressources à la main',ok:s=>(s.stats.mined||0)>=100},
+  {id:'a_mine2',nm:'Taupe stellaire',ds:'Miner 1 000 ressources à la main',ok:s=>(s.stats.mined||0)>=1000},
+  {id:'a_walk',nm:'Randonneur',ds:'Parcourir 500 cases',ok:s=>(s.stats.walked||0)>=500},
+  {id:'a_b1',nm:'Contremaître',ds:'10 bâtiments construits',ok:s=>(s.stats.built||0)>=10},
+  {id:'a_b2',nm:'Architecte industriel',ds:'50 bâtiments construits',ok:s=>(s.stats.built||0)>=50},
+  {id:'a_belt',nm:'Tapis roulant',ds:'Poser 25 convoyeurs',ok:s=>(s.stats.belts||0)>=25},
+  {id:'a_circ',nm:'Silicium roi',ds:'Produire 500 circuits',ok:s=>(s.life.circuit||0)>=500},
+  {id:'a_sci',nm:'Scientifique',ds:'5 recherches terminées',ok:s=>Object.keys(s.rsc).length>=5},
+  {id:'a_sciAll',nm:'Omniscient',ds:'Toutes les recherches',ok:s=>Object.keys(s.rsc).length>=RESEARCH.length},
+  {id:'a_rock1',nm:'Premier décollage',ds:'Lancer une fusée',ok:s=>s.rockets>=1},
+  {id:'a_rock3',nm:'Conquête stellaire',ds:'Lancer 3 fusées',ok:s=>s.rockets>=3},
 ];
-const RESEARCH_BY_ID = Object.fromEntries(RESEARCH.map(r=>[r.id,r]));
+const ACH_BY_ID=Object.fromEntries(ACHIEVEMENTS.map(a=>[a.id,a]));
 
-/* Objectifs (persistants à travers les prestiges) */
-const MILESTONES = [
-  {id:'m1',  nm:'Mineur débutant',      ds:'Miner 25 fois à la main',        rw:{ironOre:25},   ok:s=>s.taps>=25},
-  {id:'m2',  nm:'Première machine',     ds:'Construire une foreuse à fer',   rw:{stone:20},     ok:s=>s.mach.mineIron>=1},
-  {id:'m3',  nm:'Chaîne du fer',        ds:'Produire 50 plaques de fer',     rw:{coal:25},      ok:s=>s.life.ironPlate>=50},
-  {id:'m4',  nm:'Ingénieur',            ds:'Produire 25 engrenages',         rw:{ironPlate:50}, ok:s=>s.life.gear>=25},
-  {id:'m5',  nm:'Électronicien',        ds:'Produire 25 circuits',           rw:{wire:50},      ok:s=>s.life.circuit>=25},
-  {id:'m6',  nm:'Scientifique',         ds:'Terminer une recherche',         rw:{science:10},   ok:s=>Object.keys(s.rsc).length>=1},
-  {id:'m7',  nm:'Industriel',           ds:'Posséder 25 machines',           rw:{ironPlate:100},ok:s=>totalMachines(s)>=25},
-  {id:'m8',  nm:'Maître de l’acier',ds:'Produire 100 aciers',           rw:{circuit:50},   ok:s=>s.life.steel>=100},
-  {id:'m9',  nm:'Vers les étoiles',     ds:'Lancer une fusée',               rw:{science:25},   ok:s=>s.rockets>=1},
-  {id:'m10', nm:'Automatisation totale',ds:'Posséder 100 machines',          rw:{ironPlate:500},ok:s=>totalMachines(s)>=100},
+/* ---------- objectifs (tutoriel progressif) ---------- */
+const QUESTS=[
+  {tx:'Touche le sol pour déplacer ton robot',ok:s=>(s.stats.walked||0)>=4,rw:{stone:5}},
+  {tx:'Approche-toi d’un gisement de fer ⛏️ et mine 15 minerais (bouton MINER)',ok:s=>(s.life.ironOre||0)>=15,rw:{coal:4}},
+  {tx:'Mine 8 pierres sur une carrière 🪨',ok:s=>(s.life.stone||0)>=8,rw:{ironOre:5}},
+  {tx:'Construis une foreuse (🔨 Construire) sur un gisement de fer',ok:s=>cntType('drill')>=1,rw:{stone:10}},
+  {tx:'Mine 10 charbons ⚫ (veine sombre)',ok:s=>(s.life.coal||0)>=10,rw:{coal:5}},
+  {tx:'Construis un four collé à la foreuse : le minerai y entrera tout seul',ok:s=>cntType('furnace')>=1,rw:{coal:10}},
+  {tx:'Touche le four et dépose du charbon — produis 10 plaques de fer',ok:s=>(s.life.ironPlate||0)>=10,rw:{ironPlate:4}},
+  {tx:'Construis un atelier d’engrenages et produis 8 engrenages',ok:s=>(s.life.gear||0)>=8,rw:{ironPlate:8}},
+  {tx:'Pose 3 convoyeurs ➡️ pour transporter les objets entre machines',ok:s=>(s.stats.belts||0)>=3,rw:{ironPlate:6}},
+  {tx:'Exploite le cuivre : foreuse + four, puis une tréfilerie (câbles)',ok:s=>(s.life.wire||0)>=6,rw:{gear:6}},
+  {tx:'Produis 8 circuits 💾 (fer + câbles)',ok:s=>(s.life.circuit||0)>=8,rw:{wire:8}},
+  {tx:'Construis un laboratoire et accumule 10 science 🧪',ok:s=>(s.sciLife||0)>=10,rw:{circuit:4}},
+  {tx:'Termine une recherche (onglet 🧪 Recherche)',ok:s=>Object.keys(s.rsc).length>=1,rw:{ironPlate:15}},
+  {tx:'Recherche la sidérurgie et produis 20 aciers',ok:s=>(s.life.steel||0)>=20,rw:{coal:20}},
+  {tx:'Fabrique 5 modules logiques 🧠',ok:s=>(s.life.module||0)>=5,rw:{steel:5}},
+  {tx:'Construis le silo et lance la fusée ! 🚀',ok:s=>s.rockets>=1,rw:{}},
+  {tx:'Colonie établie ! Agrandis ton usine, relance des fusées (coût ×2, fragments ✨ permanents)',ok:s=>false,rw:{}},
 ];
 
-/* Succès : gagnés automatiquement, +2 % de production permanente chacun */
-const ACH_BONUS = 0.02;
-const ACHIEVEMENTS = [
-  {id:'a_tap1',  nm:'Doigts calleux',        ds:'100 coups de pioche',            ok:s=>(s.stats.taps||0)>=100},
-  {id:'a_tap2',  nm:'Marteau-piqueur humain',ds:'1 000 coups de pioche',          ok:s=>(s.stats.taps||0)>=1000},
-  {id:'a_tap3',  nm:'Légende du piolet',     ds:'5 000 coups de pioche',          ok:s=>(s.stats.taps||0)>=5000},
-  {id:'a_crit',  nm:'Coup de maître',        ds:'100 coups critiques',            ok:s=>(s.stats.crits||0)>=100},
-  {id:'a_mach1', nm:'Contremaître',          ds:'10 machines en service',         ok:s=>totalMachines(s)>=10},
-  {id:'a_mach2', nm:'Chef de site',          ds:'50 machines en service',         ok:s=>totalMachines(s)>=50},
-  {id:'a_mach3', nm:'Baron industriel',      ds:'150 machines en service',        ok:s=>totalMachines(s)>=150},
-  {id:'a_mach4', nm:'Empire mécanique',      ds:'300 machines en service',        ok:s=>totalMachines(s)>=300},
-  {id:'a_pal',   nm:'Palier franchi',        ds:'25 exemplaires d’une machine',   ok:s=>Object.values(s.mach).some(n=>n>=25)},
-  {id:'a_plate', nm:'Maître fondeur',        ds:'1 000 plaques de fer produites', ok:s=>s.life.ironPlate>=1000},
-  {id:'a_circ',  nm:'Silicium roi',          ds:'1 000 circuits produits',        ok:s=>s.life.circuit>=1000},
-  {id:'a_steel', nm:'Cœur d’acier',          ds:'5 000 aciers produits',          ok:s=>s.life.steel>=5000},
-  {id:'a_mod',   nm:'Cerveau collectif',     ds:'1 000 modules produits',         ok:s=>s.life.module>=1000},
-  {id:'a_sci1',  nm:'Docteur',               ds:'5 recherches terminées',         ok:s=>Object.keys(s.rsc).length>=5},
-  {id:'a_sci2',  nm:'Professeur',            ds:'15 recherches terminées',        ok:s=>Object.keys(s.rsc).length>=15},
-  {id:'a_sci3',  nm:'Omniscient',            ds:'Toutes les recherches',          ok:s=>Object.keys(s.rsc).length>=RESEARCH.length},
-  {id:'a_rock1', nm:'Premier décollage',     ds:'Lancer 1 fusée',                 ok:s=>s.rockets>=1},
-  {id:'a_rock2', nm:'Programme orbital',     ds:'Lancer 3 fusées',                ok:s=>s.rockets>=3},
-  {id:'a_rock3', nm:'Conquête stellaire',    ds:'Lancer 7 fusées',                ok:s=>s.rockets>=7},
-  {id:'a_boost', nm:'Accro au turbo',        ds:'10 surcadençages',               ok:s=>(s.stats.boosts||0)>=10},
-  {id:'a_daily', nm:'Fidèle au poste',       ds:'7 caisses quotidiennes',         ok:s=>(s.stats.dailies||0)>=7},
-];
-const ACH_BY_ID = Object.fromEntries(ACHIEVEMENTS.map(a=>[a.id,a]));
-
-/* Surcadençage : ×2 pendant 30 min, recharge 3 h */
-const BOOST_DUR = 30*60e3, BOOST_CD = 3*3600e3, BOOST_MULT = 2;
-/* Paliers : tous les 25 exemplaires, la machine double sa production */
-const TIER_STEP = 25;
-
-/* Fusée (prestige) : coût ×2 à chaque lancement, +20 % de production par fragment */
-const ROCKET_BASE = {module:25, steel:150, circuit:400};
-const FRAG_BONUS = 0.20;
-const fragGain = n => 3*(n+1);
-const rocketCost = n => Object.fromEntries(Object.entries(ROCKET_BASE).map(([r,q])=>[r,q*Math.pow(2,n)]));
-
-const TAP_POWER = s => s.rsc.tap3?15 : s.rsc.tap2?5 : s.rsc.tap1?2 : 1;
-const OFFLINE_CAP = s => (s.rsc.offline2?24 : s.rsc.offline1?8 : 2)*3600;
+/* ---------- constantes ---------- */
+const MAP=56;               // taille de la carte
+const SIM_DT=0.1;           // pas de simulation (s)
+const BELT_GAP=0.34;        // espacement min des objets sur un convoyeur
+const BELT_CAP=3;
+const FRAG_BONUS=0.20;
+const fragGain=n=>3*(n+1);
+const siloNeed=n=>({module:15*Math.pow(2,n),steel:40*Math.pow(2,n),circuit:80*Math.pow(2,n)});
+const OFFLINE_CAP=s=>(s.rsc.offline2?24:s.rsc.offline1?8:2)*3600;
+const INV_CAP=s=>s.rsc.inv2?800:s.rsc.inv1?400:200;
+const MINE_POW=s=>s.rsc.mine1?4:2;
+const DIRS=[[1,0],[0,1],[-1,0],[0,-1]]; // 0:+x 1:+z 2:-x 3:-z
 
 /* ---------- état ---------- */
-const SAVE_KEY = 'usineStellaire.v1';
+const SAVE_KEY='usineColonie.v1';
 function freshState(keep){
-  const res={}, life={}, mach={};
-  for(const r in RES){res[r]=0;life[r]=0}
-  for(const m of MACHINES) mach[m.id]=0;
   return {
-    v:1, t:Date.now(),
-    res, life, mach, rsc:{},
-    taps:0, mine:'ironOre',
+    v:3, t:Date.now(), seed:(Math.random()*1e9)|0,
+    science:0, sciLife:0, rsc:{},
+    inv:{}, life:{},
+    px:MAP/2+.5, py:MAP/2+.5,
+    ents:[],
+    quest: keep?keep.quest:0,
     rockets: keep&&keep.rockets||0,
     frags:   keep&&keep.frags||0,
-    done:    keep&&keep.done||{},        // objectifs réclamés
-    ach:     keep&&keep.ach||{},         // succès (permanents)
-    boostUntil:   keep&&keep.boostUntil||0,
-    boostReadyAt: keep&&keep.boostReadyAt||0,
-    daily:   keep&&keep.daily||'',
+    ach:     keep&&keep.ach||{},
     set:     keep&&keep.set||{sound:true,vib:true},
-    stats:   keep&&keep.stats||{taps:0, launches:0, started:Date.now(), playTime:0, crits:0, boosts:0, dailies:0},
+    stats:   keep&&keep.stats||{mined:0,walked:0,built:0,belts:0,crits:0,launches:0,playTime:0},
   };
 }
-let S = freshState();
-
-function totalMachines(s){let t=0;for(const k in s.mach)t+=s.mach[k];return t}
+let S=freshState();
+let ENT_AT={};            // "x,y" -> ent
+const key=(x,y)=>x+','+y;
+function cntType(t){let n=0;for(const e of S.ents)if(e.t===t)n++;return n}
 
 /* ---------- multiplicateurs ---------- */
-function catMult(cat,s){
-  s=s||S; let m=1;
-  if(cat==='ext'){ if(s.rsc.mining1)m*=1.5; if(s.rsc.mining2)m*=2; if(s.rsc.mining3)m*=2.5; }
-  if(cat==='fou'){ if(s.rsc.smelt1)m*=1.5;  if(s.rsc.smelt2)m*=2;  if(s.rsc.smelt3)m*=2.5; }
-  if(cat==='asm'){ if(s.rsc.asm1)m*=1.5;    if(s.rsc.asm2)m*=2;    if(s.rsc.asm3)m*=2.5; }
-  if(cat==='lab'){ if(s.rsc.lab1)m*=2;      if(s.rsc.lab2)m*=3; }
-  if(s.rsc.logi1)m*=1.25; if(s.rsc.logi2)m*=1.5;
-  m*= 1 + FRAG_BONUS*s.frags;
-  m*= 1 + ACH_BONUS*Object.keys(s.ach||{}).length;
-  if(Date.now()<(s.boostUntil||0)) m*=BOOST_MULT;
+function globalMult(s){s=s||S;return (1+FRAG_BONUS*(s.frags||0))*(1+ACH_BONUS*Object.keys(s.ach||{}).length)*(s.rsc.logi1?1.25:1)}
+function speedMult(type,s){
+  s=s||S; let m=globalMult(s);
+  const cat=BUILDINGS[type]&&BUILDINGS[type].cat;
+  if(type==='drill'){if(s.rsc.speed1)m*=1.5;if(s.rsc.speed2)m*=2}
+  if(cat==='fou'){if(s.rsc.smelt1)m*=1.5;if(s.rsc.smelt2)m*=2}
+  if(cat==='asm'){if(s.rsc.asm1)m*=1.5;if(s.rsc.asm2)m*=2}
   return m;
 }
-/* multiplicateur d'une machine : catégorie × paliers (tous les 25 : ×2) */
-function machMult(mc,s){
-  s=s||S;
-  return catMult(mc.cat,s)*Math.pow(2,Math.floor((s.mach[mc.id]||0)/TIER_STEP));
+function beltSpeed(s){s=s||S;return 1.4*(s.rsc.belt1?1.5:1)}
+function walkSpeed(s){s=s||S;return 3.2*(s.rsc.walk1?1.4:1)*(s.rsc.walk2?1.4:1)}
+
+/* ---------- génération du monde (déterministe par graine) ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const WORLD={terr:null,dep:null,rng:null};
+// terr : 0 herbe, 1 rocher (bloquant), 2 arbre (bloquant), 3 montagne bord
+function genWorld(seed){
+  const rng=mulberry32(seed); WORLD.rng=rng;
+  const terr=new Uint8Array(MAP*MAP), dep=new Array(MAP*MAP).fill(null);
+  for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++){
+    if(x<2||y<2||x>=MAP-2||y>=MAP-2)terr[y*MAP+x]=3;
+  }
+  // amas de rochers
+  for(let i=0;i<26;i++){
+    let x=3+((rng()*(MAP-6))|0), y=3+((rng()*(MAP-6))|0);
+    const n=2+(rng()*5|0);
+    for(let j=0;j<n;j++){
+      if(Math.abs(x-MAP/2)<5&&Math.abs(y-MAP/2)<5)break;
+      if(x>2&&y>2&&x<MAP-3&&y<MAP-3)terr[y*MAP+x]=1;
+      x+=(rng()*3|0)-1; y+=(rng()*3|0)-1;
+    }
+  }
+  // arbres épars
+  for(let i=0;i<110;i++){
+    const x=3+((rng()*(MAP-6))|0), y=3+((rng()*(MAP-6))|0);
+    if(terr[y*MAP+x]===0&&!(Math.abs(x-MAP/2)<4&&Math.abs(y-MAP/2)<4))terr[y*MAP+x]=2;
+  }
+  // gisements : amas par marche aléatoire
+  function blob(type,cx,cy,size){
+    let x=cx,y=cy;
+    for(let i=0;i<size;i++){
+      if(x>2&&y>2&&x<MAP-3&&y<MAP-3&&terr[y*MAP+x]!==3){
+        terr[y*MAP+x]=0; dep[y*MAP+x]=type;
+      }
+      const d=DIRS[rng()*4|0]; x+=d[0]; y+=d[1];
+    }
+  }
+  const c=MAP/2;
+  blob('iron',  c-6+(rng()*4|0), c-2+(rng()*4|0), 26);
+  blob('stone', c+4+(rng()*4|0), c-6+(rng()*4|0), 22);
+  blob('coal',  c-2+(rng()*4|0), c+5+(rng()*4|0), 24);
+  blob('copper',c+8+(rng()*5|0), c+7+(rng()*5|0), 24);
+  blob('iron',  6+(rng()*10|0), 6+(rng()*10|0), 34);
+  blob('copper',MAP-14+(rng()*6|0), 8+(rng()*10|0), 30);
+  blob('coal',  8+(rng()*10|0), MAP-14+(rng()*6|0), 30);
+  blob('stone', MAP-14+(rng()*6|0), MAP-14+(rng()*6|0), 26);
+  blob('iron',  MAP-16+(rng()*8|0), c-4+(rng()*8|0), 28);
+  WORLD.terr=terr; WORLD.dep=dep;
+}
+const terrAt=(x,y)=>(x<0||y<0||x>=MAP||y>=MAP)?3:WORLD.terr[y*MAP+x];
+const depAt=(x,y)=>(x<0||y<0||x>=MAP||y>=MAP)?null:WORLD.dep[y*MAP+x];
+function walkable(x,y){
+  const t=terrAt(x,y);
+  if(t!==0)return false;
+  const e=ENT_AT[key(x,y)];
+  return !e||!!BUILDINGS[e.t].belt;
 }
 
-/* ---------- simulation ---------- */
-const EFF = {}; // efficacité courante par machine (pour l'affichage)
-function tick(dt){
-  for(const mc of MACHINES){
-    const cnt = S.mach[mc.id];
-    if(!cnt){EFF[mc.id]=1;continue}
-    const mult = machMult(mc);
-    let f = 1;
-    if(mc.inp){
-      for(const r in mc.inp){
-        const need = mc.inp[r]*cnt*mult*dt;
-        if(need>1e-12) f = Math.min(f, S.res[r]/need);
-      }
-      f = Math.max(0, Math.min(1, f));
-      for(const r in mc.inp){
-        S.res[r] = Math.max(0, S.res[r] - mc.inp[r]*cnt*mult*dt*f);
+/* ---------- A* ---------- */
+function findPath(x0,y0,x1,y1){
+  if(!walkable(x1,y1))return null;
+  if(x0===x1&&y0===y1)return [];
+  const open=[[0,x0,y0]], came={}, g={}; g[key(x0,y0)]=0;
+  const h=(x,y)=>Math.abs(x-x1)+Math.abs(y-y1);
+  let iter=0;
+  while(open.length&&iter++<4000){
+    let bi=0;for(let i=1;i<open.length;i++)if(open[i][0]<open[bi][0])bi=i;
+    const [,x,y]=open.splice(bi,1)[0];
+    if(x===x1&&y===y1){
+      const path=[];let k=key(x,y);
+      while(came[k]){path.push(k.split(',').map(Number));k=came[k]}
+      return path.reverse();
+    }
+    for(const d of DIRS){
+      const nx=x+d[0],ny=y+d[1];
+      if(!walkable(nx,ny))continue;
+      const ng=g[key(x,y)]+1;
+      if(g[key(nx,ny)]===undefined||ng<g[key(nx,ny)]){
+        g[key(nx,ny)]=ng; came[key(nx,ny)]=key(x,y);
+        open.push([ng+h(nx,ny),nx,ny]);
       }
     }
-    for(const r in mc.out){
-      const g = mc.out[r]*cnt*mult*dt*f;
-      S.res[r]+=g; S.life[r]+=g;
-    }
-    EFF[mc.id]=f;
   }
-}
-/* simule `sec` secondes par pas de 30 s max (hors-ligne) */
-function simulate(sec){
-  let s=sec;
-  while(s>1e-9){ const step=Math.min(30,s); tick(step); s-=step; }
-}
-/* débit net actuel par ressource (pour l'affichage) */
-function netRates(){
-  const rt={};
-  for(const mc of MACHINES){
-    const cnt=S.mach[mc.id]; if(!cnt)continue;
-    const k=cnt*machMult(mc)*(EFF[mc.id]!==undefined?EFF[mc.id]:1);
-    if(mc.inp)for(const r in mc.inp) rt[r]=(rt[r]||0)-mc.inp[r]*k;
-    for(const r in mc.out) rt[r]=(rt[r]||0)+mc.out[r]*k;
-  }
-  return rt;
+  return null;
 }
 
 /* ---------- économie ---------- */
-function machCost(mc,owned,qty){
-  const c={};
-  for(const r in mc.cost){
-    let tot=0;
-    for(let i=0;i<qty;i++) tot+=Math.ceil(mc.cost[r]*Math.pow(COST_MULT,owned+i));
-    c[r]=tot;
+const invCount=()=>{let n=0;for(const k in S.inv)n+=S.inv[k];return n}
+function invAdd(item,q){
+  const room=INV_CAP(S)-invCount();
+  const add=Math.max(0,Math.min(q,room));
+  if(add>0)S.inv[item]=(S.inv[item]||0)+add;
+  return add;
+}
+function invTake(item,q){
+  const t=Math.min(q,S.inv[item]||0);
+  if(t>0){S.inv[item]-=t;if(S.inv[item]<=0)delete S.inv[item]}
+  return t;
+}
+function canAfford(cost){for(const k in cost)if((S.inv[k]||0)<cost[k])return false;return true}
+function payCost(cost){for(const k in cost)invTake(k,cost[k])}
+
+/* ---------- placement ---------- */
+function canPlace(type,x,y,silent){
+  const b=BUILDINGS[type]; if(!b)return {ok:false,why:'?'};
+  if(b.rsc&&!S.rsc[b.rsc])return {ok:false,why:'Recherche requise'};
+  if(terrAt(x,y)!==0)return {ok:false,why:'Terrain bloqué'};
+  if(ENT_AT[key(x,y)])return {ok:false,why:'Case occupée'};
+  if(Math.round(S.px-.5)===x&&Math.round(S.py-.5)===y)return {ok:false,why:'Ton robot est ici'};
+  if(b.needsDeposit&&!depAt(x,y))return {ok:false,why:'Il faut un gisement'};
+  if(!canAfford(b.cost))return {ok:false,why:'Ressources insuffisantes'};
+  return {ok:true};
+}
+function placeBuilding(type,x,y,dir){
+  const v=canPlace(type,x,y);
+  if(!v.ok)return false;
+  payCost(BUILDINGS[type].cost);
+  const e={t:type,x,y,d:dir||0,inb:{},outb:{},prog:0,ri:-1};
+  if(BUILDINGS[type].belt)e.items=[];
+  if(BUILDINGS[type].silo)e.got={};
+  S.ents.push(e); ENT_AT[key(x,y)]=e;
+  S.stats.built=(S.stats.built||0)+1;
+  if(BUILDINGS[type].belt)S.stats.belts=(S.stats.belts||0)+1;
+  if(R3D.ready)addEntMesh(e);
+  sfx('buy'); buzz(15);
+  return e;
+}
+function demolish(e){
+  const i=S.ents.indexOf(e); if(i<0)return false;
+  S.ents.splice(i,1); delete ENT_AT[key(e.x,e.y)];
+  for(const k in BUILDINGS[e.t].cost)invAdd(k,Math.floor(BUILDINGS[e.t].cost[k]*0.5));
+  // récupère le contenu des tampons
+  for(const k in e.inb)invAdd(k,e.inb[k]);
+  for(const k in e.outb)invAdd(k,e.outb[k]);
+  if(e.items)for(const it of e.items)invAdd(it.i,1);
+  if(R3D.ready)removeEntMesh(e);
+  sfx('sell'); buzz(15);
+  return true;
+}
+
+/* ---------- simulation ---------- */
+function accepts(e,item){
+  const b=BUILDINGS[e.t];
+  if(b.chest){let n=0;for(const k in e.inb)n+=e.inb[k];return n<b.cap}
+  if(b.silo){const need=siloNeed(S.rockets);return need[item]&&(e.got[item]||0)<need[item]}
+  if(b.recipes){
+    for(const r of b.recipes)if(r.in[item])return (e.inb[item]||0)<BCAP;
   }
-  return c;
+  return false;
 }
-function canPay(cost){ for(const r in cost) if(S.res[r]<cost[r]-1e-9) return false; return true }
-function pay(cost){ for(const r in cost) S.res[r]=Math.max(0,S.res[r]-cost[r]) }
-function maxBuy(mc){
-  let k=0, owned=S.mach[mc.id];
-  const left={...S.res};
-  while(k<5000){
-    let ok=true;
-    const c={};
-    for(const r in mc.cost){c[r]=Math.ceil(mc.cost[r]*Math.pow(COST_MULT,owned+k)); if(left[r]<c[r]-1e-9)ok=false}
-    if(!ok)break;
-    for(const r in c)left[r]-=c[r];
-    k++;
+function feed(e,item){ // dépose 1 objet dans e (suppose accepts vrai)
+  const b=BUILDINGS[e.t];
+  if(b.silo){e.got[item]=(e.got[item]||0)+1;return}
+  e.inb[item]=(e.inb[item]||0)+1;
+}
+function beltEntry(e,item){ // un objet peut-il entrer sur ce convoyeur ?
+  if(e.items.length>=BELT_CAP)return false;
+  for(const it of e.items)if(it.p<BELT_GAP)return false;
+  return true;
+}
+function outTotal(e){let n=0;for(const k in e.outb)n+=e.outb[k];return n}
+
+function tick(dt){
+  /* machines : production */
+  for(const e of S.ents){
+    const b=BUILDINGS[e.t];
+    if(b.mine){ // foreuse
+      const d=depAt(e.x,e.y); if(!d)continue;
+      const item=DEPOSITS[d].item;
+      if(outTotal(e)>=BCAP)continue;
+      e.prog+=dt*speedMult('drill');
+      if(e.prog>=b.mine.t){
+        e.prog-=b.mine.t;
+        e.outb[item]=(e.outb[item]||0)+b.mine.q;
+        S.life[item]=(S.life[item]||0)+b.mine.q;
+        e.anim=1;
+      }
+    }else if(b.recipes){
+      if(e.ri<0){ // choisir une recette dont les intrants sont là
+        for(let i=0;i<b.recipes.length;i++){
+          const r=b.recipes[i];
+          let ok=true;
+          for(const k in r.in)if((e.inb[k]||0)<r.in[k]){ok=false;break}
+          if(ok&&outTotal(e)+Object.values(r.out).reduce((a,v)=>a+v,0)<=BCAP+2){
+            for(const k in r.in){e.inb[k]-=r.in[k];if(e.inb[k]<=0)delete e.inb[k]}
+            e.ri=i; e.prog=0; break;
+          }
+        }
+      }
+      if(e.ri>=0){
+        const r=b.recipes[e.ri];
+        e.prog+=dt*speedMult(e.t);
+        e.anim=1;
+        if(e.prog>=r.t){
+          for(const k in r.out){
+            e.outb[k]=(e.outb[k]||0)+r.out[k];
+            S.life[k]=(S.life[k]||0)+r.out[k];
+          }
+          if(r.sci){S.science+=r.sci;S.sciLife=(S.sciLife||0)+r.sci}
+          e.ri=-1; e.prog=0;
+        }
+      }else e.anim=0;
+    }
   }
-  return k;
+  /* machines : déversement (toutes les 0,45 s) */
+  for(const e of S.ents){
+    const b=BUILDINGS[e.t];
+    if(b.belt||b.silo)continue;
+    e.pushT=(e.pushT||0)+dt;
+    if(e.pushT<0.45)continue;
+    e.pushT=0;
+    const item=Object.keys(e.outb)[0];
+    if(!item)continue;
+    // 1) machine voisine qui en a besoin  2) convoyeur voisin  3) coffre voisin
+    let target=null,belt=null,chest=null;
+    for(const d of DIRS){
+      const n=ENT_AT[key(e.x+d[0],e.y+d[1])];
+      if(!n)continue;
+      const nb=BUILDINGS[n.t];
+      if(nb.belt){
+        // ne pas déposer sur un convoyeur qui revient vers nous
+        const bd=DIRS[n.d];
+        if(n.x+bd[0]===e.x&&n.y+bd[1]===e.y)continue;
+        if(beltEntry(n,item)&&!belt)belt=n;
+      }
+      else if(nb.chest){if(accepts(n,item)&&!chest)chest=n}
+      else if(accepts(n,item)&&!target)target=n;
+    }
+    const dst=target||belt||chest;
+    if(!dst)continue;
+    e.outb[item]--; if(e.outb[item]<=0)delete e.outb[item];
+    if(BUILDINGS[dst.t].belt)dst.items.push({i:item,p:0});
+    else feed(dst,item);
+  }
+  /* convoyeurs : avancée des objets */
+  const bs=beltSpeed()*dt;
+  for(const e of S.ents){
+    if(!e.items)continue;
+    e.items.sort((a,b2)=>b2.p-a.p);
+    for(let i=0;i<e.items.length;i++){
+      const it=e.items[i];
+      const lim=i===0?1:e.items[i-1].p-BELT_GAP;
+      it.p=Math.min(it.p+bs,Math.max(lim,it.p));
+      if(i===0&&it.p>=1){
+        const d=DIRS[e.d];
+        const n=ENT_AT[key(e.x+d[0],e.y+d[1])];
+        if(n){
+          const nb=BUILDINGS[n.t];
+          if(nb.belt){
+            if(beltEntry(n,it.i)){e.items.shift();n.items.push({i:it.i,p:0});i--}
+          }else if(accepts(n,it.i)){
+            e.items.shift(); feed(n,it.i); i--;
+          }
+        }
+      }
+    }
+  }
 }
-function buyMachine(id,qty){
-  const mc=MACH_BY_ID[id];
-  if(qty==='max'){qty=maxBuy(mc); if(!qty)return false}
-  const c=machCost(mc,S.mach[id],qty);
-  if(!canPay(c))return false;
-  pay(c); S.mach[id]+=qty;
-  dirty=true; toast(`+${qty} ${mc.nm}`); sfx('buy'); buzz(15);
+function simulate(sec,dt){
+  dt=dt||SIM_DT;
+  let s=sec;
+  while(s>1e-9){const step=Math.min(dt,s);tick(step);s-=step}
+}
+
+/* ---------- fusée ---------- */
+function siloReady(e){
+  const need=siloNeed(S.rockets);
+  for(const k in need)if((e.got[k]||0)<need[k])return false;
   return true;
 }
-function sellMachine(id){
-  const mc=MACH_BY_ID[id];
-  if(!mc||S.mach[id]<1)return false;
-  const c=machCost(mc,S.mach[id]-1,1);
-  S.mach[id]--;
-  for(const r in c)S.res[r]+=Math.floor(c[r]*0.5);
-  dirty=true; toast(`−1 ${mc.nm} (50 % remboursé)`); sfx('sell'); buzz(15);
-  return true;
-}
-function buyResearch(id){
-  const r=RESEARCH_BY_ID[id];
-  if(!r||S.rsc[id]||S.res.science<r.cost-1e-9)return false;
-  S.res.science-=r.cost; S.rsc[id]=1;
-  dirty=true; toast(`Recherche : ${r.nm}`); sfx('rsc'); buzz(25);
-  return true;
-}
-function claimMilestone(id){
-  const m=MILESTONES.find(x=>x.id===id);
-  if(!m||S.done[id]||!m.ok(S))return false;
-  S.done[id]=1;
-  for(const r in m.rw){S.res[r]+=m.rw[r];S.life[r]+=m.rw[r]}
-  dirty=true; toast(`Objectif : ${m.nm} ✓`); sfx('obj'); buzz(30);
-  return true;
-}
-function launchRocket(){
-  const c=rocketCost(S.rockets);
-  if(!S.rsc.rocketTech||!canPay(c))return false;
+function launchRocket(e){
+  if(!e||!BUILDINGS[e.t].silo||!siloReady(e))return false;
   const gained=fragGain(S.rockets);
-  const keep={rockets:S.rockets+1, frags:S.frags+gained, done:S.done, ach:S.ach,
-              boostUntil:S.boostUntil, boostReadyAt:S.boostReadyAt, daily:S.daily, set:S.set, stats:S.stats};
+  const keep={rockets:S.rockets+1,frags:S.frags+gained,ach:S.ach,set:S.set,stats:S.stats,quest:Math.max(S.quest,15)};
   keep.stats.launches=(keep.stats.launches||0)+1;
-  sfx('rocket'); buzz(120);
   S=freshState(keep);
-  save(); dirty=true;
+  ENT_AT={};
+  genWorld(S.seed);
+  if(R3D.ready)rebuildWorldMeshes();
+  save(); sfx('rocket'); buzz(150);
   showModal('🚀 Fusée lancée !',
-    `<p>Ton usine est démantelée pour construire la fusée… et tu gagnes <b>${gained} fragments stellaires ✨</b>.</p>
-     <p style="margin-top:6px">Chaque fragment augmente <b>toute</b> ta production de ${Math.round(FRAG_BONUS*100)} %. Bonus total : <b>+${Math.round(S.frags*FRAG_BONUS*100)} %</b>.</p>`,
-    [['Reconstruire !',null]]);
+    `<p>Tu gagnes <b>${gained} fragments stellaires ✨</b> (+${Math.round(gained*FRAG_BONUS*100)} % de vitesse, permanent — total +${Math.round(S.frags*FRAG_BONUS*100)} %).</p>
+     <p style="margin-top:6px">Ton robot repart coloniser <b>une nouvelle planète</b> : carte inédite, usine à reconstruire, coût de la prochaine fusée ×2.</p>`,
+    [['Coloniser !',null]]);
+  updateHUD();
   return true;
 }
 
-/* ---------- surcadençage ---------- */
-function startBoost(){
-  const now=Date.now();
-  if(now<S.boostReadyAt)return false;
-  S.boostUntil=now+BOOST_DUR;
-  S.boostReadyAt=now+BOOST_CD;
-  S.stats.boosts=(S.stats.boosts||0)+1;
-  sfx('boost'); buzz(60);
-  toast('⚡ Surcadençage ×2 pendant 30 min !');
-  return true;
+/* ---------- sauvegarde ---------- */
+function save(){
+  S.t=Date.now();
+  try{
+    const ents=S.ents.map(e=>{
+      const o={t:e.t,x:e.x,y:e.y,d:e.d,inb:e.inb,outb:e.outb,prog:+e.prog.toFixed(3),ri:e.ri};
+      if(e.items)o.items=e.items.map(it=>({i:it.i,p:+it.p.toFixed(3)}));
+      if(e.got)o.got=e.got;
+      return o;
+    });
+    localStorage.setItem(SAVE_KEY,JSON.stringify({...S,ents}));
+  }catch(e){}
+}
+function load(){
+  let raw=null;
+  try{raw=localStorage.getItem(SAVE_KEY)}catch(e){}
+  if(!raw)return 0;
+  try{
+    const d=JSON.parse(raw);
+    if(!d||d.v!==3||!Array.isArray(d.ents))throw 0;
+    const f=freshState();
+    f.seed=(d.seed|0)||f.seed;
+    f.science=Number.isFinite(d.science)?Math.max(0,d.science):0;
+    f.sciLife=Number.isFinite(d.sciLife)?d.sciLife:0;
+    if(d.rsc)for(const k in d.rsc)if(RESEARCH_BY_ID[k])f.rsc[k]=1;
+    if(d.ach)for(const k in d.ach)if(ACH_BY_ID[k])f.ach[k]=1;
+    if(d.inv)for(const k in d.inv)if(ITEMS[k]&&Number.isFinite(d.inv[k])&&d.inv[k]>0)f.inv[k]=Math.floor(d.inv[k]);
+    if(d.life)for(const k in d.life)if(Number.isFinite(d.life[k]))f.life[k]=d.life[k];
+    f.px=Number.isFinite(d.px)?Math.min(MAP-2,Math.max(2,d.px)):f.px;
+    f.py=Number.isFinite(d.py)?Math.min(MAP-2,Math.max(2,d.py)):f.py;
+    f.quest=Number.isInteger(d.quest)?Math.min(d.quest,QUESTS.length-1):0;
+    f.rockets=Number.isInteger(d.rockets)&&d.rockets>=0?d.rockets:0;
+    f.frags=Number.isFinite(d.frags)&&d.frags>=0?d.frags:0;
+    if(d.set&&typeof d.set==='object')f.set={sound:d.set.sound!==false,vib:d.set.vib!==false};
+    if(d.stats&&typeof d.stats==='object')f.stats={...f.stats,...d.stats};
+    f.t=Number.isFinite(d.t)?d.t:Date.now();
+    genWorld(f.seed);
+    ENT_AT={};
+    for(const o of d.ents){
+      if(!BUILDINGS[o.t]||!Number.isInteger(o.x)||!Number.isInteger(o.y))continue;
+      if(ENT_AT[key(o.x,o.y)])continue;
+      const e={t:o.t,x:o.x,y:o.y,d:[0,1,2,3].includes(o.d)?o.d:0,
+               inb:o.inb&&typeof o.inb==='object'?o.inb:{},
+               outb:o.outb&&typeof o.outb==='object'?o.outb:{},
+               prog:Number.isFinite(o.prog)?o.prog:0,
+               ri:Number.isInteger(o.ri)?o.ri:-1};
+      if(BUILDINGS[o.t].belt)e.items=Array.isArray(o.items)?o.items.filter(it=>ITEMS[it.i]&&Number.isFinite(it.p)).map(it=>({i:it.i,p:Math.min(1,Math.max(0,it.p))})):[];
+      if(BUILDINGS[o.t].silo)e.got=o.got&&typeof o.got==='object'?o.got:{};
+      f.ents.push(e); ENT_AT[key(e.x,e.y)]=e;
+    }
+    S=f;
+    return f.t;
+  }catch(e){return 0}
 }
 
-/* ---------- caisse quotidienne ---------- */
-function todayStr(){const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()}
-function dailyAvailable(){return S.daily!==todayStr()}
-function claimDaily(){
-  if(!dailyAvailable())return false;
-  S.daily=todayStr();
-  S.stats.dailies=(S.stats.dailies||0)+1;
-  const rates=netRates(), gains={};
-  let any=false;
-  for(const r in rates)if(rates[r]>1e-9){gains[r]=Math.ceil(rates[r]*1800);any=true}
-  if(!any){gains.ironOre=100;gains.stone=50;gains.coal=25}
-  const rows=[];
-  for(const r in gains){
-    S.res[r]+=gains[r]; S.life[r]+=gains[r];
-    rows.push(`<div class="g"><span>${RES[r].ic} ${RES[r].n}</span><b class="num">+${fmt(gains[r])}</b></div>`);
+/* ---------- hors-ligne ---------- */
+function applyOffline(elapsed){
+  const capped=Math.min(elapsed,OFFLINE_CAP(S));
+  if(capped<15)return;
+  const before={...S.life}, sciB=S.science;
+  const dt=capped>7200?0.5:0.25;
+  simulate(capped,dt);
+  const gains=[];
+  for(const k in ITEMS){
+    const d=(S.life[k]||0)-(before[k]||0);
+    if(d>0.5)gains.push(`<div class="g"><span>${ITEMS[k].ic} ${ITEMS[k].n}</span><b class="num">+${fmt(d)}</b></div>`);
   }
-  sfx('daily'); buzz(30); dirty=true;
-  showModal('🎁 Caisse quotidienne',
-    `<p>L’équipe de nuit a mis de côté pour toi :</p><div style="margin-top:8px">${rows.join('')}</div>
-     <p style="margin-top:8px" class="hint">Reviens demain pour la prochaine caisse — plus ta production est grosse, plus elle est remplie.</p>`,
-    [['Merci !',null]]);
-  return true;
+  const dSci=S.science-sciB;
+  if(dSci>0.5)gains.push(`<div class="g"><span>🧪 Science</span><b class="num">+${fmt(dSci)}</b></div>`);
+  if(elapsed>=120&&gains.length){
+    showModal('⏳ Pendant ton absence…',
+      `<p>Ton usine a tourné pendant <b>${fmtDur(capped)}</b>${elapsed>capped+60?` (plafond hors-ligne : ${OFFLINE_CAP(S)/3600} h)`:''} :</p><div style="margin-top:8px">${gains.join('')}</div>`,
+      [['Reprendre le travail',null]]);
+  }
 }
 
-/* ---------- sons (synthèse WebAudio) & vibrations ---------- */
-let AC=null;
+/* ---------- format / audio / vibrations ---------- */
+const UNITS=['','k','M','Md'];
+function fmt(x){
+  if(!isFinite(x))return'∞';
+  if(x<0)x=0;
+  if(x<1000)return String(Math.floor(x));
+  let u=0;while(x>=1000&&u<UNITS.length-1){x/=1000;u++}
+  return (x>=100?String(Math.floor(x)):x.toFixed(1).replace('.',','))+' '+UNITS[u];
+}
+function fmtDur(sec){
+  sec=Math.floor(sec);
+  const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);
+  if(h>0)return`${h} h ${String(m).padStart(2,'0')} min`;
+  if(m>0)return`${m} min`;
+  return`${sec} s`;
+}
+let AC=null,INTERACTED=false;
+document.addEventListener('pointerdown',()=>{INTERACTED=true},{once:true,capture:true});
 function beep(f,d,type,g,when,slide){
   const t=AC.currentTime+(when||0);
   const o=AC.createOscillator(),v=AC.createGain();
-  o.type=type||'square';
-  o.frequency.setValueAtTime(f,t);
+  o.type=type||'square';o.frequency.setValueAtTime(f,t);
   if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+d);
-  v.gain.setValueAtTime(g||.06,t);
-  v.gain.exponentialRampToValueAtTime(.0001,t+d);
-  o.connect(v); v.connect(AC.destination);
-  o.start(t); o.stop(t+d+.02);
+  v.gain.setValueAtTime(g||.06,t);v.gain.exponentialRampToValueAtTime(.0001,t+d);
+  o.connect(v);v.connect(AC.destination);o.start(t);o.stop(t+d+.02);
 }
 function sfx(k){
   if(!S.set||!S.set.sound)return;
@@ -647,20 +757,16 @@ function sfx(k){
     AC=AC||new (window.AudioContext||window.webkitAudioContext)();
     if(AC.state==='suspended')AC.resume();
     switch(k){
-      case 'tap':   beep(170+Math.random()*70,.06,'square',.045);break;
-      case 'crit':  beep(660,.08,'square',.08);beep(990,.12,'square',.07,.06);break;
-      case 'buy':   beep(330,.07,'triangle',.09);beep(440,.09,'triangle',.08,.05);break;
-      case 'sell':  beep(260,.08,'triangle',.08);beep(190,.1,'triangle',.06,.06);break;
-      case 'rsc':   beep(523,.1,'sine',.1);beep(784,.16,'sine',.09,.09);break;
-      case 'obj':   beep(523,.09,'sine',.1);beep(659,.09,'sine',.1,.08);beep(784,.18,'sine',.1,.16);break;
-      case 'boost': beep(180,.45,'sawtooth',.06,0,900);break;
+      case 'tap':beep(170+Math.random()*70,.06,'square',.045);break;
+      case 'crit':beep(660,.08,'square',.08);beep(990,.12,'square',.07,.06);break;
+      case 'buy':beep(330,.07,'triangle',.09);beep(440,.09,'triangle',.08,.05);break;
+      case 'sell':beep(260,.08,'triangle',.08);beep(190,.1,'triangle',.06,.06);break;
+      case 'rsc':beep(523,.1,'sine',.1);beep(784,.16,'sine',.09,.09);break;
+      case 'obj':beep(523,.09,'sine',.1);beep(659,.09,'sine',.1,.08);beep(784,.18,'sine',.1,.16);break;
       case 'rocket':beep(900,.9,'sawtooth',.08,0,70);beep(60,.6,'square',.05,.15,30);break;
-      case 'daily': beep(659,.09,'sine',.1);beep(880,.2,'sine',.09,.09);break;
     }
   }catch(e){}
 }
-let INTERACTED=false;
-document.addEventListener('pointerdown',()=>{INTERACTED=true},{once:true,capture:true});
 function buzz(ms){
   if(!S.set||!S.set.vib||!INTERACTED)return;
   try{
@@ -669,367 +775,844 @@ function buzz(ms){
   }catch(e){}
 }
 
-/* ---------- texte flottant du minage ---------- */
+/* =====================================================================
+   RENDU 3D
+   ===================================================================== */
+const R3D={ready:false};
+const T=window.THREE;
+function mat(c,opts){return new T.MeshLambertMaterial({color:c,...(opts||{})})}
+const wx=x=>x+0.5-MAP/2, wz=y=>y+0.5-MAP/2; // tuile -> monde
+
+function initRender(){
+  const canvas=document.getElementById('c3d');
+  let renderer;
+  try{
+    renderer=new T.WebGLRenderer({canvas,antialias:true});
+  }catch(e){document.getElementById('glErr').style.display='flex';return false}
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+  const scene=new T.Scene();
+  scene.background=new T.Color(0x10141b);
+  scene.fog=new T.Fog(0x10141b,46,90);
+  const cam=new T.OrthographicCamera(-1,1,1,-1,1,200);
+  R3D.zoom=15;
+  scene.add(new T.HemisphereLight(0xa8bdd8,0x35301f,1.05));
+  const sun=new T.DirectionalLight(0xffd9a0,1.15);
+  sun.position.set(18,30,10);
+  scene.add(sun);
+
+  /* --- sol --- */
+  genGroundMeshes(scene);
+
+  /* --- perso --- */
+  const ch=buildCharacter();
+  scene.add(ch);
+  R3D.char=ch;
+
+  /* --- objets sur convoyeurs (instancié) --- */
+  const itemGeo=new T.BoxGeometry(.2,.2,.2);
+  const itemMesh=new T.InstancedMesh(itemGeo,new T.MeshLambertMaterial({color:0xffffff}),600);
+  itemMesh.count=0;
+  itemMesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
+  scene.add(itemMesh);
+  R3D.itemMesh=itemMesh;
+
+  /* --- sélection & fantôme --- */
+  const ring=new T.Mesh(new T.RingGeometry(.5,.62,24),new T.MeshBasicMaterial({color:0xf2a13d,transparent:true,opacity:.9,side:T.DoubleSide}));
+  ring.rotation.x=-Math.PI/2; ring.position.y=.06; ring.visible=false;
+  scene.add(ring); R3D.ring=ring;
+  R3D.ghostG=new T.MeshLambertMaterial({color:0x7ec97e,transparent:true,opacity:.55});
+  R3D.ghostR=new T.MeshLambertMaterial({color:0xe2705c,transparent:true,opacity:.55});
+  R3D.ghost=null;
+
+  R3D.renderer=renderer; R3D.scene=scene; R3D.cam=cam;
+  R3D.target=new T.Vector3(0,0,0);
+  R3D.follow=true;
+  R3D.entMeshes=new Map();
+  for(const e of S.ents)addEntMesh(e);
+  resize();
+  window.addEventListener('resize',resize);
+  R3D.ready=true;
+  return true;
+}
+function resize(){
+  const w=innerWidth,h=innerHeight;
+  R3D.renderer.setSize(w,h);
+  const a=w/h, z=R3D.zoom;
+  R3D.cam.left=-z*a/2; R3D.cam.right=z*a/2; R3D.cam.top=z/2; R3D.cam.bottom=-z/2;
+  R3D.cam.updateProjectionMatrix();
+}
+function camUpdate(){
+  const t=R3D.target;
+  R3D.cam.position.set(t.x+22,26,t.z+22);
+  R3D.cam.lookAt(t.x,0,t.z);
+}
+
+/* sol, gisements, décor */
+function genGroundMeshes(scene){
+  if(R3D.groundGroup)scene.remove(R3D.groundGroup);
+  const g=new T.Group();
+  // sol : un plan par teinte via vertex colors
+  const geo=new T.PlaneGeometry(MAP,MAP,MAP,MAP);
+  geo.rotateX(-Math.PI/2);
+  const cols=new Float32Array(geo.attributes.position.count*3);
+  const col=new T.Color(), base=new T.Color(0x3e5c44), dirt=new T.Color(0x60523a), mnt=new T.Color(0x232a35);
+  const pos=geo.attributes.position;
+  for(let i=0;i<pos.count;i++){
+    const x=Math.min(MAP-1,Math.max(0,Math.floor(pos.getX(i)+MAP/2)));
+    const y=Math.min(MAP-1,Math.max(0,Math.floor(pos.getZ(i)+MAP/2)));
+    const t=terrAt(x,y), d=depAt(x,y);
+    if(t===3)col.copy(mnt);
+    else if(d)col.copy(dirt).offsetHSL(0,0,((x*7+y*13)%5)*.01);
+    else col.copy(base).offsetHSL(0,0,((x*31+y*17)%7)*.008-.02);
+    cols[i*3]=col.r;cols[i*3+1]=col.g;cols[i*3+2]=col.b;
+  }
+  geo.setAttribute('color',new T.BufferAttribute(cols,3));
+  g.add(new T.Mesh(geo,new T.MeshLambertMaterial({vertexColors:true})));
+
+  // bord montagnes
+  const mgeo=new T.BoxGeometry(1,1.6,1);
+  const mts=[];
+  for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++)if(terrAt(x,y)===3&&((x+y)%2===0))mts.push([x,y]);
+  const mIn=new T.InstancedMesh(mgeo,mat(0x2b3441),mts.length);
+  mts.forEach((p,i)=>{
+    const m=new T.Matrix4().makeTranslation(wx(p[0]),0.5,wz(p[1]));
+    m.multiply(new T.Matrix4().makeScale(1,0.6+((p[0]*13+p[1]*7)%8)/8,1));
+    mIn.setMatrixAt(i,m);
+  });
+  g.add(mIn);
+
+  // rochers
+  const rocks=[];
+  for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++)if(terrAt(x,y)===1)rocks.push([x,y]);
+  if(rocks.length){
+    const rIn=new T.InstancedMesh(new T.DodecahedronGeometry(.42),mat(0x5d6570),rocks.length);
+    rocks.forEach((p,i)=>{
+      const m=new T.Matrix4().makeRotationY((p[0]*31+p[1])%7);
+      m.setPosition(wx(p[0]),.3,wz(p[1]));
+      rIn.setMatrixAt(i,m);
+    });
+    g.add(rIn);
+  }
+  // arbres
+  const trees=[];
+  for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++)if(terrAt(x,y)===2)trees.push([x,y]);
+  if(trees.length){
+    const trunk=new T.InstancedMesh(new T.CylinderGeometry(.07,.1,.5,6),mat(0x5a4630),trees.length);
+    const crown=new T.InstancedMesh(new T.ConeGeometry(.38,.9,7),mat(0x2f6b46),trees.length);
+    trees.forEach((p,i)=>{
+      const s=.8+((p[0]*7+p[1]*3)%5)*.1;
+      let m=new T.Matrix4().makeScale(s,s,s);m.setPosition(wx(p[0]),.25*s,wz(p[1]));
+      trunk.setMatrixAt(i,m);
+      m=new T.Matrix4().makeScale(s,s,s);m.setPosition(wx(p[0]),.85*s,wz(p[1]));
+      crown.setMatrixAt(i,m);
+    });
+    g.add(trunk);g.add(crown);
+  }
+  // gisements : petits cristaux par type
+  for(const dk in DEPOSITS){
+    const tiles=[];
+    for(let y=0;y<MAP;y++)for(let x=0;x<MAP;x++)if(depAt(x,y)===dk)tiles.push([x,y]);
+    if(!tiles.length)continue;
+    const im=new T.InstancedMesh(new T.OctahedronGeometry(.16),mat(DEPOSITS[dk].col,{emissive:DEPOSITS[dk].col,emissiveIntensity:.15}),tiles.length*3);
+    let idx=0;
+    tiles.forEach(p=>{
+      for(let j=0;j<3;j++){
+        const ox=((p[0]*13+j*29+p[1]*7)%10)/10*.6-.3, oz=((p[1]*17+j*31)%10)/10*.6-.3;
+        const m=new T.Matrix4().makeRotationY(j*2.1+p[0]);
+        m.setPosition(wx(p[0])+ox,.1,wz(p[1])+oz);
+        im.setMatrixAt(idx++,m);
+      }
+    });
+    g.add(im);
+  }
+  scene.add(g);
+  R3D.groundGroup=g;
+}
+
+/* perso : petit robot */
+function buildCharacter(){
+  const g=new T.Group();
+  const body=new T.Mesh(new T.BoxGeometry(.42,.4,.3),mat(0xf2a13d));
+  body.position.y=.42;g.add(body);
+  const head=new T.Mesh(new T.BoxGeometry(.3,.24,.26),mat(0xffc46b));
+  head.position.y=.76;g.add(head);
+  const eye1=new T.Mesh(new T.BoxGeometry(.05,.06,.02),mat(0x10141b,{emissive:0x5db3e8,emissiveIntensity:.9}));
+  eye1.position.set(-.07,.78,.14);g.add(eye1);
+  const eye2=eye1.clone();eye2.position.x=.07;g.add(eye2);
+  const ant=new T.Mesh(new T.CylinderGeometry(.015,.015,.18,4),mat(0x8f9db0));
+  ant.position.y=.97;g.add(ant);
+  const tip=new T.Mesh(new T.SphereGeometry(.04,6,6),mat(0xe2705c,{emissive:0xe2705c,emissiveIntensity:.8}));
+  tip.position.y=1.07;g.add(tip);
+  const legs=new T.Mesh(new T.BoxGeometry(.3,.22,.24),mat(0x39424f));
+  legs.position.y=.13;g.add(legs);
+  const shadow=new T.Mesh(new T.CircleGeometry(.32,16),new T.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.35}));
+  shadow.rotation.x=-Math.PI/2;shadow.position.y=.02;g.add(shadow);
+  return g;
+}
+
+/* bâtiments */
+function buildMeshFor(type,dir){
+  const g=new T.Group();
+  const add=(m,x,y,z)=>{m.position.set(x,y,z);g.add(m);return m};
+  const shadow=new T.Mesh(new T.CircleGeometry(.5,4),new T.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.3}));
+  shadow.rotation.x=-Math.PI/2;shadow.rotation.z=Math.PI/4;shadow.position.y=.015;g.add(shadow);
+  switch(type){
+    case 'drill':{
+      add(new T.Mesh(new T.BoxGeometry(.8,.3,.8),mat(0x4a5666)),0,.15,0);
+      add(new T.Mesh(new T.BoxGeometry(.24,.7,.24),mat(0x6b7a8d)),-.2,.6,-.2);
+      const piston=add(new T.Mesh(new T.CylinderGeometry(.09,.13,.5,8),mat(0xf2a13d)),.1,.55,.1);
+      g.userData.animPart=piston;g.userData.animKind='piston';
+      break;}
+    case 'furnace':{
+      add(new T.Mesh(new T.BoxGeometry(.85,.6,.85),mat(0x5d5148)),0,.3,0);
+      const fire=add(new T.Mesh(new T.BoxGeometry(.3,.22,.06),mat(0xff8c2e,{emissive:0xff6a00,emissiveIntensity:.9})),0,.2,.43);
+      add(new T.Mesh(new T.CylinderGeometry(.09,.12,.5,8),mat(0x3c4450)),.25,.8,-.22);
+      g.userData.animPart=fire;g.userData.animKind='glow';
+      break;}
+    case 'gearw':{
+      add(new T.Mesh(new T.BoxGeometry(.85,.45,.85),mat(0x4f6072)),0,.22,0);
+      const rot=add(new T.Mesh(new T.TorusGeometry(.24,.09,8,10),mat(0x9aa8ba)),0,.62,0);
+      rot.rotation.x=Math.PI/2;
+      g.userData.animPart=rot;g.userData.animKind='spinY';
+      break;}
+    case 'wirem':{
+      add(new T.Mesh(new T.BoxGeometry(.85,.4,.85),mat(0x6d5a48)),0,.2,0);
+      const s1=add(new T.Mesh(new T.CylinderGeometry(.16,.16,.3,10),mat(0xd9843f)),-.2,.55,0);
+      s1.rotation.z=Math.PI/2;
+      const s2=add(new T.Mesh(new T.CylinderGeometry(.16,.16,.3,10),mat(0xe8935a)),.2,.55,0);
+      s2.rotation.z=Math.PI/2;
+      g.userData.animPart=s1;g.userData.animKind='spinX';
+      break;}
+    case 'circm':{
+      add(new T.Mesh(new T.BoxGeometry(.85,.5,.85),mat(0x33635a)),0,.25,0);
+      const chip=add(new T.Mesh(new T.BoxGeometry(.3,.08,.3),mat(0x4fa96f,{emissive:0x2bd06f,emissiveIntensity:.5})),0,.56,0);
+      add(new T.Mesh(new T.CylinderGeometry(.012,.012,.34,4),mat(0x9aa8ba)),.28,.68,.28);
+      g.userData.animPart=chip;g.userData.animKind='glow';
+      break;}
+    case 'lab':{
+      add(new T.Mesh(new T.CylinderGeometry(.42,.46,.3,14),mat(0xd8dee8)),0,.15,0);
+      const dome=add(new T.Mesh(new T.SphereGeometry(.34,14,10,0,Math.PI*2,0,Math.PI/2),mat(0x5db3e8,{emissive:0x2b6f9e,emissiveIntensity:.4})),0,.3,0);
+      g.userData.animPart=dome;g.userData.animKind='glow';
+      break;}
+    case 'steelw':{
+      add(new T.Mesh(new T.BoxGeometry(.9,.7,.9),mat(0x3b4350)),0,.35,0);
+      add(new T.Mesh(new T.CylinderGeometry(.1,.13,.6,8),mat(0x2c333d)),-.25,.95,-.25);
+      const glow=add(new T.Mesh(new T.CylinderGeometry(.1,.13,.6,8),mat(0x2c333d,{emissive:0xff5a1f,emissiveIntensity:.4})),.25,.95,.25);
+      g.userData.animPart=glow;g.userData.animKind='glow';
+      break;}
+    case 'modf':{
+      add(new T.Mesh(new T.BoxGeometry(.85,.55,.85),mat(0x54417a)),0,.28,0);
+      const cube=add(new T.Mesh(new T.BoxGeometry(.2,.2,.2),mat(0xb08ae8,{emissive:0x8a5fd0,emissiveIntensity:.7})),0,.85,0);
+      g.userData.animPart=cube;g.userData.animKind='floatSpin';
+      break;}
+    case 'belt':{
+      add(new T.Mesh(new T.BoxGeometry(.96,.08,.96),mat(0x262d38)),0,.05,0);
+      add(new T.Mesh(new T.BoxGeometry(.06,.1,.96),mat(0x39424f)),-.45,.06,0);
+      add(new T.Mesh(new T.BoxGeometry(.06,.1,.96),mat(0x39424f)),.45,.06,0);
+      const arrow=add(new T.Mesh(new T.ConeGeometry(.12,.24,3),mat(0xf2a13d,{emissive:0x8a5410,emissiveIntensity:.3})),0,.11,0);
+      arrow.rotation.x=Math.PI/2; arrow.scale.y=.4;
+      break;}
+    case 'chest':{
+      add(new T.Mesh(new T.BoxGeometry(.62,.42,.5),mat(0x8a6a3e)),0,.21,0);
+      add(new T.Mesh(new T.BoxGeometry(.66,.1,.54),mat(0xa8834e)),0,.44,0);
+      break;}
+    case 'silo':{
+      add(new T.Mesh(new T.CylinderGeometry(.48,.52,.5,14),mat(0x4a5666)),0,.25,0);
+      const rocket=new T.Group();
+      const bodyR=new T.Mesh(new T.CylinderGeometry(.18,.18,.8,12),mat(0xe8edf4));
+      bodyR.position.y=.4;rocket.add(bodyR);
+      const nose=new T.Mesh(new T.ConeGeometry(.18,.3,12),mat(0xe2705c));
+      nose.position.y=.95;rocket.add(nose);
+      const fin=new T.Mesh(new T.BoxGeometry(.06,.24,.16),mat(0xe2705c));
+      fin.position.set(.2,.12,0);rocket.add(fin);
+      const fin2=fin.clone();fin2.position.set(-.2,.12,0);rocket.add(fin2);
+      rocket.position.y=.5;
+      g.add(rocket);
+      g.userData.animPart=rocket;g.userData.animKind='none';
+      break;}
+  }
+  g.rotation.y=-(dir||0)*Math.PI/2;
+  return g;
+}
+function addEntMesh(e){
+  const m=buildMeshFor(e.t,e.d);
+  m.position.set(wx(e.x),0,wz(e.y));
+  R3D.scene.add(m);
+  R3D.entMeshes.set(e,m);
+}
+function removeEntMesh(e){
+  const m=R3D.entMeshes.get(e);
+  if(m){R3D.scene.remove(m);R3D.entMeshes.delete(e)}
+}
+function rebuildWorldMeshes(){
+  for(const [,m] of R3D.entMeshes)R3D.scene.remove(m);
+  R3D.entMeshes.clear();
+  genGroundMeshes(R3D.scene);
+  for(const e of S.ents)addEntMesh(e);
+  R3D.follow=true;
+}
+
+/* boucle de rendu */
+let animT=0;
+function renderFrame(dt){
+  animT+=dt;
+  // perso
+  R3D.char.position.set(S.px-MAP/2,0,S.py-MAP/2);
+  R3D.char.rotation.y=PLAYER.face;
+  R3D.char.children[0].position.y=.42+(PLAYER.moving?Math.abs(Math.sin(animT*9))*.07:0);
+  if(R3D.follow){
+    R3D.target.x=S.px-MAP/2; R3D.target.z=S.py-MAP/2;
+  }
+  camUpdate();
+  // animations bâtiments
+  for(const [e,m] of R3D.entMeshes){
+    const p=m.userData.animPart; if(!p)continue;
+    const active=e.anim||((e.ri!==undefined&&e.ri>=0)?1:0);
+    switch(m.userData.animKind){
+      case 'piston':p.position.y=.55+Math.sin(animT*6)* (active?.14:.02);break;
+      case 'spinY':if(active)p.rotation.z+=dt*3;break;
+      case 'spinX':if(active)p.rotation.x+=dt*4;break;
+      case 'glow':p.material.emissiveIntensity=active?.5+Math.sin(animT*5)*.3:.12;break;
+      case 'floatSpin':p.position.y=.85+Math.sin(animT*3)*.06;p.rotation.y+=dt*(active?2.5:.4);break;
+    }
+  }
+  // objets sur convoyeurs
+  const im=R3D.itemMesh;
+  let idx=0;
+  const M=new T.Matrix4(), C=new T.Color();
+  for(const e of S.ents){
+    if(!e.items||!e.items.length)continue;
+    const d=DIRS[e.d];
+    for(const it of e.items){
+      if(idx>=600)break;
+      const fx=wx(e.x)+ (it.p-.5)*d[0], fz=wz(e.y)+(it.p-.5)*d[1];
+      M.makeRotationY(animT*.8);
+      M.setPosition(fx,.22,fz);
+      im.setMatrixAt(idx,M);
+      im.setColorAt(idx,C.setHex(ITEMS[it.i].col));
+      idx++;
+    }
+  }
+  im.count=idx;
+  im.instanceMatrix.needsUpdate=true;
+  if(im.instanceColor)im.instanceColor.needsUpdate=true;
+  R3D.renderer.render(R3D.scene,R3D.cam);
+}
+
+/* =====================================================================
+   JOUEUR & ENTRÉES
+   ===================================================================== */
+const PLAYER={path:[],moving:false,face:0};
+function tileOfPlayer(){return [Math.round(S.px-.5),Math.round(S.py-.5)]}
+function goTo(tx,ty){
+  const [px,py]=tileOfPlayer();
+  const p=findPath(px,py,tx,ty);
+  if(!p)return false;
+  PLAYER.path=p;
+  return true;
+}
+function movePlayer(dt){
+  if(!PLAYER.path.length){PLAYER.moving=false;return}
+  PLAYER.moving=true;
+  const [tx,ty]=PLAYER.path[0];
+  const gx=tx+.5, gy=ty+.5;
+  const dx=gx-S.px, dy=gy-S.py;
+  const dist=Math.hypot(dx,dy);
+  const step=walkSpeed()*dt;
+  PLAYER.face=Math.atan2(dx,dy);
+  if(dist<=step){
+    S.px=gx;S.py=gy;PLAYER.path.shift();
+    S.stats.walked=(S.stats.walked||0)+1;
+  }else{
+    S.px+=dx/dist*step;S.py+=dy/dist*step;
+  }
+}
+function nearestDeposit(){
+  const [px,py]=tileOfPlayer();
+  for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+    const d=depAt(px+dx,py+dy);
+    if(d)return d;
+  }
+  return null;
+}
+function mineAction(){
+  const d=nearestDeposit();
+  if(!d)return 0;
+  const item=DEPOSITS[d].item;
+  let q=MINE_POW(S);
+  const crit=Math.random()<0.10;
+  if(crit){q*=5;S.stats.crits=(S.stats.crits||0)+1}
+  const added=invAdd(item,q);
+  if(added>0){
+    S.life[item]=(S.life[item]||0)+added;
+    S.stats.mined=(S.stats.mined||0)+added;
+    sfx(crit?'crit':'tap');buzz(crit?40:12);
+    floatText('+'+added+(crit?' 💥':''),crit);
+  }else toast('Sac plein ! (🎒)');
+  updateHUD();
+  return added;
+}
 function floatText(txt,crit){
-  const z=$('tapZone');
-  if(!z||z.childElementCount>24)return;
   try{if(matchMedia('(prefers-reduced-motion: reduce)').matches)return}catch(e){}
-  const s=el('span','flt'+(crit?' crit':''),txt);
-  s.style.left=(12+Math.random()*64)+'%';
-  s.style.top=(Math.random()*35)+'%';
-  z.appendChild(s);
+  if(document.querySelectorAll('.flt').length>20)return;
+  const b=document.getElementById('ctxBtn').getBoundingClientRect();
+  const s=document.createElement('span');
+  s.className='flt'+(crit?' crit':'');s.textContent=txt;
+  s.style.left=(b.left+b.width*(.2+Math.random()*.6))+'px';
+  s.style.top=(b.top-8)+'px';
+  document.body.appendChild(s);
   setTimeout(()=>s.remove(),950);
 }
 
-/* ---------- format ---------- */
-const UNITS=['','k','M','Md','T','Q'];
-function fmt(x){
-  if(!isFinite(x))return'∞';
-  if(x<0)x=0;
-  if(x<1000){
-    const fl=Math.floor(x);
-    return (x<100 && x-fl>=.1) ? x.toFixed(1).replace('.',',') : String(fl);
+/* mode construction */
+const BUILD={active:false,type:null,x:0,y:0,dir:0};
+function enterBuild(type){
+  BUILD.active=true;BUILD.type=type;BUILD.dir=0;
+  const [px,py]=tileOfPlayer();
+  BUILD.x=px+1;BUILD.y=py;
+  makeGhost();
+  document.getElementById('buildCtl').style.display='flex';
+  document.getElementById('ctxWrap').style.display='none';
+  closeSheet();
+  updateGhost();
+}
+function exitBuild(){
+  BUILD.active=false;
+  if(R3D.ghost){R3D.scene.remove(R3D.ghost);R3D.ghost=null}
+  document.getElementById('buildCtl').style.display='none';
+  document.getElementById('ctxWrap').style.display='';
+  updateHUD();
+}
+function makeGhost(){
+  if(R3D.ghost)R3D.scene.remove(R3D.ghost);
+  const g=buildMeshFor(BUILD.type,BUILD.dir);
+  g.traverse(o=>{if(o.isMesh)o.material=R3D.ghostG});
+  R3D.scene.add(g);R3D.ghost=g;
+}
+function updateGhost(){
+  if(!R3D.ghost)return;
+  const v=canPlace(BUILD.type,BUILD.x,BUILD.y);
+  R3D.ghost.position.set(wx(BUILD.x),0,wz(BUILD.y));
+  R3D.ghost.rotation.y=-BUILD.dir*Math.PI/2;
+  R3D.ghost.traverse(o=>{if(o.isMesh)o.material=v.ok?R3D.ghostG:R3D.ghostR});
+  const ok=document.getElementById('bOk');
+  ok.disabled=!v.ok;
+  ok.textContent=v.ok?'✓ Construire':'✗ '+v.why;
+}
+function confirmBuild(){
+  const e=placeBuilding(BUILD.type,BUILD.x,BUILD.y,BUILD.dir);
+  if(!e)return;
+  toast(`${BUILDINGS[BUILD.type].ic} ${BUILDINGS[BUILD.type].nm} construit${BUILDINGS[BUILD.type].nm.endsWith('e')?'e':''}`);
+  // reste en mode construction si on peut encore payer (pose en série)
+  if(canAfford(BUILDINGS[BUILD.type].cost)){
+    if(BUILD.type==='belt'){const d=DIRS[BUILD.dir];BUILD.x+=d[0];BUILD.y+=d[1]}
+    updateGhost();updateHUD();
+  }else exitBuild();
+}
+
+/* entrées tactiles / souris */
+function setupInput(){
+  const cv=document.getElementById('c3d');
+  const ptrs=new Map();
+  let start=null,panning=false,pinch0=0,zoom0=0;
+  const ray=new T.Raycaster(), ndc=new T.Vector2(), plane=new T.Plane(new T.Vector3(0,1,0),0), hit=new T.Vector3();
+  function groundAt(cx,cy){
+    ndc.x=(cx/innerWidth)*2-1;ndc.y=-(cy/innerHeight)*2+1;
+    ray.setFromCamera(ndc,R3D.cam);
+    if(!ray.ray.intersectPlane(plane,hit))return null;
+    return [Math.floor(hit.x+MAP/2),Math.floor(hit.z+MAP/2)];
   }
-  let u=0;
-  while(x>=1000&&u<UNITS.length-1){x/=1000;u++}
-  if(x>=1000)return x.toExponential(1).replace('.',',');
-  return (x>=100?String(Math.floor(x)):x.toFixed(1).replace('.',','))+' '+UNITS[u];
-}
-function fmtRate(x){
-  const a=Math.abs(x);
-  if(a<1e-9)return'';
-  const s=a<10?a.toFixed(2):a<100?a.toFixed(1):fmt(a);
-  return (x>0?'+':'−')+String(s).replace('.',',')+'/s';
-}
-function fmtDur(sec){
-  sec=Math.floor(sec);
-  const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);
-  if(h>0)return`${h} h ${m.toString().padStart(2,'0')} min`;
-  if(m>0)return`${m} min`;
-  return`${sec} s`;
-}
-
-/* ---------- sauvegarde ---------- */
-function save(){
-  S.t=Date.now();
-  try{localStorage.setItem(SAVE_KEY,JSON.stringify(S))}catch(e){}
-}
-function load(){
-  let raw=null;
-  try{raw=localStorage.getItem(SAVE_KEY)}catch(e){}
-  if(!raw)return 0;
-  try{
-    const d=JSON.parse(raw);
-    if(!d||d.v!==1||typeof d.res!=='object')throw 0;
-    const f=freshState();
-    for(const r in f.res){ if(typeof d.res[r]==='number'&&isFinite(d.res[r]))f.res[r]=Math.max(0,d.res[r]);
-                           if(d.life&&typeof d.life[r]==='number'&&isFinite(d.life[r]))f.life[r]=Math.max(0,d.life[r]); }
-    for(const m in f.mach){ if(d.mach&&Number.isInteger(d.mach[m])&&d.mach[m]>=0)f.mach[m]=d.mach[m] }
-    if(d.rsc)for(const k in d.rsc)if(RESEARCH_BY_ID[k])f.rsc[k]=1;
-    if(d.done)for(const k in d.done)f.done[k]=1;
-    f.taps=Number.isFinite(d.taps)?d.taps:0;
-    f.mine=RAWS.includes(d.mine)?d.mine:'ironOre';
-    f.rockets=Number.isInteger(d.rockets)&&d.rockets>=0?d.rockets:0;
-    f.frags=Number.isFinite(d.frags)&&d.frags>=0?d.frags:0;
-    if(d.stats&&typeof d.stats==='object')f.stats={taps:0,launches:0,started:Date.now(),playTime:0,crits:0,boosts:0,dailies:0,...d.stats};
-    if(d.ach)for(const k in d.ach)if(ACH_BY_ID[k])f.ach[k]=1;
-    f.boostUntil=Number.isFinite(d.boostUntil)?d.boostUntil:0;
-    f.boostReadyAt=Number.isFinite(d.boostReadyAt)?d.boostReadyAt:0;
-    f.daily=typeof d.daily==='string'?d.daily:'';
-    if(d.set&&typeof d.set==='object')f.set={sound:d.set.sound!==false,vib:d.set.vib!==false};
-    f.t=Number.isFinite(d.t)?d.t:Date.now();
-    S=f;
-    return f.t;
-  }catch(e){return 0}
-}
-
-/* ---------- UI : construction ---------- */
-const $=id=>document.getElementById(id);
-let dirty=true;           // reconstruit les listes au prochain rafraîchissement
-let curTab='usine';
-const seen = r => S.life[r]>0 || S.res[r]>0;
-const el=(tag,cls,html)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(html!==undefined)e.innerHTML=html;return e};
-const refs={res:{},mach:{},rsc:{},obj:{}};
-
-function visSignature(){
-  let sig=curTab+'|';
-  for(const r in RES)sig+=seen(r)?1:0;
-  sig+='|';
-  for(const m of MACHINES)sig+=m.vis(S)?1:0;
-  sig+='|'+Object.keys(S.rsc).length+'|'+(S.rsc.rocketTech?1:0)+'|'+S.rockets+'|'+Object.keys(S.ach).length;
-  for(const m of MILESTONES)sig+=S.done[m.id]?1:0;
-  return sig;
-}
-let lastSig='';
-
-function rebuild(){
-  dirty=false; lastSig=visSignature();
-
-  /* --- sélecteur de minage --- */
-  const chips=$('mineChips'); chips.innerHTML='';
-  for(const r of RAWS){
-    const b=el('button',S.mine===r?'on':'',`${RES[r].ic} ${RES[r].n.replace('Minerai de ','')}`);
-    b.addEventListener('click',()=>{S.mine=r;$('mineWhat').textContent=RES[r].n.toLowerCase();rebuild()});
-    chips.appendChild(b);
-  }
-  $('mineWhat').textContent=RES[S.mine].n.toLowerCase();
-  $('tapHint').textContent=`+${TAP_POWER(S)} par coup`;
-
-  /* --- ressources --- */
-  const rl=$('resList'); rl.innerHTML=''; refs.res={};
-  let any=false;
-  for(const r in RES){
-    if(!seen(r))continue;
-    any=true;
-    const row=el('div','resRow');
-    row.appendChild(el('span','ic',RES[r].ic));
-    row.appendChild(el('span','nm',RES[r].n));
-    const amt=el('span','amt num','0'); row.appendChild(amt);
-    const rate=el('span','rate num',''); row.appendChild(rate);
-    rl.appendChild(row);
-    refs.res[r]={amt,rate};
-  }
-  if(!any)rl.innerHTML='<div class="hint">Appuie sur MINER pour récolter tes premières ressources.</div>';
-
-  /* --- machines --- */
-  const ml=$('machList'); ml.innerHTML=''; refs.mach={};
-  let lastCat=null, shown=0;
-  for(const mc of MACHINES){
-    if(!mc.vis(S))continue;
-    shown++;
-    if(mc.cat!==lastCat){ml.appendChild(el('div','catHead',CAT_OF[mc.cat]));lastCat=mc.cat}
-    const card=el('div','mach');
-    const top=el('div','top');
-    top.appendChild(el('span','ic',mc.ic));
-    top.appendChild(el('span','nm',mc.nm));
-    const own=el('span','own num','×0'); top.appendChild(own);
-    card.appendChild(top);
-    const io=[];
-    if(mc.inp)io.push('Consomme '+Object.entries(mc.inp).map(([r,v])=>`${String(v).replace('.',',')} ${RES[r].n.toLowerCase()}/s`).join(' + '));
-    io.push('Produit '+Object.entries(mc.out).map(([r,v])=>`${String(v).replace('.',',')} ${RES[r].n.toLowerCase()}/s`).join(' + ')+' (par machine)');
-    card.appendChild(el('div','io',io.join('<br>')));
-    const pal=el('div','palier');
-    const palTx=el('span','num','');
-    const pb=el('div','pb'); const pbi=el('i');
-    pb.appendChild(pbi); pal.appendChild(palTx); pal.appendChild(pb);
-    card.appendChild(pal);
-    let effI=null;
-    if(mc.inp){const eb=el('div','effbar');effI=el('i');eb.appendChild(effI);card.appendChild(eb)}
-    const cost=el('div','cost'); card.appendChild(cost);
-    const row=el('div','buyRow');
-    const btns={};
-    for(const q of [1,10,'max']){
-      const b=el('button','',q==='max'?'Max':`×${q}`);
-      b.addEventListener('click',()=>{if(buyMachine(mc.id,q))updateAll()});
-      row.appendChild(b); btns[q]=b;
+  cv.addEventListener('pointerdown',e=>{
+    try{cv.setPointerCapture(e.pointerId)}catch(err){}
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===1){start={x:e.clientX,y:e.clientY,t:Date.now()};panning=false}
+    else if(ptrs.size===2){
+      const a=[...ptrs.values()];
+      pinch0=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);zoom0=R3D.zoom;
     }
-    const sb=el('button','sell','Vendre');
-    sb.addEventListener('click',()=>{if(sellMachine(mc.id))updateAll()});
-    row.appendChild(sb); btns.sell=sb;
-    card.appendChild(row);
-    ml.appendChild(card);
-    refs.mach[mc.id]={own,cost,btns,effI,palTx,pbi};
-  }
-  if(!shown)ml.innerHTML='<div class="card hint">Récolte des ressources pour débloquer tes premières machines.</div>';
+  });
+  cv.addEventListener('pointermove',e=>{
+    const p=ptrs.get(e.pointerId);if(!p)return;
+    const px=p.x,py=p.y;
+    p.x=e.clientX;p.y=e.clientY;
+    if(ptrs.size===2){
+      const a=[...ptrs.values()];
+      const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);
+      if(pinch0>0){R3D.zoom=Math.min(34,Math.max(9,zoom0*pinch0/d));resize()}
+      return;
+    }
+    if(!start)return;
+    const totDx=e.clientX-start.x,totDy=e.clientY-start.y;
+    if(!panning&&Math.hypot(totDx,totDy)>10)panning=true;
+    if(panning){
+      const scale=R3D.zoom/innerHeight;
+      const dx=(e.clientX-px)*scale, dy=(e.clientY-py)*scale;
+      // caméra orientée à 45° : convertir le déplacement écran en monde
+      const k=Math.SQRT1_2;
+      R3D.target.x-=(dx*k - dy*k)*1.4;
+      R3D.target.z-=(-dx*k - dy*k)*1.4;
+      R3D.follow=false;
+      document.getElementById('recenter').style.display='block';
+    }
+  });
+  const end=e=>{
+    ptrs.delete(e.pointerId);
+    if(ptrs.size>0){start=null;return}
+    if(!start)return;
+    const dt=Date.now()-start.t;
+    const tap=!panning&&dt<450;
+    const sx=start.x,sy=start.y;
+    start=null;
+    if(!tap)return;
+    const g=groundAt(e.clientX!==undefined?e.clientX:sx,e.clientY!==undefined?e.clientY:sy);
+    if(!g)return;
+    const [tx,ty]=g;
+    if(BUILD.active){BUILD.x=tx;BUILD.y=ty;updateGhost();return}
+    const ent=ENT_AT[key(tx,ty)];
+    if(ent){selectEnt(ent);return}
+    hideRing();
+    goTo(tx,ty);
+  };
+  cv.addEventListener('pointerup',end);
+  cv.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);start=null});
+  cv.addEventListener('wheel',e=>{
+    R3D.zoom=Math.min(34,Math.max(9,R3D.zoom*(e.deltaY>0?1.1:0.9)));resize();
+  },{passive:true});
+}
+function hideRing(){R3D.ring.visible=false;R3D.selected=null}
+function selectEnt(e){
+  R3D.selected=e;
+  R3D.ring.position.set(wx(e.x),.06,wz(e.y));
+  R3D.ring.visible=true;
+  openEntSheet(e);
+}
 
-  /* --- recherches --- */
-  const kl=$('rscList'); kl.innerHTML=''; refs.rsc={};
+/* =====================================================================
+   INTERFACE
+   ===================================================================== */
+const $=id=>document.getElementById(id);
+const el=(tag,cls,html)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(html!==undefined)e.innerHTML=html;return e};
+let SHEET=null; // type de feuille ouverte
+function openSheet(title,type){
+  $('sheetTitle').textContent=title;
+  $('sheetBody').innerHTML='';
+  $('sheet').classList.add('show');
+  $('sheetBack').classList.add('show');
+  SHEET=type;
+  return $('sheetBody');
+}
+function closeSheet(){
+  $('sheet').classList.remove('show');
+  $('sheetBack').classList.remove('show');
+  SHEET=null;hideRing();
+}
+function costHtml(cost){
+  return '<div class="cost">'+Object.entries(cost).map(([k,q])=>
+    `<span class="${(S.inv[k]||0)>=q?'ok':'no'}">${ITEMS[k].ic} ${q}</span>`).join('')+'</div>';
+}
+
+/* --- feuille construction --- */
+function openBuildSheet(){
+  const body=openSheet('Construire','build');
+  const grid=el('div','bgrid');
+  for(const id of BUILD_ORDER){
+    const b=BUILDINGS[id];
+    const locked=b.rsc&&!S.rsc[b.rsc];
+    const c=el('div','bcard'+(locked?' locked':''));
+    c.appendChild(el('div','ic',b.ic));
+    c.appendChild(el('div','t',b.nm));
+    c.appendChild(el('div','hint',locked?'🔒 Recherche : '+RESEARCH_BY_ID[b.rsc].nm:b.ds));
+    if(!locked){
+      c.insertAdjacentHTML('beforeend',costHtml(b.cost));
+      c.addEventListener('click',()=>{
+        if(!canAfford(b.cost)){toast('Ressources insuffisantes');return}
+        enterBuild(id);
+      });
+    }
+    grid.appendChild(c);
+  }
+  body.appendChild(grid);
+  body.insertAdjacentHTML('beforeend','<div class="hint" style="margin-top:9px">Astuce : les machines déversent automatiquement leur production dans les machines voisines qui en ont besoin, les convoyeurs et les coffres.</div>');
+}
+
+/* --- feuille inventaire --- */
+function openInvSheet(){
+  const body=openSheet(`Sac — ${invCount()}/${INV_CAP(S)}`,'inv');
+  const ks=Object.keys(S.inv).filter(k=>S.inv[k]>0);
+  if(!ks.length){body.innerHTML='<div class="hint">Sac vide. Approche-toi d’un gisement et mine, ou récupère la production de tes machines.</div>';return}
+  for(const k of ks){
+    const row=el('div','invrow');
+    row.appendChild(el('span',null,ITEMS[k].ic));
+    row.appendChild(el('span','n',ITEMS[k].n));
+    row.appendChild(el('b','num',fmt(S.inv[k])));
+    body.appendChild(row);
+  }
+}
+
+/* --- feuille recherche --- */
+function openRscSheet(){
+  const body=openSheet('Recherche — 🧪 '+fmt(S.science),'rsc');
+  if(!cntType('lab'))body.insertAdjacentHTML('beforeend','<div class="hint" style="margin-bottom:8px">Construis un laboratoire pour produire de la science.</div>');
   for(const r of RESEARCH){
     if(r.req&&!S.rsc[r.req]&&!S.rsc[r.id])continue;
-    const card=el('div','rsc'+(S.rsc[r.id]?' done':''));
-    card.appendChild(el('div','nm',r.nm));
-    card.appendChild(el('div','ds',r.ds));
-    if(S.rsc[r.id]){
-      card.appendChild(el('div','badge','✓ Terminée'));
-    }else{
-      const b=el('button','',`Rechercher — 🧪 ${fmt(r.cost)}`);
-      b.addEventListener('click',()=>{if(buyResearch(r.id))updateAll()});
-      card.appendChild(b);
-      refs.rsc[r.id]=b;
+    const c=el('div','card');
+    c.appendChild(el('h3',null,r.nm));
+    c.appendChild(el('div','hint',r.ds));
+    if(S.rsc[r.id])c.insertAdjacentHTML('beforeend','<div style="color:var(--good);font-weight:700;font-size:13px;margin-top:6px">✓ Terminée</div>');
+    else{
+      const b=el('button','rowbtn blue',`Rechercher — 🧪 ${r.cost}`);
+      b.disabled=S.science<r.cost;
+      b.addEventListener('click',()=>{
+        if(S.science<r.cost)return;
+        S.science-=r.cost;S.rsc[r.id]=1;
+        sfx('rsc');buzz(25);toast('Recherche : '+r.nm);
+        openRscSheet();updateHUD();
+      });
+      c.appendChild(b);
     }
-    kl.appendChild(card);
+    body.appendChild(c);
   }
+}
 
-  /* --- fusée --- */
-  const rb=$('rocketBox'); rb.innerHTML='';
-  if(!S.rsc.rocketTech){
-    rb.appendChild(el('div','card hint',
-      'La fusée est encore un rêve lointain…<br><br>Termine la recherche <b>Programme spatial</b> (onglet Labo) pour débloquer le prestige : lancer une fusée réinitialise ton usine mais donne des <b>fragments stellaires ✨</b> qui boostent définitivement toute ta production.'));
-    refs.rocket=null;
-  }else{
-    const card=el('div','card');
-    card.appendChild(el('h2',null,'Lancement de fusée'));
-    card.appendChild(el('div','hint',
-      `Lancement n° ${S.rockets+1} — récompense : <b>${fragGain(S.rockets)} fragments ✨</b> (+${Math.round(fragGain(S.rockets)*FRAG_BONUS*100)} % de production, permanent).<br>⚠️ Réinitialise ressources, machines et recherches. Les objectifs et fragments sont conservés.`));
-    const bars={};
-    const cost=rocketCost(S.rockets);
-    for(const r in cost){
-      const w=el('div','reqbar');
-      const lb=el('div','lb');
-      lb.appendChild(el('span',null,`${RES[r].ic} ${RES[r].n}`));
-      const v=el('span','num',''); lb.appendChild(v);
-      w.appendChild(lb);
-      const bar=el('div','bar'); const fill=el('i'); bar.appendChild(fill); w.appendChild(bar);
-      card.appendChild(w);
-      bars[r]={v,fill,need:cost[r]};
-    }
-    const lb=el('button',null,'🚀 Lancer la fusée'); lb.id='launchBtn';
+/* --- feuille entité --- */
+function openEntSheet(e){
+  const b=BUILDINGS[e.t];
+  const body=openSheet(b.ic+' '+b.nm,'ent');
+  body.dataset.ex=e.x;body.dataset.ey=e.y;
+  const info=el('div','card');
+  if(b.mine){
+    const d=depAt(e.x,e.y);
+    info.appendChild(el('div','hint',d?`Extrait ${ITEMS[DEPOSITS[d].item].n.toLowerCase()} automatiquement.`:'⚠️ Aucun gisement sous la foreuse !'));
+  }else if(b.recipes){
+    info.appendChild(el('div','hint',b.ds));
+  }else info.appendChild(el('div','hint',b.ds));
+  body.appendChild(info);
+
+  const cnt=el('div','card');cnt.id='entContents';
+  body.appendChild(cnt);
+  renderEntContents(e,cnt);
+
+  if(b.silo){
+    const lb=el('button','rowbtn green','🚀 Lancer la fusée');
+    lb.id='launchBtn';
+    lb.disabled=!siloReady(e);
     lb.addEventListener('click',()=>{
       showModal('Lancer la fusée ?',
-        `Tu vas gagner <b>${fragGain(S.rockets)} fragments ✨</b> mais ton usine (ressources, machines, recherches) sera réinitialisée. Continuer ?`,
-        [['Annuler',null,true],['🚀 Lancer !',()=>{launchRocket();updateAll()}]]);
+        `Tu gagnes <b>${fragGain(S.rockets)} fragments ✨</b> mais ton robot repartira sur une <b>nouvelle planète</b> (usine et recherches remises à zéro, fragments et succès conservés).`,
+        [['Annuler',null,true],['🚀 Lancer !',()=>{closeSheet();launchRocket(e)}]]);
     });
-    card.appendChild(lb);
-    rb.appendChild(card);
-    refs.rocket={bars,btn:lb};
+    body.appendChild(lb);
   }
-
-  /* --- objectifs --- */
-  const ol=$('objList'); ol.innerHTML=''; refs.obj={};
-  for(const m of MILESTONES){
-    const rw=Object.entries(m.rw).map(([r,q])=>`${RES[r].ic} ${fmt(q)}`).join(' ');
-    const row=el('div','rw');
-    const st=el('span','st',S.done[m.id]?'✅':'⬜'); row.appendChild(st);
-    const tx=el('div','tx');
-    tx.appendChild(el('div','t',m.nm+' — '+m.ds));
-    tx.appendChild(el('div','r','Récompense : '+rw));
-    row.appendChild(tx);
-    let btn=null;
-    if(!S.done[m.id]){
-      btn=el('button',null,'Réclamer');
-      btn.style.display='none';
-      btn.addEventListener('click',()=>{if(claimMilestone(m.id))updateAll()});
-      row.appendChild(btn);
+  if(b.belt){
+    const rb=el('button','rowbtn','↻ Tourner le convoyeur');
+    rb.addEventListener('click',()=>{
+      e.d=(e.d+1)%4;
+      const m=R3D.entMeshes.get(e);
+      if(m)m.rotation.y=-e.d*Math.PI/2;
+      renderEntContents(e,cnt);
+    });
+    body.appendChild(rb);
+  }
+  const db=el('button','rowbtn red','Détruire (50 % remboursé)');
+  db.addEventListener('click',()=>{demolish(e);closeSheet();updateHUD()});
+  body.appendChild(db);
+}
+function renderEntContents(e,box){
+  const b=BUILDINGS[e.t];
+  box.innerHTML='';
+  const mk=(label,dict,takeable)=>{
+    const ks=Object.keys(dict).filter(k=>dict[k]>0);
+    box.appendChild(el('div','hint',label));
+    if(!ks.length){box.appendChild(el('div','hint','<i>— vide —</i>'))}
+    for(const k of ks){
+      const row=el('div','invrow');
+      row.appendChild(el('span',null,ITEMS[k].ic));
+      row.appendChild(el('span','n',ITEMS[k].n));
+      row.appendChild(el('b','num',String(dict[k])));
+      box.appendChild(row);
     }
-    ol.appendChild(row);
-    refs.obj[m.id]={st,btn};
+    if(takeable&&ks.length){
+      const tb=el('button','rowbtn','🎒 Tout prendre');
+      tb.addEventListener('click',()=>{
+        let took=0;
+        for(const k of Object.keys(dict)){
+          const t=Math.min(dict[k],INV_CAP(S)-invCount());
+          if(t>0){invAdd(k,t);dict[k]-=t;took+=t;if(dict[k]<=0)delete dict[k]}
+        }
+        toast(took>0?`+${took} objets dans le sac`:'Sac plein !');
+        sfx('tap');renderEntContents(e,box);updateHUD();
+      });
+      box.appendChild(tb);
+    }
+  };
+  if(b.silo){
+    const need=siloNeed(S.rockets);
+    box.appendChild(el('div','hint','Approvisionnement de la fusée :'));
+    for(const k in need){
+      const have=e.got[k]||0;
+      const w=el('div',null,
+        `<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:6px"><span>${ITEMS[k].ic} ${ITEMS[k].n}</span><b class="num">${fmt(have)} / ${fmt(need[k])}</b></div>
+         <div class="pbar"><i style="width:${Math.min(100,have/need[k]*100)}%"></i></div>`);
+      box.appendChild(w);
+      if((S.inv[k]||0)>0&&have<need[k]){
+        const db=el('button','rowbtn',`Déposer ${ITEMS[k].n.toLowerCase()} (${fmt(S.inv[k])})`);
+        db.addEventListener('click',()=>{
+          const q=Math.min(S.inv[k]||0,need[k]-(e.got[k]||0));
+          invTake(k,q);e.got[k]=(e.got[k]||0)+q;
+          sfx('buy');renderEntContents(e,box);updateHUD();
+          const lb=document.getElementById('launchBtn');
+          if(lb)lb.disabled=!siloReady(e);
+        });
+        box.appendChild(db);
+      }
+    }
+    return;
   }
+  if(b.belt){
+    box.appendChild(el('div','hint',`Objets sur le tapis : ${e.items.length}/${BELT_CAP} — direction : ${['→ est','↓ sud','← ouest','↑ nord'][e.d]}`));
+    return;
+  }
+  if(b.chest){mk('Contenu :',e.inb,true);return}
+  if(b.mine){mk('Production (récupère ou laisse les voisins se servir) :',e.outb,true);return}
+  // machine à recettes
+  mk('Entrées :',e.inb,false);
+  // boutons de dépôt pour chaque ingrédient
+  const wants={};
+  for(const r of b.recipes)for(const k in r.in)wants[k]=1;
+  for(const k in wants){
+    if((S.inv[k]||0)>0&&(e.inb[k]||0)<BCAP){
+      const db=el('button','rowbtn',`Déposer ${ITEMS[k].n.toLowerCase()} (${fmt(S.inv[k])} en sac)`);
+      db.addEventListener('click',()=>{
+        const q=Math.min(S.inv[k]||0,BCAP-(e.inb[k]||0));
+        invTake(k,q);e.inb[k]=(e.inb[k]||0)+q;
+        sfx('buy');renderEntContents(e,box);updateHUD();
+      });
+      box.appendChild(db);
+    }
+  }
+  mk('Sorties :',e.outb,true);
+}
 
-  /* --- succès --- */
-  const al=$('achList'); al.innerHTML='';
-  let earned=0;
+/* --- feuille menu --- */
+function openMenuSheet(){
+  const body=openSheet('Menu','menu');
+  const stats=el('div','card');
+  stats.appendChild(el('h3',null,'Statistiques'));
+  stats.appendChild(el('div','hint',
+    `Temps de jeu : <b class="num">${fmtDur(S.stats.playTime||0)}</b><br>`+
+    `Miné à la main : <b class="num">${fmt(S.stats.mined||0)}</b> · Cases parcourues : <b class="num">${fmt(S.stats.walked||0)}</b><br>`+
+    `Bâtiments construits : <b class="num">${S.stats.built||0}</b> · Fusées : <b class="num">${S.stats.launches||0}</b><br>`+
+    `Fragments ✨ : <b class="num">${S.frags}</b> (+${Math.round(S.frags*FRAG_BONUS*100)} % vitesse)<br>`+
+    `Production hors-ligne max : <b>${OFFLINE_CAP(S)/3600} h</b>`));
+  body.appendChild(stats);
+
+  const ach=el('div','card');
+  const earned=Object.keys(S.ach).length;
+  ach.appendChild(el('h3',null,`Succès (${earned}/${ACHIEVEMENTS.length}) — +${earned*2} % vitesse`));
   for(const a of ACHIEVEMENTS){
-    const got=!!S.ach[a.id]; if(got)earned++;
-    const row=el('div','rw'+(got?'':' off'));
-    row.appendChild(el('span','st',got?'🏆':'⬜'));
-    const tx=el('div','tx');
-    tx.appendChild(el('div','t',a.nm));
-    tx.appendChild(el('div','d',a.ds+' — +2 % de production'));
-    row.appendChild(tx);
-    al.appendChild(row);
+    const got=!!S.ach[a.id];
+    ach.appendChild(el('div','hint',`${got?'🏆':'⬜'} <b style="color:${got?'var(--tx)':'inherit'}">${a.nm}</b> — ${a.ds}`));
   }
-  $('achHead').textContent=`Succès (${earned}/${ACHIEVEMENTS.length}) — bonus +${earned*2} %`;
+  body.appendChild(ach);
+
+  const reg=el('div','card');
+  reg.appendChild(el('h3',null,'Réglages'));
+  const t1=el('div','tgl',`<span>🔊 Effets sonores</span>`);
+  const b1=el('button',S.set.sound?'on':'','<i></i>');
+  b1.addEventListener('click',()=>{S.set.sound=!S.set.sound;b1.classList.toggle('on',S.set.sound);if(S.set.sound)sfx('buy');save()});
+  t1.appendChild(b1);reg.appendChild(t1);
+  const t2=el('div','tgl',`<span>📳 Vibrations</span>`);
+  const b2=el('button',S.set.vib?'on':'','<i></i>');
+  b2.addEventListener('click',()=>{S.set.vib=!S.set.vib;b2.classList.toggle('on',S.set.vib);if(S.set.vib)buzz(40);save()});
+  t2.appendChild(b2);reg.appendChild(t2);
+  body.appendChild(reg);
+
+  const sv=el('div','card');
+  sv.appendChild(el('h3',null,'Sauvegarde'));
+  sv.appendChild(el('div','hint','Sauvegarde automatique toutes les 10 s, directement sur ton téléphone.'));
+  const ex=el('button','rowbtn','Exporter la sauvegarde');
+  ex.addEventListener('click',()=>{
+    save();
+    const ta=$('ioArea');ta.style.display='';
+    ta.value=btoa(unescape(encodeURIComponent(localStorage.getItem(SAVE_KEY)||'')));
+    ta.select();
+    if(navigator.clipboard)navigator.clipboard.writeText(ta.value).then(()=>toast('Copiée !')).catch(()=>{});
+  });
+  sv.appendChild(ex);
+  const imp=el('button','rowbtn','Importer la sauvegarde');
+  imp.addEventListener('click',()=>{
+    const ta=$('ioArea');
+    if(ta.style.display==='none'||!ta.value.trim()){ta.style.display='';ta.value='';ta.focus();toast('Colle ta sauvegarde puis appuie de nouveau');return}
+    try{
+      const json=decodeURIComponent(escape(atob(ta.value.trim())));
+      const d=JSON.parse(json);
+      if(!d||d.v!==3)throw 0;
+      localStorage.setItem(SAVE_KEY,json);
+      load();rebuildWorldMeshes();closeSheet();updateHUD();toast('Sauvegarde importée !');
+    }catch(e){toast('Sauvegarde invalide')}
+  });
+  sv.appendChild(imp);
+  sv.insertAdjacentHTML('beforeend','<textarea id="ioArea" style="display:none" placeholder="Colle ta sauvegarde ici"></textarea>');
+  const rz=el('button','rowbtn red','Tout recommencer (efface tout)');
+  rz.addEventListener('click',()=>{
+    showModal('Tout effacer ?','Toute ta progression (fragments ✨ compris) sera définitivement supprimée.',
+      [['Annuler',null,true],['Tout effacer',()=>{
+        try{localStorage.removeItem(SAVE_KEY)}catch(e){}
+        S=freshState();ENT_AT={};genWorld(S.seed);rebuildWorldMeshes();closeSheet();updateHUD();toast('Nouvelle partie');
+      }]]);
+  });
+  sv.appendChild(rz);
+  body.appendChild(sv);
 }
 
-/* ---------- UI : rafraîchissement ---------- */
-function updateFast(){
-  const rates=netRates();
-  for(const r in refs.res){
-    refs.res[r].amt.textContent=fmt(S.res[r]);
-    const v=rates[r]||0;
-    const rEl=refs.res[r].rate;
-    rEl.textContent=fmtRate(v);
-    rEl.className='rate num '+(v>1e-9?'up':v<-1e-9?'dn':'');
-  }
-  $('hudSci').textContent=fmt(S.res.science);
-  $('labSci').textContent=fmt(S.res.science);
-  const sciRate=rates.science||0;
-  $('labRate').textContent=sciRate>1e-9?`(+${sciRate.toFixed(2).replace('.',',')}/s)`:'';
-  if(S.frags>0){$('hudFragWrap').style.display='';$('hudFrag').textContent=fmt(S.frags)}
-  const bnow=Date.now();
-  if(bnow<S.boostUntil){$('hudBoost').style.display='';$('hudBoostT').textContent=fmtDur((S.boostUntil-bnow)/1000)}
-  else $('hudBoost').style.display='none';
+/* --- HUD / boucle UI --- */
+function updateHUD(){
+  $('hudSci').textContent=fmt(S.science);
+  $('hudInv').textContent=fmt(invCount())+'/'+INV_CAP(S);
+  if(S.frags>0){$('hudFrag').style.display='';$('hudFragN').textContent=S.frags}
+  $('questTx').textContent=(S.quest<QUESTS.length?QUESTS[S.quest].tx:'');
+  // bouton contextuel
+  const d=nearestDeposit();
+  const ctx=$('ctxBtn');
+  if(d&&!BUILD.active){ctx.style.display='block';ctx.textContent=`⛏️ Miner (${ITEMS[DEPOSITS[d].item].n.split(' ').pop()})`}
+  else ctx.style.display='none';
+  // pastille recherche
+  let av=false;
+  for(const r of RESEARCH)if(!S.rsc[r.id]&&(!r.req||S.rsc[r.req])&&S.science>=r.cost)av=true;
+  $('rscDot').classList.toggle('show',av);
 }
-function updateSlow(){
-  /* machines */
-  for(const id in refs.mach){
-    const mc=MACH_BY_ID[id], R2=refs.mach[id], owned=S.mach[id];
-    const tier=Math.floor(owned/TIER_STEP), next=(tier+1)*TIER_STEP;
-    R2.own.textContent='×'+owned+(tier?` (×${Math.pow(2,tier)})`:'');
-    R2.palTx.textContent=`Palier ×${Math.pow(2,tier+1)} à ${next} machines`;
-    R2.pbi.style.width=Math.round((owned-tier*TIER_STEP)/TIER_STEP*100)+'%';
-    const c1=machCost(mc,owned,1);
-    R2.cost.innerHTML=Object.entries(c1).map(([r,q])=>
-      `<span class="${S.res[r]>=q-1e-9?'ok':'no'}">${RES[r].ic} ${fmt(q)}</span>`).join('');
-    R2.btns[1].disabled=!canPay(c1);
-    R2.btns[10].disabled=!canPay(machCost(mc,owned,10));
-    R2.btns['max'].disabled=!canPay(c1);
-    R2.btns.sell.disabled=owned<1;
-    if(R2.effI){
-      const e=owned?(EFF[id]!==undefined?EFF[id]:1):0;
-      R2.effI.style.width=Math.round(e*100)+'%';
-      R2.effI.className=e<.5&&owned?'low':'';
-    }
+function slowUpdate(){
+  // quêtes
+  if(S.quest<QUESTS.length-1&&QUESTS[S.quest].ok(S)){
+    const q=QUESTS[S.quest];
+    for(const k in q.rw)invAdd(k,q.rw[k]);
+    S.quest++;
+    sfx('obj');buzz(30);
+    toast('✅ Objectif atteint !'+(Object.keys(q.rw).length?' Récompense reçue':''));
   }
-  /* recherches */
-  for(const id in refs.rsc)refs.rsc[id].disabled=S.res.science<RESEARCH_BY_ID[id].cost-1e-9;
-  /* fusée */
-  if(refs.rocket){
-    let all=true;
-    for(const r in refs.rocket.bars){
-      const b=refs.rocket.bars[r];
-      const have=S.res[r];
-      b.v.textContent=`${fmt(Math.min(have,b.need))} / ${fmt(b.need)}`;
-      b.fill.style.width=Math.min(100,have/b.need*100)+'%';
-      if(have<b.need-1e-9)all=false;
-    }
-    refs.rocket.btn.disabled=!all;
-  }
-  /* surcadençage */
-  const now=Date.now(), bb=$('boostBtn');
-  if(now<S.boostUntil){bb.disabled=true;bb.className='hot';bb.textContent=`⚡ Actif — ${fmtDur((S.boostUntil-now)/1000)}`}
-  else if(now<S.boostReadyAt){bb.disabled=true;bb.className='';bb.textContent=`⚡ Recharge — ${fmtDur((S.boostReadyAt-now)/1000)}`}
-  else{bb.disabled=false;bb.className='';bb.textContent='⚡ Activer ×2 (30 min)'}
-  /* caisse quotidienne */
-  $('dailyCard').style.display=dailyAvailable()?'':'none';
-  navDot('usine',dailyAvailable());
-  /* succès gagnés automatiquement */
+  // succès
   for(const a of ACHIEVEMENTS){
     if(!S.ach[a.id]&&a.ok(S)){
-      S.ach[a.id]=1; dirty=true;
-      toast(`🏆 Succès : ${a.nm} (+2 %)`); sfx('obj'); buzz(30);
+      S.ach[a.id]=1;
+      toast(`🏆 Succès : ${a.nm} (+2 %)`);sfx('obj');buzz(30);
     }
   }
-  /* interrupteurs */
-  $('tglSound').classList.toggle('on',!!S.set.sound);
-  $('tglVib').classList.toggle('on',!!S.set.vib);
-  /* objectifs + pastilles */
-  let claimable=false;
-  for(const m of MILESTONES){
-    const o=refs.obj[m.id];
-    if(!o||S.done[m.id])continue;
-    const ok=m.ok(S);
-    if(o.btn)o.btn.style.display=ok?'':'none';
-    if(ok){claimable=true;o.st.textContent='🟡'}
+  // rafraîchit la feuille entité ouverte
+  if(SHEET==='ent'&&R3D.selected){
+    const box=document.getElementById('entContents');
+    if(box)renderEntContents(R3D.selected,box);
+    const lb=document.getElementById('launchBtn');
+    if(lb)lb.disabled=!siloReady(R3D.selected);
   }
-  navDot('plus',claimable);
-  let rscAvail=false;
-  for(const r of RESEARCH)if(!S.rsc[r.id]&&(!r.req||S.rsc[r.req])&&S.res.science>=r.cost)rscAvail=true;
-  navDot('lab',rscAvail);
-  /* stats */
-  $('statsBox').innerHTML=
-    `Temps de jeu : <b class="num">${fmtDur(S.stats.playTime||0)}</b><br>`+
-    `Coups de pioche : <b class="num">${fmt(S.stats.taps||0)}</b> (dont <b class="num">${fmt(S.stats.crits||0)}</b> critiques)<br>`+
-    `Machines : <b class="num">${totalMachines(S)}</b><br>`+
-    `Fusées lancées : <b class="num">${S.stats.launches||0}</b><br>`+
-    `Fragments stellaires : <b class="num">${fmt(S.frags)}</b> (+${Math.round(S.frags*FRAG_BONUS*100)} % production)<br>`+
-    `Succès : <b class="num">${Object.keys(S.ach).length}/${ACHIEVEMENTS.length}</b> (+${Object.keys(S.ach).length*2} % production)<br>`+
-    `Surcadençages : <b class="num">${S.stats.boosts||0}</b> · Caisses ouvertes : <b class="num">${S.stats.dailies||0}</b><br>`+
-    `Production hors-ligne max : <b>${OFFLINE_CAP(S)/3600} h</b>`;
-  /* déblocages structurels */
-  if(visSignature()!==lastSig)dirty=true;
-}
-function updateAll(){if(dirty)rebuild();updateFast();updateSlow()}
-function navDot(tab,on){
-  const d=document.querySelector(`nav button[data-tab="${tab}"] .dot`);
-  if(d)d.classList.toggle('show',!!on);
+  if(SHEET==='rsc'){/* les boutons se mettent à jour à la réouverture */}
+  updateHUD();
 }
 
-/* ---------- modal & toast ---------- */
+/* --- modal / toast --- */
 function showModal(title,html,btns){
   $('modalTitle').textContent=title;
   $('modalBody').innerHTML=html;
-  const box=$('modalBtns'); box.innerHTML='';
+  const box=$('modalBtns');box.innerHTML='';
   for(const [label,fn,ghost] of btns){
     const b=el('button',ghost?'ghost':'',label);
     b.addEventListener('click',()=>{$('modalBack').classList.remove('show');if(fn)fn()});
@@ -1039,155 +1622,77 @@ function showModal(title,html,btns){
 }
 let toastTimer=null;
 function toast(msg){
-  const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  const t=$('toast');t.textContent=msg;t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer=setTimeout(()=>t.classList.remove('show'),1600);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),1900);
 }
 
-/* ---------- hors-ligne ---------- */
-function applyOffline(elapsedSec){
-  const capped=Math.min(elapsedSec,OFFLINE_CAP(S));
-  if(capped<10)return;
-  const before={...S.res};
-  simulate(capped);
-  const gains=[];
-  for(const r in RES){
-    const d=S.res[r]-before[r];
-    if(d>0.5)gains.push(`<div class="g"><span>${RES[r].ic} ${RES[r].n}</span><b class="num">+${fmt(d)}</b></div>`);
-  }
-  if(elapsedSec>=120&&gains.length){
-    showModal('⏳ Pendant ton absence…',
-      `<p>Ton usine a tourné pendant <b>${fmtDur(capped)}</b>${elapsedSec>capped+60?` (plafond hors-ligne : ${OFFLINE_CAP(S)/3600} h)`:''} :</p><div style="margin-top:8px">${gains.join('')}</div>`,
-      [['Reprendre le travail',null]]);
-  }
-}
-
-/* ---------- export / import ---------- */
-function exportSave(){
-  save();
-  const b64=btoa(unescape(encodeURIComponent(JSON.stringify(S))));
-  const ta=$('ioArea'); ta.style.display=''; ta.value=b64; ta.focus(); ta.select();
-  let copied=false;
-  try{copied=document.execCommand('copy')}catch(e){}
-  if(navigator.clipboard)navigator.clipboard.writeText(b64).then(()=>toast('Sauvegarde copiée !')).catch(()=>{});
-  else if(copied)toast('Sauvegarde copiée !');
-  else toast('Copie le texte ci-dessous');
-}
-function importSave(){
-  const ta=$('ioArea');
-  if(ta.style.display==='none'||!ta.value.trim()){
-    ta.style.display=''; ta.value=''; ta.focus();
-    toast('Colle ta sauvegarde puis appuie de nouveau');
-    return;
-  }
-  try{
-    const json=decodeURIComponent(escape(atob(ta.value.trim())));
-    const d=JSON.parse(json);
-    if(!d||d.v!==1)throw 0;
-    localStorage.setItem(SAVE_KEY,JSON.stringify(d));
-    load(); dirty=true; updateAll();
-    toast('Sauvegarde importée !');
-    ta.style.display='none';
-  }catch(e){toast('Sauvegarde invalide')}
-}
-
-/* ---------- boucle ---------- */
-let lastT=Date.now();
-function loop(){
+/* =====================================================================
+   BOUCLE PRINCIPALE & DÉMARRAGE
+   ===================================================================== */
+let lastT=Date.now(), acc=0, slowAcc=0;
+function frame(){
+  requestAnimationFrame(frame);
   const now=Date.now();
   let dt=(now-lastT)/1000;
   lastT=now;
   if(dt<=0)return;
-  if(dt>60){applyOffline(dt);dt=0}
-  else{tick(dt);S.stats.playTime=(S.stats.playTime||0)+dt}
-  updateAll();
+  if(dt>60){applyOffline(dt);dt=0.016}
+  dt=Math.min(dt,0.25);
+  S.stats.playTime=(S.stats.playTime||0)+dt;
+  acc+=dt;
+  while(acc>=SIM_DT){tick(SIM_DT);acc-=SIM_DT}
+  movePlayer(dt);
+  slowAcc+=dt;
+  if(slowAcc>=0.5){slowAcc=0;slowUpdate()}
+  if(R3D.ready)renderFrame(dt);
 }
-let slowAcc=0;
 
-/* ---------- démarrage ---------- */
 function init(){
   const savedAt=load();
+  if(!savedAt)genWorld(S.seed);
+  if(!initRender())return;
+  setupInput();
   if(savedAt){
     const elapsed=(Date.now()-savedAt)/1000;
-    if(elapsed>10)applyOffline(elapsed);
+    if(elapsed>15)applyOffline(elapsed);
   }
-
-  /* onglets */
-  document.querySelectorAll('nav button').forEach(b=>{
-    b.addEventListener('click',()=>{
-      curTab=b.dataset.tab;
-      document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
-      document.querySelectorAll('main section').forEach(s=>s.classList.toggle('on',s.id==='tab-'+curTab));
-      $('main').scrollTop=0;
-      updateAll();
-    });
-  });
-
-  /* minage */
-  $('mineBtn').addEventListener('pointerdown',e=>{
-    e.preventDefault();
-    let p=TAP_POWER(S);
-    const crit=Math.random()<0.10;
-    if(crit){p*=5;S.stats.crits=(S.stats.crits||0)+1}
-    S.res[S.mine]+=p; S.life[S.mine]+=p;
-    S.taps++; S.stats.taps=(S.stats.taps||0)+1;
-    floatText('+'+fmt(p)+(crit?' 💥':''),crit);
-    sfx(crit?'crit':'tap'); buzz(crit?40:12);
-    if(dirty)rebuild();
-    updateFast();
-  });
-
-  /* boost & caisse quotidienne */
-  $('boostBtn').addEventListener('click',()=>{if(startBoost())updateAll()});
-  $('dailyBtn').addEventListener('click',()=>{if(claimDaily())updateAll()});
-
-  /* interrupteurs sons / vibrations */
-  $('tglSound').addEventListener('click',()=>{
-    S.set.sound=!S.set.sound; save(); updateAll();
-    if(S.set.sound)sfx('buy');
-  });
-  $('tglVib').addEventListener('click',()=>{
-    S.set.vib=!S.set.vib; save(); updateAll();
-    if(S.set.vib)buzz(40);
-  });
-
-  /* réglages */
-  $('btnExport').addEventListener('click',exportSave);
-  $('btnImport').addEventListener('click',importSave);
-  $('btnReset').addEventListener('click',()=>{
-    showModal('Tout effacer ?','Toute ta progression (y compris les fragments ✨) sera définitivement supprimée.',
-      [['Annuler',null,true],['Tout effacer',()=>{
-        try{localStorage.removeItem(SAVE_KEY)}catch(e){}
-        S=freshState(); dirty=true; updateAll(); toast('Nouvelle partie');
-      }]]);
-  });
-
-  /* sauvegarde automatique */
+  $('ctxBtn').addEventListener('pointerdown',e=>{e.preventDefault();mineAction()});
+  $('recenter').addEventListener('click',()=>{R3D.follow=true;$('recenter').style.display='none'});
+  $('tbBuild').addEventListener('click',()=>{if(BUILD.active)exitBuild();SHEET==='build'?closeSheet():openBuildSheet()});
+  $('tbInv').addEventListener('click',()=>SHEET==='inv'?closeSheet():openInvSheet());
+  $('tbRsc').addEventListener('click',()=>SHEET==='rsc'?closeSheet():openRscSheet());
+  $('tbMenu').addEventListener('click',()=>SHEET==='menu'?closeSheet():openMenuSheet());
+  $('sheetClose').addEventListener('click',closeSheet);
+  $('sheetBack').addEventListener('pointerdown',closeSheet);
+  $('bOk').addEventListener('click',confirmBuild);
+  $('bRot').addEventListener('click',()=>{BUILD.dir=(BUILD.dir+1)%4;updateGhost()});
+  $('bCancel').addEventListener('click',exitBuild);
   setInterval(save,10000);
-  document.addEventListener('visibilitychange',()=>{
-    if(document.hidden)save();
-    else lastT=Date.now()-1; // évite un faux « hors-ligne » : loop gérera le vrai dt via applyOffline si besoin
-  });
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)save();else lastT=Date.now()});
   window.addEventListener('pagehide',save);
-
-  /* boucle 4 Hz + rafraîchissement lent 1 Hz */
-  setInterval(()=>{
-    loop();
-    slowAcc++;
-    if(slowAcc>=4){slowAcc=0;/* updateSlow déjà appelé dans updateAll */}
-  },250);
-
-  rebuild(); updateAll();
-
-  /* PWA (ignoré si non https / non supporté) */
+  updateHUD();
+  frame();
   if('serviceWorker' in navigator&&location.protocol==='https:'){
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
   }
 }
 init();
 
-/* accès pour tests automatisés */
-window.G={get S(){return S},set S(v){S=v},tick,simulate,buyMachine,sellMachine,buyResearch,claimMilestone,launchRocket,startBoost,claimDaily,dailyAvailable,save,load,fmt,machCost,maxBuy,netRates,catMult,machMult,updateAll,freshState,applyOffline,MACHINES,RESEARCH,MILESTONES,ACHIEVEMENTS,rocketCost,fragGain};
+/* accès pour les tests automatisés */
+window.G={
+  get S(){return S},set S(v){S=v},
+  get ENT_AT(){return ENT_AT},set ENT_AT(v){ENT_AT=v},
+  WORLD,MAP,BUILDINGS,RESEARCH,QUESTS,ACHIEVEMENTS,ITEMS,DEPOSITS,
+  tick,simulate,genWorld,findPath,walkable,terrAt,depAt,
+  placeBuilding,canPlace,demolish,mineAction,goTo,movePlayer,
+  invAdd,invTake,invCount,canAfford,
+  siloNeed,siloReady,launchRocket,fragGain,
+  save,load,applyOffline,freshState,speedMult,beltSpeed,walkSpeed,globalMult,
+  fmt,fmtDur,updateHUD,slowUpdate,rebuildWorldMeshes,
+  openEntSheet,openBuildSheet,enterBuild,exitBuild,confirmBuild,BUILD,PLAYER,R3D,
+  key,cntType,INV_CAP,MINE_POW,OFFLINE_CAP,
+};
 </script>
 </body>
 </html>

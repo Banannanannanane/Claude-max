@@ -1,55 +1,56 @@
-# 🏭 Usine Stellaire
+# 🏭 Usine Stellaire : Colonie
 
-Jeu d'automatisation / idle en français, inspiré de Factorio et Satisfactory.
-**100 % hors-ligne, 100 % gratuit, aucune inscription, aucune publicité.**
+Jeu de **construction d'usine en 3D** (vue isométrique), en français, inspiré de
+Factorio et Satisfactory. **100 % hors-ligne, 100 % gratuit, sans pub, sans compte.**
 
 ## Le jeu
 
-- ⛏️ Mine à la main tes premières ressources (fer, cuivre, charbon, pierre)
-- ⚙️ Construis des foreuses, fours et assembleurs — chaque machine consomme les
-  ressources du tier inférieur pour produire le tier supérieur
-- ⚖️ Équilibre tes chaînes de production (les barres d'efficacité montrent les
-  machines en manque d'intrants) — tu peux vendre les machines excédentaires
-- 🧪 Produis de la science et débloque 21 recherches
-- 📋 10 objectifs guident ta progression
-- ⏳ L'usine continue de produire quand le jeu est fermé (2 h, extensible à 24 h)
-- 📈 Paliers : tous les 25 exemplaires d'une machine, sa production double
-- ⚡ Surcadençage : boost ×2 pendant 30 min (recharge 3 h)
-- 🏆 20 succès, chacun +2 % de production permanente
-- 💥 Coups critiques au minage (×5), sons et vibrations (désactivables)
-- 🎁 Caisse quotidienne : 30 min de production offertes chaque jour
-- 🚀 Prestige : lance des fusées pour gagner des fragments stellaires
-  (+20 % de production permanente chacun, coût doublé à chaque lancement)
-- 💾 Sauvegarde automatique locale + export/import
+- 🗺️ Une **carte 3D procédurale** (nouvelle à chaque partie) : gisements de fer,
+  cuivre, charbon et pierre, forêts, rochers, montagnes
+- 🤖 Un **petit robot** que tu déplaces en touchant le sol (pathfinding), caméra
+  libre (glisser pour bouger, pincer pour zoomer)
+- ⛏️ Mine à la main près des gisements, puis **pose de vraies machines sur la
+  carte** : foreuses (sur les gisements), fours, ateliers, assembleurs, labos…
+- ➡️ **Convoyeurs** : les objets circulent physiquement dessus, d'une machine à
+  l'autre ; les machines adjacentes s'alimentent aussi directement
+- 📦 Coffres de stockage, panneau par machine (déposer/récupérer les objets)
+- 🧪 18 recherches (vitesses, capacités, déblocages)
+- 📋 16 objectifs façon tutoriel qui t'apprennent le jeu pas à pas
+- 🏆 11 succès (+2 % de vitesse permanente chacun)
+- ⏳ L'usine tourne quand le jeu est fermé (2 h → 24 h par recherche)
+- 🚀 **Prestige** : construis le silo, alimente la fusée, décolle vers une
+  **nouvelle planète** (carte inédite) avec des fragments ✨ permanents (+20 %
+  chacun, coût de fusée ×2 à chaque lancement)
+- 💾 Sauvegarde auto locale + export/import ; sons et vibrations désactivables
+
+Le mode « idle » précédent reste disponible : [`classique.html`](./classique.html).
 
 ## Installer sur ton téléphone
 
-**Option 1 — APK Android (recommandé, vraie appli) :**
+**Option 1 — APK Android (recommandé) :**
 1. Télécharge [`UsineStellaire.apk`](./UsineStellaire.apk) sur ton téléphone
-2. Ouvre le fichier ; autorise « Installer des applis inconnues » pour ton navigateur si demandé
-3. C'est tout : icône sur l'écran d'accueil, 100 % hors-ligne, vibrations natives
+2. Ouvre le fichier ; autorise « Installer des applis inconnues » si demandé
+3. Icône sur l'écran d'accueil, 100 % hors-ligne, vibrations natives
 
-L'APK est reconstructible depuis les sources : `android/build.sh` (voir le script —
-compilation sans Gradle : javac → D8 → aapt → zipalign → apksigner). Le keystore
-`android/usine.keystore` est versionné pour que les mises à jour gardent la même
-signature (sinon Android exige de désinstaller, ce qui efface la sauvegarde).
+**Option 2 — GitHub Pages (PWA)** : Settings → Pages → Deploy from a branch,
+puis ouvre `usine-stellaire/` et « Ajouter à l'écran d'accueil ».
 
-**Option 2 — GitHub Pages (PWA installable) :**
-1. Sur GitHub : *Settings → Pages → Source : Deploy from a branch*, choisis la
-   branche et le dossier racine
-2. Ouvre `https://<ton-user>.github.io/<repo>/usine-stellaire/` sur ton téléphone
-3. Menu du navigateur → **« Ajouter à l'écran d'accueil »** — le jeu s'installe
-   comme une appli et fonctionne ensuite totalement hors-ligne
-
-**Option 3 — fichier local :** ouvre simplement `index.html` dans n'importe quel
-navigateur ; la sauvegarde locale fonctionne aussi.
+**Option 3 — local** : ouvre `index.html` via un petit serveur web
+(`python3 -m http.server`) — le module three.js est un fichier séparé.
 
 ## Technique
 
-- Vanilla JS, zéro dépendance, un seul fichier de ~1 200 lignes
-- Simulation par ticks de 250 ms basée sur l'horloge réelle (robuste aux
-  ralentissements) ; le hors-ligne réutilise la même simulation par pas de 30 s
-- Sauvegarde `localStorage` versionnée et validée au chargement (résiste à la corruption)
-- 68 tests automatisés Playwright (économie, chaînes, prestige, sauvegarde,
-  hors-ligne, UI) + un bot joueur qui vérifie que la progression jusqu'à la
-  fusée n'est jamais bloquée
+- three.js (bundlé hors-ligne, 653 Ko) + vanilla JS, aucun autre framework
+- Rendu : caméra orthographique isométrique, low-poly, meshes instanciés
+  (sol, arbres, rochers, cristaux, objets sur convoyeurs)
+- Simulation à pas fixe (100 ms) : recettes, tampons d'entrée/sortie,
+  déversement par adjacence, files d'objets sur convoyeurs ; le hors-ligne
+  rejoue la même simulation à pas de 250-500 ms
+- Carte 56×56 déterministe par graine (mulberry32), A* pour le robot
+- Sauvegarde `localStorage` versionnée et validée (résiste à la corruption)
+- **51 tests Playwright** (monde, A*, placement, convoyeurs, recettes, silo,
+  sauvegarde, hors-ligne, quêtes, stress 1 h) + **8 tests tactiles E2E**
+  (tap-déplacement, minage, glisser-caméra, panneaux)
+- APK : WebView + pont de vibration natif, compilée sans Gradle
+  (javac → D8 → aapt → zipalign → apksigner), signée v1+v2+v3,
+  minSdk 23 / targetSdk 28, ~250 Ko

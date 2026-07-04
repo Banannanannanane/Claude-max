@@ -17,6 +17,7 @@ rm -rf build && mkdir -p build/classes build/dex
 
 echo "— 1/6 : jeu → assets"
 cp ../index.html assets/index.html
+cp ../three.bundle.js assets/three.bundle.js
 
 echo "— 2/6 : javac"
 javac --release 8 -Xlint:-options -cp "$ANDROID_JAR" \

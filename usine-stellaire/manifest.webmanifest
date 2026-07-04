@@ -1,7 +1,7 @@
 {
   "name": "Usine Stellaire",
   "short_name": "Usine",
-  "description": "Jeu d'automatisation hors-ligne : construis des chaînes de production, recherche des technologies et lance des fusées.",
+  "description": "Jeu de construction d'usine en 3D : explore la carte, pose foreuses et convoyeurs, automatise et lance des fusées. 100 % hors-ligne.",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",

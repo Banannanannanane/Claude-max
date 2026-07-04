@@ -1,6 +1,6 @@
 /* Usine Stellaire — service worker : tout en cache, 100 % hors-ligne */
-const CACHE = 'usine-stellaire-v1';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+const CACHE = 'usine-stellaire-v3';
+const ASSETS = ['./', './index.html', './three.bundle.js', './classique.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
