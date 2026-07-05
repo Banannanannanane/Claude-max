@@ -30,13 +30,16 @@ echo "== configuration GRUB =="
 cat > "$STAGE/boot/grub/grub.cfg" <<'GRUB'
 set default=0
 set timeout=5
+serial --unit=0 --speed=115200
+terminal_input console serial
+terminal_output console serial
 insmod all_video
-menuentry "GameHost OS (démarrer l'hôte de serveurs de jeux)" {
-    linux /casper/vmlinuz boot=casper quiet splash ---
+menuentry "GameHost OS (demarrer l hote de serveurs de jeux)" {
+    linux /casper/vmlinuz boot=casper console=tty0 console=ttyS0,115200 ---
     initrd /casper/initrd
 }
-menuentry "GameHost OS (mode sans échec / nomodeset)" {
-    linux /casper/vmlinuz boot=casper nomodeset ---
+menuentry "GameHost OS (mode sans echec / nomodeset)" {
+    linux /casper/vmlinuz boot=casper nomodeset console=tty0 console=ttyS0,115200 ---
     initrd /casper/initrd
 }
 GRUB
