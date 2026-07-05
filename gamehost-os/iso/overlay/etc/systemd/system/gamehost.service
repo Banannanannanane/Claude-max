@@ -1,7 +1,9 @@
 [Unit]
 Description=GameHost Panel (interface web de gestion des serveurs de jeux)
-After=network-online.target gamehost-firstboot.service
+After=network-online.target
 Wants=network-online.target
+# indépendant de gamehost-firstboot : le panneau démarre tout de suite,
+# le provisionnement (pare-feu, Claude Code) se fait en parallèle.
 
 [Service]
 Type=simple
