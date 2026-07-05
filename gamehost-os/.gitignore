@@ -1,0 +1,7 @@
+# artefacts de build
+iso/work/
+iso/GameHostOS.iso
+iso/overlay/opt/gamehost/panel
+scratch/
+*.iso
+panel/gamehost-panel

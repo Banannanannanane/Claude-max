@@ -1,0 +1,13 @@
+[Unit]
+Description=GameHost — provisionnement au premier démarrage
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/gamehost/.provisioned
+
+[Service]
+Type=oneshot
+ExecStart=/opt/gamehost/bin/firstboot.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

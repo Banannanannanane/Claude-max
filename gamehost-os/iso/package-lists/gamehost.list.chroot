@@ -1,0 +1,11 @@
+openjdk-21-jre-headless
+ufw
+curl
+ca-certificates
+tar
+xz-utils
+lib32gcc-s1
+lib32stdc++6
+htop
+nano
+less

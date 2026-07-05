@@ -1,0 +1,26 @@
+#!/bin/sh
+# Exécuté dans le chroot pendant la construction de l'ISO : active les
+# services GameHost, fixe le nom d'hôte et libère tty1 pour l'écran d'état.
+set -e
+
+chmod +x /opt/gamehost/bin/*.sh /opt/gamehost/panel 2>/dev/null || true
+
+echo gamehost > /etc/hostname
+echo "127.0.1.1 gamehost" >> /etc/hosts
+
+# tty1 = écran d'état GameHost ; les terminaux restent sur tty2+.
+systemctl mask getty@tty1.service || true
+
+systemctl enable gamehost-firstboot.service || true
+systemctl enable gamehost.service || true
+systemctl enable gamehost-console.service || true
+systemctl enable ssh.service 2>/dev/null || true
+
+# message d'accueil
+cat > /etc/motd <<'EOF'
+
+  GameHost OS — hôte de serveurs de jeux
+  Panneau web : http://<ip-de-cette-machine>:8080
+  Fichiers de jeu : /srv/gamehost   ·   logs : journalctl -u gamehost
+
+EOF

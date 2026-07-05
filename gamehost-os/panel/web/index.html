@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GameHost — Panneau</title>
+<style>
+:root{
+  --bg:#0f1319;--panel:#171d27;--panel2:#1e2632;--line:#2b3546;--tx:#e6ecf4;--mut:#8b98ab;
+  --acc:#5db3e8;--good:#5fce7f;--bad:#e2705c;--warn:#f2a13d;--r:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.5}
+.num{font-variant-numeric:tabular-nums}
+a{color:var(--acc)}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
+.wrap{max-width:1040px;margin:0 auto;padding:18px}
+header.top{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#141a23,var(--bg));position:sticky;top:0;z-index:5}
+header.top .logo{font-weight:800;letter-spacing:.02em;font-size:18px}
+header.top .logo b{color:var(--acc)}
+header.top .sp{flex:1}
+.hostbar{display:flex;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--mut)}
+.hostbar .pill{background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:4px 11px}
+.hostbar .pill b{color:var(--tx)}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 14px;font-weight:600;font-size:13.5px}
+.btn:hover{border-color:#3a475b}
+.btn.acc{background:#123247;border-color:#27516e;color:#bfe3fb}
+.btn.good{background:#12321d;border-color:#2b6a3f;color:#bff0cd}
+.btn.bad{background:#331a14;border-color:#6a2f24;color:#f4c3b8}
+.btn.sm{padding:6px 10px;font-size:12.5px}
+.btn:disabled{opacity:.4;cursor:default}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-top:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.card h3{font-size:16px;display:flex;align-items:center;gap:8px}
+.card .ico{font-size:20px}
+.card .sub{color:var(--mut);font-size:12.5px;margin-top:2px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:3px 10px;border-radius:99px}
+.dot{width:8px;height:8px;border-radius:50%}
+.s-running{background:#12321d;color:var(--good)} .s-running .dot{background:var(--good);box-shadow:0 0 6px var(--good)}
+.s-stopped{background:#252d38;color:var(--mut)} .s-stopped .dot{background:var(--mut)}
+.s-installing{background:#2a2413;color:var(--warn)} .s-installing .dot{background:var(--warn);animation:pulse 1s infinite}
+.s-crashed{background:#331a14;color:var(--bad)} .s-crashed .dot{background:var(--bad);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.meta{display:flex;gap:14px;color:var(--mut);font-size:12px;margin:8px 0}
+.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.muted{color:var(--mut)} .small{font-size:12.5px}
+label{display:block;font-size:12px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 5px}
+input,select,textarea{width:100%;background:#0d1117;border:1px solid var(--line);border-radius:8px;color:var(--tx);padding:9px 11px;font:inherit}
+textarea{min-height:220px;font-family:ui-monospace,monospace;font-size:12.5px}
+.center{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px}
+.authbox{width:360px;max-width:100%;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px}
+.authbox h1{font-size:20px;margin-bottom:4px}.authbox h1 b{color:var(--acc)}
+.err{color:var(--bad);font-size:13px;min-height:18px;margin-top:8px}
+.modal-bg{position:fixed;inset:0;background:rgba(6,9,13,.7);display:none;align-items:center;justify-content:center;padding:18px;z-index:20}
+.modal-bg.show{display:flex}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;width:760px;max-width:100%;max-height:88dvh;display:flex;flex-direction:column}
+.modal h2{font-size:16px;padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.modal h2 .sp{flex:1}
+.modal .body{padding:16px;overflow:auto}
+.console{background:#080b0f;border:1px solid var(--line);border-radius:8px;padding:10px;height:420px;overflow:auto;font-family:ui-monospace,monospace;font-size:12px;white-space:pre-wrap;color:#cdd6e2}
+.console .l{padding:1px 0}
+.empty{text-align:center;color:var(--mut);padding:40px 0}
+.note{background:#1a2028;border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:8px;padding:9px 11px;font-size:12.5px;color:#cdd6e2;margin-top:8px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(14px);background:#232d3a;border:1px solid var(--line);border-radius:99px;padding:9px 18px;font-size:13.5px;font-weight:600;opacity:0;transition:.25s;z-index:40;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{border-color:#6a2f24;color:#f4c3b8}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!==undefined)e.innerHTML=h;return e};
+let STATE={presets:[],instances:[],host:{}}, consoleES=null;
+
+async function api(path,opts){
+  const r=await fetch(path,Object.assign({headers:{'Content-Type':'application/json'}},opts));
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+  return j;
+}
+function toast(msg,err){const t=$('#toast');t.textContent=msg;t.className='toast show'+(err?' err':'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='toast',2200)}
+
+async function boot(){
+  const st=await api('/api/status');
+  if(!st.setup){renderSetup();return}
+  if(!st.authed){renderLogin();return}
+  await refresh();renderApp();
+}
+async function refresh(){STATE=await api('/api/state')}
+
+/* ---------- auth ---------- */
+function renderSetup(){
+  $('#app').innerHTML='';
+  const b=el('div','center');b.innerHTML=`<div class="authbox">
+    <h1>Game<b>Host</b></h1><div class="muted small">Première configuration — choisis un mot de passe administrateur.</div>
+    <label>Mot de passe (6+ caractères)</label><input id="p1" type="password" autofocus>
+    <label>Confirmer</label><input id="p2" type="password">
+    <div class="err" id="e"></div>
+    <button class="btn acc" style="width:100%;margin-top:12px" id="go">Créer le compte</button></div>`;
+  $('#app').appendChild(b);
+  $('#go').onclick=async()=>{
+    const a=$('#p1').value,c=$('#p2').value;
+    if(a!==c){$('#e').textContent='Les mots de passe diffèrent';return}
+    try{await api('/api/setup',{method:'POST',body:JSON.stringify({password:a})});await refresh();renderApp();toast('Compte créé')}
+    catch(e){$('#e').textContent=e.message}
+  };
+}
+function renderLogin(){
+  $('#app').innerHTML='';
+  const b=el('div','center');b.innerHTML=`<div class="authbox">
+    <h1>Game<b>Host</b></h1><div class="muted small">Connexion au panneau.</div>
+    <label>Mot de passe</label><input id="p" type="password" autofocus>
+    <div class="err" id="e"></div>
+    <button class="btn acc" style="width:100%;margin-top:12px" id="go">Se connecter</button></div>`;
+  $('#app').appendChild(b);
+  const go=async()=>{try{await api('/api/login',{method:'POST',body:JSON.stringify({password:$('#p').value})});await refresh();renderApp();}catch(e){$('#e').textContent=e.message}};
+  $('#go').onclick=go;$('#p').onkeydown=e=>{if(e.key==='Enter')go()};
+}
+
+/* ---------- dashboard ---------- */
+function renderApp(){
+  const h=STATE.host||{};
+  $('#app').innerHTML='';
+  const head=el('header','top');
+  head.innerHTML=`<div class="logo">Game<b>Host</b></div>
+    <div class="hostbar">
+      <div class="pill">🖥️ <b>${h.hostname||'?'}</b></div>
+      <div class="pill">🌐 <b>${(h.ips||[]).join(', ')||'—'}</b></div>
+      <div class="pill">🧠 RAM <b class="num">${h.ram_avail_mb||0}</b>/<span class="num">${h.ram_total_mb||0}</span> Mo</div>
+    </div><div class="sp"></div>
+    <button class="btn" id="newBtn">➕ Nouveau serveur</button>
+    <button class="btn sm" id="logoutBtn">Quitter</button>`;
+  $('#app').appendChild(head);
+  const wrap=el('div','wrap');
+  const grid=el('div','grid');
+  if(!STATE.instances.length){
+    grid.appendChild(el('div','empty','Aucun serveur pour l’instant.<br>Clique sur « Nouveau serveur » pour en créer un.'));
+  }
+  for(const i of STATE.instances)grid.appendChild(instCard(i));
+  wrap.appendChild(grid);
+  $('#app').appendChild(wrap);
+  $('#newBtn').onclick=openNew;
+  $('#logoutBtn').onclick=async()=>{await api('/api/logout',{method:'POST'});location.reload()};
+}
+
+function instCard(i){
+  const c=el('div','card');
+  const running=i.status==='running', busy=i.status==='installing';
+  c.innerHTML=`<div class="row"><h3><span class="ico">${i.icon}</span>${i.name}</h3><div class="sp" style="flex:1"></div>
+    <span class="status s-${i.status}"><span class="dot"></span>${statusLabel(i.status)}</span></div>
+    <div class="sub">${i.preset_name} · port ${(i.vars&&i.vars.port)||'—'}${i.autostart?' · auto ✓':''}</div>
+    <div class="meta">
+      <span>RAM <b class="num">${i.ram_mb||0}</b> Mo</span>
+      <span>PID <b class="num">${i.pid||'—'}</b></span>
+      ${i.restarts?`<span>relances <b class="num">${i.restarts}</b></span>`:''}
+    </div>`;
+  const a=el('div','actions');
+  const mk=(label,cls,fn,dis)=>{const b=el('button','btn sm '+(cls||''),label);b.disabled=!!dis;b.onclick=fn;return b};
+  a.appendChild(mk('▶ Démarrer','good',()=>act(i.id,'start'),running||busy));
+  a.appendChild(mk('⏹ Arrêter','bad',()=>act(i.id,'stop'),!running));
+  a.appendChild(mk('↻','',()=>act(i.id,'restart'),busy));
+  a.appendChild(mk('⬇ Installer','acc',()=>act(i.id,'install'),busy||running));
+  a.appendChild(mk('🖥 Console','',()=>openConsole(i)));
+  a.appendChild(mk('🗑','',()=>del(i)));
+  c.appendChild(a);
+  return c;
+}
+function statusLabel(s){return {running:'En marche',stopped:'Arrêté',installing:'Installation…',crashed:'Crash'}[s]||s}
+
+async function act(id,action){try{await api('/api/instance/'+id+'/'+action,{method:'POST'});toast('OK : '+action);await refresh();renderApp()}catch(e){toast(e.message,true)}}
+async function del(i){if(!confirm('Supprimer « '+i.name+' » et tous ses fichiers ?'))return;try{await api('/api/instance/'+i.id+'/delete',{method:'POST'});toast('Supprimé');await refresh();renderApp()}catch(e){toast(e.message,true)}}
+
+/* ---------- nouveau serveur ---------- */
+function openNew(){
+  const m=$('#modal');
+  m.innerHTML=`<h2>➕ Nouveau serveur<div class="sp"></div><button class="btn sm" id="x">✕</button></h2>
+    <div class="body">
+      <label>Jeu</label>
+      <select id="preset">${STATE.presets.map(p=>`<option value="${p.id}">${p.icon} ${p.name}</option>`).join('')}</select>
+      <div id="pnote"></div>
+      <label>Nom du serveur</label><input id="name" placeholder="ex. Mon serveur">
+      <div class="row" style="gap:12px">
+        <div style="flex:1"><label>Port</label><input id="port" class="num"></div>
+        <div style="flex:1"><label>RAM max (Mo) — Minecraft</label><input id="maxram" class="num" value="2048"></div>
+      </div>
+      <div id="gsltWrap" style="display:none"><label>Jeton GSLT (CS2, optionnel)</label><input id="gslt" placeholder="Steam Game Server Login Token"></div>
+      <label class="row" style="text-transform:none;letter-spacing:0;font-size:13.5px;align-items:center;gap:8px;margin-top:12px">
+        <input type="checkbox" id="autostart" style="width:auto"> Démarrer automatiquement au boot et après un crash</label>
+      <div class="err" id="e"></div>
+      <button class="btn acc" style="width:100%;margin-top:10px" id="go">Créer</button>
+    </div>`;
+  $('#modalBg').classList.add('show');
+  $('#x').onclick=closeModal;
+  const upd=()=>{
+    const p=STATE.presets.find(x=>x.id===$('#preset').value);
+    $('#pnote').innerHTML=p.notes?`<div class="note">ℹ️ ${p.notes}</div>`:'';
+    $('#port').value=(p.ports&&p.ports[0])||27015;
+    $('#gsltWrap').style.display=p.id==='cs2'?'block':'none';
+  };
+  $('#preset').onchange=upd;upd();
+  $('#go').onclick=async()=>{
+    const vars={port:$('#port').value,maxram:$('#maxram').value};
+    if($('#gslt'))vars.gslt=$('#gslt').value;
+    try{
+      await api('/api/create',{method:'POST',body:JSON.stringify({name:$('#name').value,preset:$('#preset').value,vars,autostart:$('#autostart').checked})});
+      closeModal();toast('Serveur créé — clique sur « Installer »');await refresh();renderApp();
+    }catch(e){$('#e').textContent=e.message}
+  };
+}
+
+/* ---------- console live ---------- */
+function openConsole(i){
+  const m=$('#modal');
+  m.innerHTML=`<h2><span>${i.icon}</span> ${i.name} — console<div class="sp"></div>
+    <button class="btn sm good" id="s">▶</button><button class="btn sm bad" id="k">⏹</button>
+    <button class="btn sm" id="x">✕</button></h2>
+    <div class="body"><div class="console" id="con"></div></div>`;
+  $('#modalBg').classList.add('show');
+  $('#x').onclick=()=>{closeConsole();closeModal()};
+  $('#s').onclick=()=>act(i.id,'start');
+  $('#k').onclick=()=>act(i.id,'stop');
+  const con=$('#con');
+  closeConsole();
+  consoleES=new EventSource('/api/instance/'+i.id+'/console');
+  consoleES.onmessage=e=>{const atEnd=con.scrollTop+con.clientHeight>=con.scrollHeight-30;con.appendChild(el('div','l',escapeHtml(e.data)));if(con.childElementCount>800)con.removeChild(con.firstChild);if(atEnd)con.scrollTop=con.scrollHeight};
+}
+function closeConsole(){if(consoleES){consoleES.close();consoleES=null}}
+function escapeHtml(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function closeModal(){$('#modalBg').classList.remove('show');closeConsole()}
+$('#modalBg').addEventListener('click',e=>{if(e.target.id==='modalBg')closeModal()});
+
+/* rafraîchissement périodique des cartes (hors console ouverte) */
+setInterval(async()=>{if(document.querySelector('.grid')&&!$('#modalBg').classList.contains('show')){try{await refresh();renderApp()}catch(e){}}},4000);
+
+boot().catch(e=>{document.body.innerHTML='<div class="center"><div class="authbox">Erreur : '+e.message+'</div></div>'});
+</script>
+</body>
+</html>

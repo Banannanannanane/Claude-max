@@ -1,0 +1,18 @@
+[Unit]
+Description=GameHost Panel (interface web de gestion des serveurs de jeux)
+After=network-online.target gamehost-firstboot.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/gamehost/panel -listen :8080 -data /var/lib/gamehost -srv /srv/gamehost -config /etc/gamehost/config.json
+Restart=always
+RestartSec=3
+# durcissement léger — le panneau tourne en root pour gérer systemd/steamcmd,
+# mais on limite la casse.
+NoNewPrivileges=false
+ProtectHome=false
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

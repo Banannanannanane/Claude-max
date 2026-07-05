@@ -1,0 +1,16 @@
+[Unit]
+Description=GameHost — écran d'état local (tty1)
+After=gamehost.service
+
+[Service]
+Type=simple
+ExecStart=/opt/gamehost/bin/console-ui.sh
+StandardInput=tty
+StandardOutput=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
