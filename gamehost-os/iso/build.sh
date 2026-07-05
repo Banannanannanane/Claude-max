@@ -29,7 +29,12 @@ echo "== 2/5 : préparation de la config live-build =="
 # Le proxy de ce réseau ne tunnelise que le HTTPS ; le HTTP direct fonctionne.
 # On retire donc tout proxy HTTP, sinon apt/debootstrap échouent (405).
 unset http_proxy HTTP_PROXY || true
-rm -rf "$WORK"; mkdir -p "$WORK"; cd "$WORK"
+if [ -d "$WORK/cache" ]; then
+  cd "$WORK"; lb clean >/dev/null 2>&1 || true   # garde le cache de paquets → reconstruction rapide
+else
+  rm -rf "$WORK"; mkdir -p "$WORK"; cd "$WORK"
+fi
+# GRUB pour BIOS + UEFI (syslinux tire des thèmes Ubuntu obsolètes qui n'existent plus).
 lb config \
   --mode ubuntu \
   --distribution "$DIST" \
@@ -39,6 +44,7 @@ lb config \
   --mirror-binary "$MIRROR" \
   --linux-flavours generic \
   --binary-images iso-hybrid \
+  --bootloader grub \
   --bootappend-live "boot=casper quiet splash ---" \
   --iso-application "GameHost OS" \
   --iso-publisher "GameHost" \
