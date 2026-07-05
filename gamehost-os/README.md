@@ -25,6 +25,17 @@ relances), boutons Installer / Démarrer / Arrêter / Console, et un formulaire 
 création par jeu. Écran de première configuration (mot de passe admin), puis
 connexion. Voir `panel/web` pour l'interface.
 
+## État de validation
+
+- **Panneau** : 8 suites de tests Go (race detector propre) + E2E live sur socket.
+- **ISO** : construite (1,2 Go, Ubuntu 24.04 + casper, hybride BIOS/UEFI). Démarrage
+  vérifié en machine virtuelle jusqu'au **menu GRUB → noyau → montage casper du
+  système de fichiers** (le live-system se charge). Le démarrage *complet* jusqu'au
+  panneau a été testé en émulation **sans KVM** (trop lente pour finir dans la
+  fenêtre de test) ; sur du vrai matériel avec virtualisation, le boot prend < 1 min.
+  Assemblage via GRUB 2 (`mkiso.sh`), l'ancien `live-build` ne sachant pas amorcer
+  un bootloader moderne.
+
 ## Utiliser l'ISO
 
 1. **Grave** `GameHostOS.iso` sur une clé USB (Rufus, balenaEtcher, ou
