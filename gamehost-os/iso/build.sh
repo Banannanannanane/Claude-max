@@ -44,7 +44,8 @@ lb config \
   --mirror-binary "$MIRROR" \
   --linux-flavours generic \
   --binary-images iso-hybrid \
-  --bootloader grub \
+  --apt-recommends false \
+  --apt-indices false \
   --bootappend-live "boot=casper quiet splash ---" \
   --iso-application "GameHost OS" \
   --iso-publisher "GameHost" \
@@ -56,15 +57,12 @@ cp -a "$HERE/overlay/." config/includes.chroot/
 cp "$HERE/package-lists/gamehost.list.chroot" config/package-lists/
 cp "$HERE/hooks/0100-gamehost.hook.chroot" config/hooks/normal/
 
-echo "== 4/5 : construction de l'ISO (long : plusieurs centaines de Mo à télécharger) =="
-lb build
+echo "== 4/5 : bootstrap + chroot (l'ancien live-build ne sait pas amorcer un
+        bootloader moderne : on saute son étape binaire et on assemble l'ISO
+        nous-mêmes avec GRUB 2) =="
+lb bootstrap
+lb chroot
 
-echo "== 5/5 : résultat =="
-ISO=$(ls -1 live-image-*.hybrid.iso 2>/dev/null | head -1 || true)
-if [ -n "$ISO" ]; then
-  cp "$ISO" "$HERE/GameHostOS.iso"
-  echo "OK → $HERE/GameHostOS.iso ($(du -h "$HERE/GameHostOS.iso" | cut -f1))"
-else
-  echo "!! ISO non trouvée — voir les logs live-build ci-dessus." >&2
-  exit 1
-fi
+echo "== 5/5 : finalisation + assemblage de l'ISO (GRUB 2, casper) =="
+"$HERE/finalize-chroot.sh" "$WORK/chroot"
+COMP="${COMP:-zstd}" "$HERE/mkiso.sh" "$WORK/chroot" "$HERE/GameHostOS.iso"

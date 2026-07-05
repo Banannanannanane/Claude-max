@@ -34,5 +34,14 @@ if command -v ufw >/dev/null; then
   ufw --force enable || true
 fi
 
+# Claude Code : installé au premier démarrage (npm, internet de la cible).
+# Permet de lancer « claude » sur la machine pour faire évoluer l'hôte.
+if command -v npm >/dev/null && ! command -v claude >/dev/null; then
+  echo "[GameHost] Installation de Claude Code…"
+  npm install -g @anthropic-ai/claude-code >/dev/null 2>&1 \
+    && echo "[GameHost] Claude Code installé (commande : claude)." \
+    || echo "[GameHost] Claude Code non installé (réseau ?) — relance : npm i -g @anthropic-ai/claude-code"
+fi
+
 touch /var/lib/gamehost/.provisioned
 echo "=== firstboot terminé ==="

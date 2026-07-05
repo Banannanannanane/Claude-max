@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GameHost — Panneau</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f1319'/%3E%3Cpath d='M9 11h14M9 16h14M9 21h9' stroke='%235db3e8' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='24' cy='21' r='2' fill='%235fce7f'/%3E%3C/svg%3E">
 <style>
 :root{
   --bg:#0f1319;--panel:#171d27;--panel2:#1e2632;--line:#2b3546;--tx:#e6ecf4;--mut:#8b98ab;
@@ -61,6 +62,22 @@ textarea{min-height:220px;font-family:ui-monospace,monospace;font-size:12.5px}
 .console{background:#080b0f;border:1px solid var(--line);border-radius:8px;padding:10px;height:420px;overflow:auto;font-family:ui-monospace,monospace;font-size:12px;white-space:pre-wrap;color:#cdd6e2}
 .console .l{padding:1px 0}
 .empty{text-align:center;color:var(--mut);padding:40px 0}
+/* barre de synthèse */
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:16px}
+.tile{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+.tile .k{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--mut)}
+.tile .v{font-size:26px;font-weight:800;margin-top:3px}
+.tile .v small{font-size:14px;color:var(--mut);font-weight:600}
+.tile .bar{height:6px;border-radius:3px;background:#0d1117;overflow:hidden;margin-top:9px}
+.tile .bar i{display:block;height:100%;background:linear-gradient(90deg,#5db3e8,#5fce7f);transition:width .5s}
+.tile .bar i.hi{background:linear-gradient(90deg,#f2a13d,#e2705c)}
+.spark{width:100%;height:34px;display:block;margin-top:8px;border-radius:6px;background:#0d1117;border:1px solid var(--line)}
+.claude{background:linear-gradient(135deg,#1a2130,#161d27);border:1px solid #2f3b4e;border-radius:14px;padding:16px 18px;margin-top:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.claude .big{font-size:30px}
+.claude .t{font-weight:800;font-size:15px}
+.claude .d{color:var(--mut);font-size:13px;margin-top:2px}
+.claude code{background:#0d1117;border:1px solid var(--line);border-radius:6px;padding:2px 8px;color:#bfe3fb;font-family:ui-monospace,monospace;font-size:12.5px}
+.claude .sp{flex:1;min-width:20px}
 .note{background:#1a2028;border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:8px;padding:9px 11px;font-size:12.5px;color:#cdd6e2;margin-top:8px}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(14px);background:#232d3a;border:1px solid var(--line);border-radius:99px;padding:9px 18px;font-size:13.5px;font-weight:600;opacity:0;transition:.25s;z-index:40;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -137,15 +154,58 @@ function renderApp(){
     <button class="btn sm" id="logoutBtn">Quitter</button>`;
   $('#app').appendChild(head);
   const wrap=el('div','wrap');
+
+  // ---- barre de synthèse ----
+  const running=STATE.instances.filter(i=>i.status==='running').length;
+  const gameRam=STATE.instances.reduce((s,i)=>s+(i.ram_mb||0),0);
+  const used=(h.ram_total_mb||0)-(h.ram_avail_mb||0), pct=h.ram_total_mb?Math.round(used/h.ram_total_mb*100):0;
+  const sum=el('div','summary');
+  sum.innerHTML=`
+    <div class="tile"><div class="k">Serveurs actifs</div><div class="v">${running}<small> / ${STATE.instances.length}</small></div></div>
+    <div class="tile"><div class="k">RAM utilisée par les jeux</div><div class="v">${(gameRam/1024).toFixed(1)}<small> Go</small></div></div>
+    <div class="tile"><div class="k">RAM hôte</div><div class="v">${pct}<small> %</small></div><div class="bar"><i class="${pct>85?'hi':''}" style="width:${pct}%"></i></div></div>`;
+  wrap.appendChild(sum);
+
   const grid=el('div','grid');
   if(!STATE.instances.length){
     grid.appendChild(el('div','empty','Aucun serveur pour l’instant.<br>Clique sur « Nouveau serveur » pour en créer un.'));
   }
-  for(const i of STATE.instances)grid.appendChild(instCard(i));
+  for(const i of STATE.instances){
+    (ramHist[i.id]=ramHist[i.id]||[]).push(i.ram_mb||0);
+    if(ramHist[i.id].length>48)ramHist[i.id].shift();
+    grid.appendChild(instCard(i));
+  }
   wrap.appendChild(grid);
+
+  // ---- carte Claude Code (intégré à l'OS) ----
+  const cc=el('div','claude');
+  cc.innerHTML=`<div class="big">⚡</div>
+    <div><div class="t">Claude Code est installé sur cette machine</div>
+    <div class="d">Ouvre un terminal (écran local : Alt+F2, ou SSH) et lance <code>claude</code> dans <code>/opt/gamehost/src</code> pour faire évoluer le panneau, ajouter des jeux ou automatiser la maintenance.</div></div>
+    <div class="sp"></div>`;
+  wrap.appendChild(cc);
+
   $('#app').appendChild(wrap);
+  // dessine les sparklines (canvas déjà dans le DOM)
+  for(const i of STATE.instances){ const cv=document.getElementById('spark-'+i.id); if(cv)drawSpark(cv,ramHist[i.id]); }
   $('#newBtn').onclick=openNew;
   $('#logoutBtn').onclick=async()=>{await api('/api/logout',{method:'POST'});location.reload()};
+}
+const ramHist={};
+function drawSpark(cv,data){
+  const g=cv.getContext('2d'), W=cv.width=cv.clientWidth*2, H=cv.height=68;
+  g.clearRect(0,0,W,H);
+  if(!data||data.length<2)return;
+  const max=Math.max(1,...data), n=data.length;
+  const x=i=>i/(n-1)*(W-6)+3, y=v=>H-4-(v/max)*(H-10);
+  g.beginPath();g.moveTo(x(0),y(data[0]));
+  for(let i=1;i<n;i++)g.lineTo(x(i),y(data[i]));
+  g.lineTo(x(n-1),H);g.lineTo(x(0),H);g.closePath();
+  const grad=g.createLinearGradient(0,0,0,H);grad.addColorStop(0,'rgba(93,179,232,.35)');grad.addColorStop(1,'rgba(93,179,232,0)');
+  g.fillStyle=grad;g.fill();
+  g.beginPath();g.moveTo(x(0),y(data[0]));
+  for(let i=1;i<n;i++)g.lineTo(x(i),y(data[i]));
+  g.strokeStyle='#5db3e8';g.lineWidth=2;g.stroke();
 }
 
 function instCard(i){
@@ -158,7 +218,8 @@ function instCard(i){
       <span>RAM <b class="num">${i.ram_mb||0}</b> Mo</span>
       <span>PID <b class="num">${i.pid||'—'}</b></span>
       ${i.restarts?`<span>relances <b class="num">${i.restarts}</b></span>`:''}
-    </div>`;
+    </div>
+    <canvas class="spark" id="spark-${i.id}"></canvas>`;
   const a=el('div','actions');
   const mk=(label,cls,fn,dis)=>{const b=el('button','btn sm '+(cls||''),label);b.disabled=!!dis;b.onclick=fn;return b};
   a.appendChild(mk('▶ Démarrer','good',()=>act(i.id,'start'),running||busy));
