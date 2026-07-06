@@ -1,0 +1,148 @@
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg1: #0f1220;
+  --bg2: #1c1038;
+  --card: rgba(255,255,255,.07);
+  --card-border: rgba(255,255,255,.12);
+  --txt: #f2f3ff;
+  --dim: #9aa0c3;
+  --accent: #7c5cff;
+  --accent2: #00d9c0;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: linear-gradient(160deg, var(--bg1), var(--bg2));
+  color: var(--txt);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#app { height: 100%; display: flex; flex-direction: column; }
+
+/* ---------- Hub ---------- */
+.hub {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: max(20px, env(safe-area-inset-top)) 18px 18px;
+  overflow-y: auto;
+}
+.hub h1 {
+  font-size: 32px;
+  letter-spacing: .5px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hub .tagline { color: var(--dim); font-size: 13px; margin: 6px 0 18px; }
+.cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding-bottom: 20px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 18px 12px 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform .08s;
+}
+.card:active { transform: scale(.94); }
+.card .emoji { font-size: 42px; line-height: 1.2; }
+.card .name { font-size: 16px; font-weight: 700; margin-top: 8px; }
+.card .desc { font-size: 11px; color: var(--dim); margin-top: 3px; }
+.card .best { font-size: 11px; color: var(--accent2); margin-top: 7px; font-weight: 600; }
+.hubfoot { margin-top: auto; text-align: center; color: var(--dim); font-size: 11px; padding-top: 10px; }
+.sndbtn {
+  display: inline-block; margin-top: 8px; padding: 8px 16px;
+  border: 1px solid var(--card-border); border-radius: 999px;
+  background: var(--card); color: var(--txt); font-size: 13px; cursor: pointer;
+}
+
+/* ---------- Écran de jeu ---------- */
+.game-screen { height: 100%; display: flex; flex-direction: column; }
+.topbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: max(10px, env(safe-area-inset-top)) 12px 10px;
+}
+.backbtn {
+  width: 40px; height: 40px; border-radius: 12px;
+  background: var(--card); border: 1px solid var(--card-border);
+  color: var(--txt); font-size: 18px; cursor: pointer; flex-shrink: 0;
+}
+.topbar .gtitle { font-weight: 700; font-size: 16px; flex: 1; }
+.topbar .score { font-size: 15px; font-weight: 700; color: var(--accent2); }
+.topbar .bestlab { font-size: 11px; color: var(--dim); text-align: right; }
+#game-host { flex: 1; position: relative; overflow: hidden; }
+#game-host canvas { position: absolute; inset: 0; display: block; }
+
+/* ---------- Overlay fin de partie ---------- */
+.overlay {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10, 10, 25, .72);
+  animation: fadein .18s;
+}
+@keyframes fadein { from { opacity: 0 } to { opacity: 1 } }
+.panel {
+  background: #1b1e33;
+  border: 1px solid var(--card-border);
+  border-radius: 22px;
+  padding: 26px 30px;
+  text-align: center;
+  min-width: 230px;
+  animation: popin .22s;
+}
+@keyframes popin { from { transform: scale(.8); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+.panel .ptitle { font-size: 22px; font-weight: 800; }
+.panel .psub { color: var(--dim); font-size: 14px; margin-top: 8px; white-space: pre-line; }
+.panel .newbest { color: #ffd34d; font-weight: 700; font-size: 14px; margin-top: 8px; }
+.panel button {
+  margin-top: 18px; width: 100%; padding: 13px;
+  border: none; border-radius: 14px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  color: #fff; font-size: 16px; font-weight: 700; cursor: pointer;
+}
+.panel button.alt { background: var(--card); border: 1px solid var(--card-border); margin-top: 10px; }
+
+/* ---------- Water Sort ---------- */
+.ws-wrap { height: 100%; display: flex; flex-direction: column; padding: 8px 10px 14px; }
+.ws-info { text-align: center; color: var(--dim); font-size: 13px; margin-bottom: 4px; }
+.ws-tubes {
+  flex: 1; display: flex; flex-wrap: wrap;
+  align-items: center; justify-content: center;
+  gap: 16px 14px; align-content: center;
+}
+.tube {
+  width: 52px; height: 190px;
+  border: 3px solid rgba(255,255,255,.35);
+  border-top: none;
+  border-radius: 0 0 26px 26px;
+  position: relative;
+  display: flex; flex-direction: column-reverse;
+  overflow: hidden;
+  background: rgba(255,255,255,.04);
+  transition: transform .15s;
+  cursor: pointer;
+}
+.tube.sel { transform: translateY(-16px); border-color: #fff; }
+.tube .seg { width: 100%; height: 25%; transition: all .15s; }
+.tube .seg:first-child { border-radius: 0 0 22px 22px; }
+.ws-actions { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+.ws-actions button {
+  padding: 11px 22px; border-radius: 12px; border: 1px solid var(--card-border);
+  background: var(--card); color: var(--txt); font-size: 14px; font-weight: 600; cursor: pointer;
+}
