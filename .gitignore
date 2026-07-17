@@ -1,0 +1,2 @@
+# build tooling cache (downloaded jars, intermediates, generated keystore)
+.buildcache/
