@@ -94,9 +94,11 @@ def build_tree(ids):
         a("minSdkVersion", "attr.minSdkVersion", i(24)),
         a("targetSdkVersion", "attr.targetSdkVersion", i(34)),
     ]
+    # @mipmap/ic_launcher from our hand-built resources.arsc (package 0x7f)
+    app_icon = 0x7F010000
     application_attrs = [
         a("label", "attr.label", s("Nova 2048")),
-        a("icon", "attr.icon", ref(ids["res.icon"])),
+        a("icon", "attr.icon", ref(app_icon)),
         a("theme", "attr.theme", ref(ids["res.theme"])),
         a("hardwareAccelerated", "attr.hardwareAccelerated", b(True)),
     ]

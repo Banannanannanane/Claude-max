@@ -57,17 +57,13 @@ java -cp "$DX_JAR" com.android.dx.command.Main --dex \
 echo ">> encode binary AndroidManifest.xml"
 python3 "$ROOT/tools/make_manifest.py" "$WORK/ids.properties" "$WORK/apk/AndroidManifest.xml"
 
-echo ">> zip unsigned apk"
-python3 - "$WORK/apk" "$WORK/nova-unsigned.apk" <<'PY'
-import sys, zipfile, os
-src, out = sys.argv[1], sys.argv[2]
-# AndroidManifest.xml first, then classes.dex; both DEFLATE (no alignment needed).
-order = ["AndroidManifest.xml", "classes.dex"]
-with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-    for name in order:
-        z.write(os.path.join(src, name), name)
-print("unsigned apk:", out)
-PY
+echo ">> resources.arsc + launcher icon"
+mkdir -p "$WORK/apk/res/mipmap"
+cp "$ROOT/app/res/mipmap/ic_launcher.png" "$WORK/apk/res/mipmap/ic_launcher.png"
+python3 "$ROOT/tools/make_arsc.py" "$WORK/apk/resources.arsc" "res/mipmap/ic_launcher.png"
+
+echo ">> zip + align unsigned apk"
+python3 "$ROOT/tools/apkzip.py" "$WORK/apk" "$WORK/nova-unsigned.apk"
 
 echo ">> keystore"
 KS="$CACHE/nova.p12"
