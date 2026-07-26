@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A 4x1 strip by default — the phone's answer to a window docked on the taskbar.
+  updatePeriodMillis is 0 because the 30-minute floor is useless here; WidgetTicker
+  drives refreshes instead.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_description"
+    android:initialLayout="@layout/widget_taskbar_hero"
+    android:maxResizeHeight="220dp"
+    android:maxResizeWidth="440dp"
+    android:minHeight="70dp"
+    android:minResizeHeight="70dp"
+    android:minResizeWidth="180dp"
+    android:minWidth="250dp"
+    android:previewImage="@drawable/widget_preview"
+    android:previewLayout="@layout/widget_taskbar_hero"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellHeight="1"
+    android:targetCellWidth="4"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

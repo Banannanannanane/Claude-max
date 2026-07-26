@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Placeholder frame shown in the widget picker and for the split second before
+  the first bitmap lands. The real content is drawn by WidgetRenderer.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <solid android:color="@color/tbh_black" />
+            <stroke android:width="1dp" android:color="@color/tbh_dim" />
+        </shape>
+    </item>
+    <item
+        android:gravity="center_vertical|start"
+        android:width="8dp"
+        android:height="8dp"
+        android:start="14dp">
+        <shape android:shape="oval">
+            <solid android:color="@color/tbh_red" />
+        </shape>
+    </item>
+</layer-list>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pixel sword, drawn as blocks so it reads like the in-game sprites. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- blade -->
+    <path
+        android:fillColor="#F5F5F5"
+        android:pathData="M48,26 h12 v34 h-12 z" />
+    <!-- tip -->
+    <path
+        android:fillColor="#F5F5F5"
+        android:pathData="M51,20 h6 v6 h-6 z" />
+    <!-- crossguard -->
+    <path
+        android:fillColor="#F5F5F5"
+        android:pathData="M34,60 h40 v8 h-40 z" />
+    <!-- grip -->
+    <path
+        android:fillColor="#F5F5F5"
+        android:pathData="M50,68 h8 v12 h-8 z" />
+    <!-- pommel, in the accent -->
+    <path
+        android:fillColor="#D71921"
+        android:pathData="M48,80 h12 v8 h-12 z" />
+</vector>

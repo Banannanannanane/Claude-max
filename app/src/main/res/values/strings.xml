@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Taskbar Hero</string>
+    <string name="widget_description">A dot-matrix idle RPG docked to your home screen. Your hero farms while the screen is off.</string>
+    <string name="widget_content_description">Taskbar Hero, act %1$s, %2$s, %3$s gold. %4$s</string>
+    <string name="zone_open">Open the dungeon</string>
+    <string name="zone_action">Buy the next hero level</string>
+
+    <string name="level_up">LV UP</string>
+    <string name="auto_on">AUTO ON</string>
+    <string name="auto_off">AUTO OFF</string>
+    <string name="reset">RESET</string>
+    <string name="reset_confirm">SURE?</string>
+</resources>

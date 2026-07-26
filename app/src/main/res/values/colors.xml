@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mirrors engine paint/Surface.kt Palette: keep the two in step. -->
+<resources>
+    <color name="tbh_black">#FF000000</color>
+    <color name="tbh_ink">#FFF5F5F5</color>
+    <color name="tbh_mid">#FF7A7A7A</color>
+    <color name="tbh_dim">#FF2A2A2A</color>
+    <color name="tbh_red">#FFD71921</color>
+    <color name="ic_launcher_background">#FF000000</color>
+</resources>

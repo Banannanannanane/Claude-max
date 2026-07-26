@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/tbh_black"
+    android:orientation="vertical"
+    android:paddingHorizontal="20dp"
+    android:paddingTop="28dp"
+    android:paddingBottom="20dp">
+
+    <dev.dotmatrix.taskbarhero.ui.DungeonView
+        android:id="@+id/scene"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:baselineAligned="false"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/level_up"
+            style="@style/Widget.Tbh.Button.Accent"
+            android:layout_width="0dp"
+            android:layout_weight="2"
+            android:text="@string/level_up" />
+
+        <Button
+            android:id="@+id/auto"
+            style="@style/Widget.Tbh.Button"
+            android:layout_width="wrap_content"
+            android:layout_marginStart="10dp"
+            android:minWidth="118dp"
+            android:text="@string/auto_off" />
+
+        <Button
+            android:id="@+id/reset"
+            style="@style/Widget.Tbh.Button"
+            android:layout_width="wrap_content"
+            android:layout_marginStart="10dp"
+            android:text="@string/reset" />
+    </LinearLayout>
+</LinearLayout>
