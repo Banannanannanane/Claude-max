@@ -2,6 +2,7 @@ package dev.taskbarhero.engine
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -101,6 +102,38 @@ class IdleEngineTest {
         assertEquals(1, r.state.wave)
         assertEquals(6, r.state.act, "a wipe keeps the act, only the push is lost")
         assertTrue(r.events.any { it is GameEvent.HeroDown })
+    }
+
+    @Test
+    fun `a potion heals, costs gold, and is refused when it would do nothing`() {
+        val full = GameState.newRun(t0, b).copy(gold = 1_000.0)
+        assertNull(IdleEngine.drinkPotion(full, b), "a hero at full health has nothing to heal")
+
+        val hurt = full.copy(heroHp = b.heroMaxHp(1) * 0.2)
+        val healed = assertNotNull(IdleEngine.drinkPotion(hurt, b))
+        assertEquals(b.heroMaxHp(1), healed.heroHp, 1e-9)
+        assertEquals(1_000.0 - b.potionCost(1), healed.gold, 1e-9)
+
+        assertNull(IdleEngine.drinkPotion(hurt.copy(gold = 0.0), b), "no gold, no potion")
+    }
+
+    @Test
+    fun `a potion revives a downed hero on the spot`() {
+        val down = GameState.newRun(t0, b).copy(gold = 500.0, downUntilMs = t0 + 4_000L)
+        val revived = assertNotNull(IdleEngine.drinkPotion(down, b))
+        assertFalse(revived.isDown, "the down timer should be cleared")
+        assertEquals(b.heroMaxHp(1), revived.heroHp, 1e-9)
+
+        // And the fight resumes immediately rather than after the timer.
+        val r = IdleEngine.advance(revived, t0 + 1_000L, b)
+        assertTrue(r.state.enemyHp < b.enemyMaxHp(r.state.act, r.state.wave))
+    }
+
+    @Test
+    fun `a potion is cheaper than a level, so healing is never the greedy play`() {
+        for (level in 1..40) {
+            assertTrue(b.potionCost(level) < b.levelCost(level), "potion outpriced the level at $level")
+        }
     }
 
     @Test

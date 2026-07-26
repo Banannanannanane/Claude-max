@@ -2,9 +2,10 @@
 
 Un **idle-RPG en barre**, inspiré de [*TBH: Task Bar Hero*](https://store.steampowered.com/app/3678970/TBH_Task_Bar_Hero/)
 (Nugem Studio) — le jeu qui tient dans une fenêtre minuscule dockée à la barre des
-tâches Windows. Ici cette fenêtre devient une **bande 4×1 sur l'écran d'accueil
-d'un Nothing Phone** : une salle de donjon en pixel art où un héros enchaîne les
-vagues tout seul, même écran éteint.
+tâches Windows. Ici cette fenêtre devient un **widget d'écran d'accueil de Nothing
+Phone** : une salle de donjon en pixel art où un héros enchaîne les vagues tout
+seul, même écran éteint — avec ses boutons sur l'écran d'accueil, et le jeu
+complet à un appui.
 
 > Projet hommage, sans affiliation avec Nugem Studio ni Nothing Technology.
 
@@ -12,29 +13,44 @@ vagues tout seul, même écran éteint.
 
 ## Ce que ça fait
 
-La barre tient tout le jeu en trois zones :
+**En 4×2 — la taille par défaut — le widget est le jeu.** La salle occupe le haut,
+et trois vrais boutons occupent le bas :
 
-| Zone | Contenu |
-| --- | --- |
-| Gauche | acte-vague (`7-06`), niveau, et l'or avec sa pièce |
-| Centre | la salle : mur de briques, torche, le héros face au monstre, une jauge de vie sous chacun |
-| Droite | le seul bouton : **LV UP**, cerclé d'or dès que le prix est payable |
+![Le widget 4x2](docs/preview/bar-4x2.png)
 
-- **Un appui sur la bande** ouvre le donjon plein écran (mêmes sprites, ×4).
-- **Un appui sur le bouton** achète un niveau de héros.
-- **Redimensionnée en 4×2**, la barre gagne un bandeau : acte, record, barre de
-  runes, et le fil d'événements. Élargie en 5×2, les combattants passent à ×2.
+| Bouton | Effet | Allumé quand |
+| --- | --- | --- |
+| **LV UP** | achète un niveau de héros | l'or suffit (cerclé d'or) |
+| **HEAL** | potion : soin complet, et résurrection immédiate si le héros est à terre | l'or suffit *et* il y a quelque chose à soigner (cerclé de rouge) |
+| **AUTO** | le moteur dépense l'or tout seul | activé (cerclé de bleu) |
+
+Un appui **n'importe où ailleurs** — la salle, la colonne de gauche — ouvre le jeu
+complet : mêmes sprites en ×4, toutes les stats, et le journal de combat coloré.
+
+La colonne de gauche garde en permanence les trois nombres qu'on surveille :
+acte-vague, niveau, or. À partir de 4×3, deux lignes d'info s'ajoutent (record,
+morts au compteur, barre de runes) — pas avant, parce qu'en 4×2 la place vaut
+mieux dépensée en combattants qu'en chiffres déjà affichés ailleurs.
+
 - Toutes les 10 vagues, un boss ; le tuer fait vibrer le téléphone et lâche un
   butin dont **la couleur dit le grade** (les 10 grades de TBH, de Common à
   Cosmic). Si le héros tombe, il repart au début de l'acte — l'or et les niveaux
-  restent acquis.
-- L'option **AUTO** (dans le donjon) laisse le moteur dépenser l'or tout seul :
-  le mode « je le pose et je l'oublie ».
+  restent acquis, et une potion le relève sur-le-champ.
+- **Réduit en 4×1**, le widget retombe sur une bande : la salle et un seul bouton
+  LV UP sur la droite. Élargi en 5×2, les combattants passent à ×2.
 
 <p align="center">
-  <img src="docs/preview/bar-4x1-boss.png" width="49%" alt="Barre 4x1, combat de boss">
-  <img src="docs/preview/bar-4x1-down.png" width="49%" alt="Barre 4x1, héros à terre">
+  <img src="docs/preview/bar-4x3.png" width="49%" alt="Widget 4x3 avec ses lignes d'info">
+  <img src="docs/preview/bar-4x1-boss.png" width="49%" alt="Bande 4x1, combat de boss">
 </p>
+
+Deux tailles, deux dispositions, donc deux jeux de zones tactiles : le widget
+publie une `RemoteViews` **par taille** (`OPTION_APPWIDGET_SIZES`, Android 12+) et
+rend un bitmap à la dimension exacte de chacune. Sans cela le launcher étirerait
+une image prévue pour une autre forme — et étirer du pixel art, c'est le flouter.
+Le deck fait 48 dp de haut quelle que soit la taille du widget : une hauteur fixe
+en dp est à la fois une cible tactile confortable et le seul moyen que le dessin
+et les zones tombent exactement au même endroit.
 
 ## Direction artistique
 
@@ -118,7 +134,7 @@ texte (`Ticker`), sinon la couleur serait perdue au prochain rafraîchissement.
 ## Tests
 
 ```bash
-./gradlew :engine:test                          # 35 tests
+./gradlew :engine:test                          # 42 tests
 ./gradlew :preview:run --args="docs/preview"    # régénère les PNG
 ```
 
@@ -138,7 +154,13 @@ Ce qui est couvert, au-delà du « ça ne crashe pas » :
   à 99,9 % ; le bouton ne s'allume que si le niveau est payable.
 - **Équilibrage** : une heure d'idle en AUTO franchit l'acte 1 et tue un boss ;
   l'achat automatique ne passe jamais l'or en négatif ; un héros niveau 1 perd
-  bien contre un boss d'acte 6 et recule sans perdre son acte.
+  bien contre un boss d'acte 6 et recule sans perdre son acte ; une potion coûte
+  toujours moins qu'un niveau, à tous les niveaux — sinon se soigner ne serait
+  jamais le bon choix.
+- **Contrat des boutons** : les trois parts du deck somment à 1 et valent les
+  `layout_weight` du XML, et la hauteur du deck ne bouge pas d'un dp quelle que
+  soit la taille du widget. C'est ce qui garantit qu'on appuie sur le bouton
+  qu'on voit.
 
 ## Compiler l'APK
 
@@ -151,7 +173,7 @@ sorti sous Android 12) et un accès à `dl.google.com` pour le plugin Gradle
 Android.
 
 **État de vérification, en toute transparence :** le module `engine` et le
-previewer sont compilés et testés (35/35 verts), et les captures ci-dessus en
+previewer sont compilés et testés (42/42 verts), et les captures ci-dessus en
 sortent. Le module `app` n'a **pas** pu être compilé dans l'environnement utilisé
 ici : ni SDK Android, ni accès à `dl.google.com`. Ses sources ont en revanche été
 type-checkées hors Android contre des stubs minimaux des API utilisées, donc les

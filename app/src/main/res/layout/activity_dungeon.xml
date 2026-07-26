@@ -29,11 +29,19 @@
             android:text="@string/level_up" />
 
         <Button
+            android:id="@+id/potion"
+            style="@style/Widget.Tbh.Button.Potion"
+            android:layout_width="0dp"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:text="@string/potion" />
+
+        <Button
             android:id="@+id/auto"
             style="@style/Widget.Tbh.Button"
             android:layout_width="wrap_content"
             android:layout_marginStart="10dp"
-            android:minWidth="118dp"
+            android:minWidth="106dp"
             android:text="@string/auto_off" />
 
         <Button

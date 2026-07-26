@@ -35,6 +35,8 @@ fun main(args: Array<String>) {
         Frame("bar-4x1-deep", 4, 1, state("deep"), Ticker(Loot.roll(10, 1).label, Tone.LOOT, 9)),
         Frame("bar-4x2", 4, 2, state("idled"), null),
         Frame("bar-5x2", 5, 2, state("deep"), Ticker("LEVEL 240", Tone.GOOD)),
+        // Three rows: tall enough that the info lines earn their place.
+        Frame("bar-4x3", 4, 3, state("boss"), null),
     )
 
     for (frame in frames) {
@@ -68,7 +70,16 @@ private fun renderBar(frame: Frame): BufferedImage {
 
     val image = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
     val g = image.createGraphics()
-    BarLayout.draw(PixelPainter(AwtSurface(g), unit), cols, rows, frame.state, T0, frame.event, BALANCE)
+    BarLayout.draw(
+        PixelPainter(AwtSurface(g), unit),
+        cols,
+        rows,
+        frame.state,
+        T0,
+        frame.event,
+        BALANCE,
+        BarLayout.deckRows(unit, DENSITY),
+    )
     g.dispose()
     return image
 }
@@ -157,6 +168,7 @@ private fun state(kind: String): GameState {
         )
         // A real half-hour of idling, so the numbers are the ones the engine produces.
         "idled" -> IdleEngine.advance(fresh.copy(autoLevel = true), T0 + 1_800_000L, BALANCE).state
+            .let { it.copy(heroHp = BALANCE.heroMaxHp(it.level) * 0.42) }
         else -> fresh
     }
 }

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The bar is a single bitmap plus two invisible touch zones. The 700/300 split
-  must stay in sync with BarLayout.ACTION_ZONE_FRACTION, which is what draws the
-  LV UP button under the right-hand zone.
+  One-row bar: a single bitmap plus two touch zones. The 700/300 split must stay in
+  sync with BarLayout.ACTION_ZONE_FRACTION, which is what draws the LV UP button
+  under the right-hand zone.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -31,11 +31,11 @@
             android:focusable="true" />
 
         <FrameLayout
-            android:id="@+id/zone_action"
+            android:id="@+id/zone_level"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="300"
-            android:contentDescription="@string/zone_action"
+            android:contentDescription="@string/zone_level"
             android:focusable="true" />
     </LinearLayout>
 </FrameLayout>

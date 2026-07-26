@@ -20,6 +20,9 @@ data class Hud(
     val buttonLabel: String,
     val buttonCost: String,
     val buttonEnabled: Boolean,
+    val potionCost: String,
+    val potionEnabled: Boolean,
+    val autoOn: Boolean,
     val isDown: Boolean,
     val ticker: String,
 ) {
@@ -52,6 +55,9 @@ data class Hud(
                 buttonLabel = if (state.autoLevel) "AUTO" else "LV UP",
                 buttonCost = Fmt.short(b.levelCost(state.level)),
                 buttonEnabled = state.canLevelUp(b),
+                potionCost = Fmt.short(b.potionCost(state.level)),
+                potionEnabled = state.canDrinkPotion(b),
+                autoOn = state.autoLevel,
                 isDown = state.isDown,
                 ticker = ticker,
             )

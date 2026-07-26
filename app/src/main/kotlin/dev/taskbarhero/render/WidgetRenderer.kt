@@ -35,7 +35,8 @@ object WidgetRenderer {
 
         val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val painter = PixelPainter(AndroidSurface(Canvas(bitmap)), unit)
-        BarLayout.draw(painter, cols, rows, state, nowMs, recent, b)
+        // The deck is a fixed dp height, so its zones line up with the layout's.
+        BarLayout.draw(painter, cols, rows, state, nowMs, recent, b, BarLayout.deckRows(unit, density))
         return bitmap
     }
 }

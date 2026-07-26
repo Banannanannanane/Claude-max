@@ -38,12 +38,16 @@ object Fx {
             is GameEvent.ActCleared -> pattern(ctx, longArrayOf(0, 30, 50, 90))
             is GameEvent.LevelUp -> click(ctx, VibrationEffect.EFFECT_CLICK)
             is GameEvent.HeroDown -> pattern(ctx, longArrayOf(0, 140))
+            is GameEvent.Potion -> click(ctx, VibrationEffect.EFFECT_HEAVY_CLICK)
             is GameEvent.RuneGained -> Unit // Too frequent to be worth a buzz.
         }
     }
 
     /** Tapping LV UP without the gold: a dull tick, so the bar still feels responsive. */
     fun onRefused(ctx: Context) = click(ctx, VibrationEffect.EFFECT_TICK)
+
+    /** Flipping a switch on the deck. */
+    fun onToggle(ctx: Context) = click(ctx, VibrationEffect.EFFECT_CLICK)
 
     private fun click(ctx: Context, effectId: Int) {
         vibrator(ctx)?.takeIf { it.hasVibrator() }?.vibrate(VibrationEffect.createPredefined(effectId))

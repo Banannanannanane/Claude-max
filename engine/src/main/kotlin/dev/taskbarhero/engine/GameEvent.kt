@@ -33,6 +33,11 @@ sealed interface GameEvent {
         override val grade get() = drop.grade
     }
 
+    data class Potion(val revived: Boolean) : GameEvent {
+        override val caption get() = if (revived) "REVIVED" else "HEALED"
+        override val tone get() = Tone.MAGIC
+    }
+
     data class ActCleared(val act: Int) : GameEvent {
         override val caption get() = "ACT $act CLEARED"
         override val tone get() = Tone.GOOD

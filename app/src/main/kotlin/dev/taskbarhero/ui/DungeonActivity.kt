@@ -23,6 +23,7 @@ class DungeonActivity : Activity() {
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var scene: DungeonView
     private lateinit var levelUpButton: Button
+    private lateinit var potionButton: Button
     private lateinit var autoButton: Button
     private lateinit var resetButton: Button
 
@@ -42,6 +43,7 @@ class DungeonActivity : Activity() {
         setContentView(R.layout.activity_dungeon)
         scene = findViewById(R.id.scene)
         levelUpButton = findViewById(R.id.level_up)
+        potionButton = findViewById(R.id.potion)
         autoButton = findViewById(R.id.auto)
         resetButton = findViewById(R.id.reset)
 
@@ -51,6 +53,18 @@ class DungeonActivity : Activity() {
                 Fx.onRefused(this)
             } else {
                 val event = GameEvent.LevelUp(result.state.level)
+                Fx.onEvent(this, event)
+                push(event.toTicker())
+            }
+            step()
+            TaskbarHeroWidget.refreshAll(this)
+        }
+
+        potionButton.setOnClickListener {
+            val event = GameStore.drinkPotion(this)?.events?.lastOrNull()
+            if (event == null) {
+                Fx.onRefused(this)
+            } else {
                 Fx.onEvent(this, event)
                 push(event.toTicker())
             }
@@ -104,6 +118,7 @@ class DungeonActivity : Activity() {
         val state = result.state
         scene.bind(state, log.toList())
         levelUpButton.isEnabled = state.canLevelUp(GameStore.balance)
+        potionButton.isEnabled = state.canDrinkPotion(GameStore.balance)
         autoButton.text = getString(if (state.autoLevel) R.string.auto_on else R.string.auto_off)
         if (resetArmedUntil != 0L && System.currentTimeMillis() > resetArmedUntil) {
             resetArmedUntil = 0L

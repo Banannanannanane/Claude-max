@@ -26,4 +26,9 @@
         <item name="android:background">@drawable/button_gold</item>
         <item name="android:textColor">@color/tbh_gold</item>
     </style>
+
+    <style name="Widget.Tbh.Button.Potion" parent="Widget.Tbh.Button">
+        <item name="android:background">@drawable/button_potion</item>
+        <item name="android:textColor">@color/tbh_hp</item>
+    </style>
 </resources>

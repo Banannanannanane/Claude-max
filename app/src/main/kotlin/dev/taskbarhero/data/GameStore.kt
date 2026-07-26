@@ -74,6 +74,21 @@ object GameStore {
         return ticked.copy(state = levelled, events = ticked.events + event)
     }
 
+    /** Full heal, or an instant revive while the hero is down. */
+    @Synchronized
+    fun drinkPotion(ctx: Context, nowMs: Long = System.currentTimeMillis()): TickResult? {
+        val p = prefs(ctx)
+        val ticked = IdleEngine.advance(load(p, nowMs), nowMs, balance)
+        val wasDown = ticked.state.isDown
+        val healed = IdleEngine.drinkPotion(ticked.state, balance) ?: run {
+            save(p, ticked.state, ticked.events.lastOrNull(), nowMs)
+            return null
+        }
+        val event = GameEvent.Potion(revived = wasDown)
+        save(p, healed, event, nowMs)
+        return ticked.copy(state = healed, events = ticked.events + event)
+    }
+
     @Synchronized
     fun setAutoLevel(ctx: Context, enabled: Boolean, nowMs: Long = System.currentTimeMillis()): GameState {
         val p = prefs(ctx)

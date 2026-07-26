@@ -71,9 +71,10 @@ class LayoutTest {
         for ((cols, rows) in barSizes) {
             for ((name, state) in states()) {
                 val surface = RecordingSurface()
-                // unit = 1 makes dot units and surface units the same, so the
-                // assertions read directly in cells.
-                BarLayout.draw(PixelPainter(surface, 1f), cols, rows, state, t0, recent = null, b = b)
+                // unit = 1 makes art cells and surface units the same, so the
+                // assertions read directly in pixels.
+                val deck = if (rows >= BarLayout.ROWS_TALL) 22 else 0
+                BarLayout.draw(PixelPainter(surface, 1f), cols, rows, state, t0, null, b, deck)
 
                 val content = surface.content()
                 assertTrue(content.isNotEmpty(), "$name at ${cols}x$rows drew nothing")
@@ -92,14 +93,16 @@ class LayoutTest {
         val caption = Ticker("BOSS 7 / CELESTIAL TOTEM AND THEN SOME", Tone.LOOT, grade = 7)
         for ((cols, rows) in barSizes) {
             val surface = RecordingSurface()
-            BarLayout.draw(PixelPainter(surface, 1f), cols, rows, GameState.newRun(t0, b), t0, caption, b)
-            val actionLeft = cols * (1f - BarLayout.ACTION_ZONE_FRACTION)
+            val deck = if (rows >= BarLayout.ROWS_TALL) 22 else 0
+            BarLayout.draw(PixelPainter(surface, 1f), cols, rows, GameState.newRun(t0, b), t0, caption, b, deck)
             val captionOps = surface.content().filter { it.top < 9f && it.color == Palette.grade(7) }
             assertTrue(captionOps.isNotEmpty(), "caption missing at ${cols}x$rows")
-            // The caption must not reach under the button, or it would look like a label for it.
+            // On a one-row bar the side button shares that row, and a caption running
+            // under it would read as its label. A tall bar has the width to itself.
+            val limit = if (deck > 0) cols.toFloat() else cols * (1f - BarLayout.ACTION_ZONE_FRACTION)
             assertTrue(
-                captionOps.all { it.right <= actionLeft + 0.5f },
-                "caption ran into the action zone at ${cols}x$rows",
+                captionOps.all { it.right <= limit + 0.5f },
+                "caption ran past its room at ${cols}x$rows",
             )
         }
     }
@@ -122,14 +125,67 @@ class LayoutTest {
     }
 
     @Test
+    fun `the deck split matches the layout weights`() {
+        assertEquals(3, BarLayout.DECK_SPLIT.size)
+        assertEquals(1f, BarLayout.DECK_SPLIT.sum(), 1e-6f)
+        assertTrue(BarLayout.DECK_SPLIT.all { it > 0.2f }, "every button needs a thumb-sized share")
+    }
+
+    @Test
+    fun `the deck keeps its dp height whatever the widget height`() {
+        val density = 3f
+        val unit = BarLayout.unitPx(BarLayout.ROW_HEIGHT_DP * density, density)
+        val rows = BarLayout.deckRows(unit, density)
+        assertEquals(rows, BarLayout.deckRows(BarLayout.unitPx(400f * density, density), density))
+        // 48dp at a 70/32 dp pitch: about 22 art rows, and always a real touch target.
+        assertTrue(rows in 18..26, "deck is $rows rows")
+    }
+
+    @Test
+    fun `a tall bar draws its three buttons inside the deck`() {
+        val cols = 126
+        val rows = 67
+        val deck = 22
+        val surface = RecordingSurface()
+        val state = states().getValue("rich")
+        BarLayout.draw(PixelPainter(surface, 1f), cols, rows, state, t0, null, b, deck)
+
+        val deckTop = rows - deck
+        // Each third of the deck must carry ink of its own: three real buttons.
+        var x = 2f
+        for (share in BarLayout.DECK_SPLIT) {
+            val width = (cols - 4f) * share
+            val painted = surface.content().count {
+                it.top >= deckTop - 1f && it.left >= x - 1f && it.right <= x + width + 1f
+            }
+            assertTrue(painted > 0, "no button drawn in the deck slice starting at $x")
+            x += width
+        }
+    }
+
+    @Test
+    fun `the deck only appears once the bar is tall enough`() {
+        fun deckOps(rows: Int, deck: Int): Int {
+            val surface = RecordingSurface()
+            BarLayout.draw(PixelPainter(surface, 1f), 126, rows, states().getValue("rich"), t0, null, b, deck)
+            return surface.content().count { it.top >= rows - deck }
+        }
+        assertTrue(deckOps(67, 22) > 0)
+        // A one-row bar has no deck rows to give, and must not pretend otherwise.
+        val compact = RecordingSurface()
+        BarLayout.draw(PixelPainter(compact, 1f), 126, 32, states().getValue("rich"), t0, null, b, 22)
+        assertTrue(compact.content().all { it.bottom <= 32.5f })
+    }
+
+    @Test
     fun `the tall bar draws more than the compact one`() {
         val state = states().getValue("idled")
-        fun opCount(rows: Int): Int {
+        fun opCount(rows: Int, deck: Int): Int {
             val surface = RecordingSurface()
-            BarLayout.draw(PixelPainter(surface, 1f), 107, rows, state, t0, null, b)
+            BarLayout.draw(PixelPainter(surface, 1f), 107, rows, state, t0, null, b, deck)
             return surface.content().size
         }
-        assertTrue(opCount(BarLayout.ROWS_TALL) > opCount(BarLayout.ROWS_COMPACT))
+        assertTrue(opCount(67, 22) > opCount(BarLayout.ROWS_COMPACT, 0))
     }
 
     @Test

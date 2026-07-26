@@ -42,6 +42,10 @@ data class GameState(
 
     fun canLevelUp(b: Balance): Boolean = gold >= b.levelCost(level)
 
+    /** A potion is worth buying only when it would actually do something. */
+    fun canDrinkPotion(b: Balance): Boolean =
+        gold >= b.potionCost(level) && (isDown || heroHp < b.heroMaxHp(level) - 1e-9)
+
     companion object {
         fun newRun(nowMs: Long, b: Balance = Balance()): GameState = GameState(
             lastTickMs = nowMs,

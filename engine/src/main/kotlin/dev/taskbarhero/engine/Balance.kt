@@ -54,4 +54,10 @@ data class Balance(
 
     /** XP price of the next rune, the passive damage multiplier that accrues on its own. */
     fun runeCost(runes: Int): Double = 40.0 * 1.28.pow(runes)
+
+    /**
+     * Gold price of a full heal. Deliberately about half a level: cheap enough to
+     * save a boss fight, dear enough that spamming it costs you the next level.
+     */
+    fun potionCost(level: Int): Double = 8.0 * 1.17.pow(level - 1)
 }

@@ -63,6 +63,20 @@ object IdleEngine {
         )
     }
 
+    /**
+     * Spends gold on a full heal, which doubles as an instant revive while the
+     * hero is down. Returns null when there is nothing to heal or nothing to pay
+     * with — the caller turns that into a refusal buzz.
+     */
+    fun drinkPotion(state: GameState, b: Balance = Balance()): GameState? {
+        val cost = b.potionCost(state.level)
+        if (state.gold < cost) return null
+        val max = b.heroMaxHp(state.level)
+        val hurt = state.heroHp < max - 1e-9
+        if (!hurt && !state.isDown) return null
+        return state.copy(gold = state.gold - cost, heroHp = max, downUntilMs = 0L)
+    }
+
     private fun step(s0: GameState, nowMs: Long, dt: Double, b: Balance, acc: Accumulator): GameState {
         var s = s0
 
