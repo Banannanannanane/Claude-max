@@ -45,11 +45,11 @@ object BarLayout {
     const val DECK_HEIGHT_DP = 48f
 
     /**
-     * How the deck's width splits between LV UP / POTION / AUTO. These mirror the
-     * layout_weight values in res/layout/widget_bar_tall.xml; a test keeps them
+     * How the deck's width splits between LV UP / HEAL / CUBE / AUTO. These mirror
+     * the layout_weight values in res/layout/widget_bar_tall.xml; a test keeps them
      * summing to one.
      */
-    val DECK_SPLIT = floatArrayOf(0.40f, 0.30f, 0.30f)
+    val DECK_SPLIT = floatArrayOf(0.28f, 0.24f, 0.24f, 0.24f)
 
     /** One info line above the deck: act and record, then runes and kills. */
     private const val INFO_LINE = 11
@@ -162,11 +162,15 @@ object BarLayout {
         val meterHeight = 3f
         val meterY = bottom - meterHeight - 1f
         val feet = meterY - 2f
-        val slot = Sprites.FIGHTER_SIZE
-        // Integer scale only: half a pixel of scaling would drop art pixels.
-        val scale = minOf((feet - (captionY + PixelFont.HEIGHT + 2f)) / slot, (width - 8f) / 2f / slot)
-            .toInt().coerceAtLeast(1).toFloat()
-        val side = slot * scale
+        // The party and the monster share the room, so the party is sized as a
+        // block: whatever scale lets all of them stand in half the arena.
+        val members = hud.party.size.coerceAtLeast(1)
+        val scale = Formation.scale(
+            members = members,
+            maxWidth = (width - 10f) * 0.55f,
+            maxHeight = feet - (captionY + PixelFont.HEIGHT + 2f),
+        )
+        val side = Sprites.FIGHTER_SIZE * scale
         val floorTop = feet - 1f
 
         p.bricks(from, top, width, floorTop - top)
@@ -186,10 +190,15 @@ object BarLayout {
         p.fill(center - textWidth / 2f - 2f, captionY - 1f, textWidth + 4f, PixelFont.HEIGHT + 2f, Palette.STONE_DARK)
         p.text(center - textWidth / 2f, captionY, text, captionColor)
 
-        val heroArt = Sprites.heroFrame(nowMs, if (hud.isDown) 1L else 0L)
-        val heroX = from + 3f
-        p.shadow(heroX + side / 2f, feet - 1f, side * 0.7f)
-        p.sprite(heroX, feet - side, heroArt, side / heroArt.size)
+        val roster = hud.party
+        val partyLeft = from + 3f
+        for (i in Formation.drawOrder(roster.size)) {
+            val member = roster[i]
+            val art = Sprites.heroFrame(member.cls, nowMs, member.down || hud.isDown)
+            val x = partyLeft + Formation.offset(i, roster.size, side)
+            p.shadow(x + side / 2f, feet - 1f, side * 0.7f)
+            p.sprite(x, feet - side, art, side / art.size)
+        }
 
         if (!hud.isDown) {
             val enemyArt = Sprites.of(hud.enemySprite)
@@ -199,7 +208,7 @@ object BarLayout {
         }
 
         val meterWidth = ((width - 9f) / 2f).coerceAtMost(30f)
-        p.bar(from + 3f, meterY, meterWidth, meterHeight, hud.heroHp, Palette.HP, Palette.HP_SOCKET)
+        p.bar(from + 3f, meterY, meterWidth, meterHeight, hud.frontHp, Palette.HP, Palette.HP_SOCKET)
         if (!hud.isDown) {
             p.bar(to - 3f - meterWidth, meterY, meterWidth, meterHeight, hud.enemyHp, Palette.FOE, Palette.FOE_SOCKET)
         }
@@ -297,7 +306,15 @@ object BarLayout {
         var x = left
         val buttons = listOf(
             DeckButton(listOf("LV UP", "LV+"), hud.buttonCost, hud.buttonEnabled, Palette.GOLD),
-            DeckButton(listOf("POTION", "HEAL"), hud.potionCost, hud.potionEnabled, Palette.HP),
+            DeckButton(listOf("HEAL"), hud.potionCost, hud.potionEnabled, Palette.HP),
+            // The Cube shows how close the stash is to a fusion, in its future grade's colour.
+            DeckButton(
+                listOf("CUBE"),
+                hud.cubeLabel,
+                hud.cubeEnabled,
+                hud.cubeGrade?.let(Palette::grade) ?: Palette.BEVEL_LIGHT,
+                costHasCoin = false,
+            ),
             DeckButton(listOf("AUTO"), if (hud.autoOn) "ON" else "OFF", hud.autoOn, Palette.MANA, costHasCoin = false),
         )
         for ((i, button) in buttons.withIndex()) {

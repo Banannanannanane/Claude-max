@@ -3,9 +3,9 @@
 Un **idle-RPG en barre**, inspiré de [*TBH: Task Bar Hero*](https://store.steampowered.com/app/3678970/TBH_Task_Bar_Hero/)
 (Nugem Studio) — le jeu qui tient dans une fenêtre minuscule dockée à la barre des
 tâches Windows. Ici cette fenêtre devient un **widget d'écran d'accueil de Nothing
-Phone** : une salle de donjon en pixel art où un héros enchaîne les vagues tout
-seul, même écran éteint — avec ses boutons sur l'écran d'accueil, et le jeu
-complet à un appui.
+Phone** : une salle de donjon en pixel art où un groupe de héros enchaîne les
+vagues tout seul, même écran éteint — avec ses boutons sur l'écran d'accueil, et
+le jeu complet à un appui.
 
 > Projet hommage, sans affiliation avec Nugem Studio ni Nothing Technology.
 
@@ -14,15 +14,19 @@ complet à un appui.
 ## Ce que ça fait
 
 **En 4×2 — la taille par défaut — le widget est le jeu.** La salle occupe le haut,
-et trois vrais boutons occupent le bas :
+et quatre vrais boutons occupent le bas :
 
 ![Le widget 4x2](docs/preview/bar-4x2.png)
 
 | Bouton | Effet | Allumé quand |
 | --- | --- | --- |
-| **LV UP** | achète un niveau de héros | l'or suffit (cerclé d'or) |
-| **HEAL** | potion : soin complet, et résurrection immédiate si le héros est à terre | l'or suffit *et* il y a quelque chose à soigner (cerclé de rouge) |
+| **LV UP** | monte le héros le plus en retard, pour que le groupe progresse d'un bloc | l'or suffit (cerclé d'or) |
+| **HEAL** | potion : soigne tout le groupe, et le relève immédiatement après un wipe | l'or suffit *et* il y a quelque chose à soigner (cerclé de rouge) |
+| **CUBE** | le Hero-dric Cube : neuf objets d'un grade en donnent un du grade au-dessus | une pile atteint 9 (cerclé de la couleur du grade à venir) |
 | **AUTO** | le moteur dépense l'or tout seul | activé (cerclé de bleu) |
+
+Le bouton CUBE affiche `6/9` avant d'être prêt : il explique ce qu'il attend au
+lieu de rester muet.
 
 Un appui **n'importe où ailleurs** — la salle, la colonne de gauche — ouvre le jeu
 complet : mêmes sprites en ×4, toutes les stats, et le journal de combat coloré.
@@ -34,8 +38,8 @@ mieux dépensée en combattants qu'en chiffres déjà affichés ailleurs.
 
 - Toutes les 10 vagues, un boss ; le tuer fait vibrer le téléphone et lâche un
   butin dont **la couleur dit le grade** (les 10 grades de TBH, de Common à
-  Cosmic). Si le héros tombe, il repart au début de l'acte — l'or et les niveaux
-  restent acquis, et une potion le relève sur-le-champ.
+  Cosmic). Si le groupe tombe, il repart au début de l'acte — or, niveaux et
+  butin restent acquis, et une potion le relève sur-le-champ.
 - **Réduit en 4×1**, le widget retombe sur une bande : la salle et un seul bouton
   LV UP sur la droite. Élargi en 5×2, les combattants passent à ×2.
 
@@ -51,6 +55,37 @@ une image prévue pour une autre forme — et étirer du pixel art, c'est le flo
 Le deck fait 48 dp de haut quelle que soit la taille du widget : une hauteur fixe
 en dp est à la fois une cible tactile confortable et le seul moyen que le dessin
 et les zones tombent exactement au même endroit.
+
+## Les systèmes repris à TBH
+
+Le jeu d'origine n'est pas un simple compteur qui monte, et le widget non plus.
+Trois de ses mécaniques structurantes sont reprises telles quelles :
+
+**Un groupe de trois héros, pas un.** Le chevalier ouvre la partie ; le rôdeur
+rejoint à l'acte 2, le mage à l'acte 4. C'est la seule progression que l'or
+n'achète pas. Chacun a sa courbe : le chevalier encaisse (1,7× de vie), le mage
+frappe (1,45× de dégâts) et meurt d'un courant d'air. **Le monstre ne tape que le
+héros de devant** — les autres régénèrent pendant ce temps, et un héros à zéro
+sort du combat sans faire tomber le groupe. C'est le wipe complet qui fait
+reculer.
+
+**Les 10 grades de butin.** Chaque boss lâche un objet, d'un grade qui monte avec
+l'acte — Common à l'acte 1, Cosmic à partir de l'acte 10. Le stash n'est pas
+décoratif : chaque objet ajoute des dégâts, et un grade vaut 1,7× le précédent.
+
+**Le Hero-dric Cube.** Neuf objets d'un grade en donnent un du grade supérieur —
+la mécanique que le wiki documente mot pour mot. Il consomme toujours le grade le
+plus bas qui peut fusionner, si bien que le stash grimpe par le bas comme il se
+remplit. C'est ce qui rend une pile de communs intéressante au lieu d'être un
+déchet.
+
+<p align="center">
+  <img src="docs/preview/dungeon.png" width="52%" alt="La feuille de groupe et le stash">
+</p>
+
+Le plein écran est là pour ça : la feuille de groupe (classe, niveau, vie de
+chacun, et les recrues à venir avec leur acte d'arrivée) et la rangée du stash,
+un carré par grade avec ce qu'on en possède.
 
 ## Direction artistique
 
@@ -70,13 +105,14 @@ chiffres dorés, codes ARPG que personne n'a besoin qu'on lui explique.
   combattants tiennent donc sur la même grille 12×12 et ne grossissent que par
   multiples entiers. C'est aussi pourquoi une barre plus large montre de plus
   grands héros, alors qu'une barre plus haute montre une plus grande salle.
+- **Le groupe est dimensionné en bloc**, pas sprite par sprite : trois héros à la
+  taille qu'un seul pourrait s'offrir donnent une bouillie illisible. Ils se
+  chevauchent d'un quart — assez pour lire une formation, assez peu pour
+  reconnaître chaque classe — et le héros de devant, celui qui prend les coups,
+  est le plus proche du monstre et passe au-dessus des autres.
 - **La teinte porte le sens** : rouge = vie, bleu = progression, or = monnaie, et
   les couleurs de grade sont réservées au butin. Un prix inaccessible ne brille
   pas — la pièce disparaît, elle ne se contente pas de pâlir.
-
-<p align="center">
-  <img src="docs/preview/dungeon.png" width="52%" alt="Le donjon plein écran">
-</p>
 
 ## Le vrai problème technique
 
@@ -134,7 +170,7 @@ texte (`Ticker`), sinon la couleur serait perdue au prochain rafraîchissement.
 ## Tests
 
 ```bash
-./gradlew :engine:test                          # 42 tests
+./gradlew :engine:test                          # 52 tests
 ./gradlew :preview:run --args="docs/preview"    # régénère les PNG
 ```
 
@@ -144,8 +180,8 @@ Ce qui est couvert, au-delà du « ça ne crashe pas » :
   état qu'un seul appel.
 - **Bornes de mise en page** : une surface d'enregistrement capture chaque
   primitive et vérifie qu'aucune ne sort du cadre, pour 6 tailles de widget × 7
-  états de jeu (dont un run à `LV 240` / `1.4T` d'or, le texte le plus large que
-  la barre puisse afficher). C'est le bug qu'un widget ne montre pas : le
+  états de jeu (dont un run à `LV 240` / `1.4T` d'or et un stash plein, le texte
+  le plus large que la barre puisse afficher). C'est le bug qu'un widget ne montre pas : le
   launcher se contente de rogner.
 - **Intégrité des sprites** : chaque art est carré, non vide, contouré, et tout
   index de couleur résout — sinon le sprite lèverait une exception au dessin.
@@ -157,7 +193,11 @@ Ce qui est couvert, au-delà du « ça ne crashe pas » :
   bien contre un boss d'acte 6 et recule sans perdre son acte ; une potion coûte
   toujours moins qu'un niveau, à tous les niveaux — sinon se soigner ne serait
   jamais le bon choix.
-- **Contrat des boutons** : les trois parts du deck somment à 1 et valent les
+- **Systèmes** : le Cube mange toujours le grade le plus bas qui peut fusionner
+  et refuse le grade maximum ; un objet Cosmic bat neuf Communs ; chaque boss
+  doit exactement un objet au stash ; les niveaux achetés se répartissent
+  équitablement sur le groupe ; le rôdeur arrive bien avant le mage.
+- **Contrat des boutons** : les quatre parts du deck somment à 1 et valent les
   `layout_weight` du XML, et la hauteur du deck ne bouge pas d'un dp quelle que
   soit la taille du widget. C'est ce qui garantit qu'on appuie sur le bouton
   qu'on voit.
@@ -173,7 +213,7 @@ sorti sous Android 12) et un accès à `dl.google.com` pour le plugin Gradle
 Android.
 
 **État de vérification, en toute transparence :** le module `engine` et le
-previewer sont compilés et testés (42/42 verts), et les captures ci-dessus en
+previewer sont compilés et testés (52/52 verts), et les captures ci-dessus en
 sortent. Le module `app` n'a **pas** pu être compilé dans l'environnement utilisé
 ici : ni SDK Android, ni accès à `dl.google.com`. Ses sources ont en revanche été
 type-checkées hors Android contre des stubs minimaux des API utilisées, donc les

@@ -51,16 +51,19 @@ object Sprites {
 
     fun icon(key: IconKey): Art = ICONS.getValue(key)
 
-    /** Two-frame swing animation, driven by wall clock so every redraw agrees. */
-    fun heroFrame(nowMs: Long, downMs: Long = 0L): Art = when {
-        downMs > 0L -> of(SpriteKey.GRAVE)
-        (nowMs / 500L) % 2L == 0L -> of(SpriteKey.HERO)
-        else -> of(SpriteKey.HERO_SWING)
+    /**
+     * The frame a hero shows right now: a grave while down, and for the knight a
+     * two-frame swing driven by wall clock so every redraw agrees.
+     */
+    fun heroFrame(cls: HeroClass, nowMs: Long, down: Boolean = false): Art = when {
+        down -> of(SpriteKey.GRAVE)
+        cls == HeroClass.KNIGHT && (nowMs / 500L) % 2L != 0L -> of(SpriteKey.KNIGHT_SWING)
+        else -> of(cls.sprite)
     }
 
     private val ART: Map<SpriteKey, Art> = mapOf(
         // 1 outline, 2 skin, 3 tunic, 4 steel, 5 shield, 6 blade
-        SpriteKey.HERO to art(
+        SpriteKey.KNIGHT to art(
             intArrayOf(OUTLINE, SKIN, TUNIC, STEEL, SHIELD, BLADE),
             "...11111....",
             "..1444441...",
@@ -75,7 +78,7 @@ object Sprites {
             "..111.111...",
             "............",
         ),
-        SpriteKey.HERO_SWING to art(
+        SpriteKey.KNIGHT_SWING to art(
             intArrayOf(OUTLINE, SKIN, TUNIC, STEEL, SHIELD, BLADE),
             "...11111....",
             "..1444441...",
@@ -88,6 +91,38 @@ object Sprites {
             ".51333331...",
             "..1331331...",
             ".111..111...",
+            "............",
+        ),
+        // 1 outline, 2 skin, 3 cloak, 4 hood, 5 quiver, 6 bow
+        SpriteKey.RANGER to art(
+            intArrayOf(OUTLINE, SKIN, 0xFF2F6B3A.toInt(), 0xFF4E9E56.toInt(), 0xFF8C5A2E.toInt(), 0xFFC9A227.toInt()),
+            "...11111....",
+            "..1444441...",
+            "..1422241.6.",
+            "..1412141..6",
+            "..14444412.6",
+            "..1333331..6",
+            "511333331..6",
+            "..1333331.6.",
+            "..1331331...",
+            "..11..11....",
+            "............",
+            "............",
+        ),
+        // 1 outline, 2 skin, 3 robe, 4 hat, 5 trim, 6 staff, 7 orb
+        SpriteKey.MAGE to art(
+            intArrayOf(OUTLINE, SKIN, 0xFF4B3A8C.toInt(), 0xFF6B54C6.toInt(), 0xFFC9A227.toInt(), 0xFF8C5A2E.toInt(), 0xFF6ED0F2.toInt()),
+            ".....1......",
+            "....141.....",
+            "...14441....",
+            "..1444441.7.",
+            "..1555551.6.",
+            "..1212121.6.",
+            "..1333331.6.",
+            ".13333331.6.",
+            ".1333333316.",
+            ".1333333316.",
+            ".111111111..",
             "............",
         ),
         // 1 outline, 2 body, 3 highlight, 4 eye, 5 pupil

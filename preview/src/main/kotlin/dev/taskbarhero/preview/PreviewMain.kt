@@ -145,30 +145,59 @@ private fun renderSheet(frames: List<Frame>): BufferedImage {
 private fun state(kind: String): GameState {
     val fresh = GameState.newRun(T0, BALANCE)
     return when (kind) {
-        "fresh" -> fresh.copy(gold = 12.0, heroHp = BALANCE.heroMaxHp(1) * 0.82, enemyHp = BALANCE.enemyMaxHp(1, 1) * 0.4)
+        "fresh" -> fresh.copy(gold = 12.0, enemyHp = BALANCE.enemyMaxHp(1, 1) * 0.4)
+            .hurt(front = 0.82)
+
         "ready" -> fresh.copy(
-            level = 14, gold = 640.0, act = 2, wave = 4, runes = 6,
-            heroHp = BALANCE.heroMaxHp(14) * 0.63, enemyHp = BALANCE.enemyMaxHp(2, 4) * 0.71, kills = 214L,
-        )
+            gold = 640.0, act = 2, wave = 4, runes = 6, kills = 214L, unlocked = 2,
+            enemyHp = BALANCE.enemyMaxHp(2, 4) * 0.71,
+        ).levelled(14, 11).hurt(front = 0.63)
+
         "boss" -> fresh.copy(
-            level = 28, gold = 4_180.0, act = 3, wave = 10, runes = 11,
-            heroHp = BALANCE.heroMaxHp(28) * 0.34, enemyHp = BALANCE.enemyMaxHp(3, 10) * 0.18,
+            gold = 4_180.0, act = 3, wave = 10, runes = 11, unlocked = 2,
             kills = 806L, bossKills = 2L, deepestAct = 3, deepestWave = 10,
-        )
-        // A wipe revives the hero at full health, then holds it out of combat.
+            enemyHp = BALANCE.enemyMaxHp(3, 10) * 0.18,
+            stash = grades(4 to 6, 1 to 2),
+        ).levelled(28, 24).hurt(front = 0.34)
+
+        // A wipe revives the party at full health, then holds it out of combat.
         "down" -> fresh.copy(
-            level = 31, gold = 900.0, act = 5, wave = 1, deaths = 3L,
-            heroHp = BALANCE.heroMaxHp(31), downUntilMs = T0 + 2_500L,
-            deepestAct = 5, deepestWave = 7,
-        )
+            gold = 900.0, act = 5, wave = 1, deaths = 3L, unlocked = 3,
+            downUntilMs = T0 + 2_500L, deepestAct = 5, deepestWave = 7,
+        ).levelled(31, 29, 22)
+
         "deep" -> fresh.copy(
-            level = 240, runes = 48, gold = 1.42e12, act = 12, wave = 9,
-            heroHp = BALANCE.heroMaxHp(240) * 0.91, enemyHp = BALANCE.enemyMaxHp(12, 9) * 0.55,
+            runes = 48, gold = 1.42e12, act = 12, wave = 9, unlocked = 3,
             kills = 986_400L, bossKills = 71L, deaths = 34L, deepestAct = 12, deepestWave = 10,
-        )
+            enemyHp = BALANCE.enemyMaxHp(12, 9) * 0.55,
+            stash = grades(9 to 3, 7 to 9, 5 to 4, 2 to 1),
+        ).levelled(240, 236, 231).hurt(front = 0.91)
+
         // A real half-hour of idling, so the numbers are the ones the engine produces.
         "idled" -> IdleEngine.advance(fresh.copy(autoLevel = true), T0 + 1_800_000L, BALANCE).state
-            .let { it.copy(heroHp = BALANCE.heroMaxHp(it.level) * 0.42) }
+            .hurt(front = 0.42)
+
         else -> fresh
     }
+}
+
+/** Sets the party's levels, refilling each hero for the new pool. */
+private fun GameState.levelled(vararg levels: Int): GameState = copy(
+    party = party.mapIndexed { i, hero ->
+        val level = levels.getOrElse(i) { hero.level }
+        hero.copy(level = level, hp = BALANCE.heroMaxHp(hero.cls, level))
+    },
+)
+
+/** Knocks the front hero down to a fraction of health, so the bar shows a fight. */
+private fun GameState.hurt(front: Double): GameState = copy(
+    party = party.mapIndexed { i, hero ->
+        if (i == 0) hero.copy(hp = hero.maxHp(BALANCE) * front) else hero
+    },
+)
+
+private fun grades(vararg counts: Pair<Int, Int>): List<Int> {
+    val stash = MutableList(Loot.GRADES.size) { 0 }
+    for ((grade, count) in counts) stash[grade] = count
+    return stash
 }

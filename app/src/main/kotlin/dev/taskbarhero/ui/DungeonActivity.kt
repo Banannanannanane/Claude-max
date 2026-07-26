@@ -24,6 +24,7 @@ class DungeonActivity : Activity() {
     private lateinit var scene: DungeonView
     private lateinit var levelUpButton: Button
     private lateinit var potionButton: Button
+    private lateinit var cubeButton: Button
     private lateinit var autoButton: Button
     private lateinit var resetButton: Button
 
@@ -44,6 +45,7 @@ class DungeonActivity : Activity() {
         scene = findViewById(R.id.scene)
         levelUpButton = findViewById(R.id.level_up)
         potionButton = findViewById(R.id.potion)
+        cubeButton = findViewById(R.id.cube)
         autoButton = findViewById(R.id.auto)
         resetButton = findViewById(R.id.reset)
 
@@ -52,7 +54,7 @@ class DungeonActivity : Activity() {
             if (result == null) {
                 Fx.onRefused(this)
             } else {
-                val event = GameEvent.LevelUp(result.state.level)
+                val event = GameEvent.LevelUp(result.state.partyLevel)
                 Fx.onEvent(this, event)
                 push(event.toTicker())
             }
@@ -62,6 +64,18 @@ class DungeonActivity : Activity() {
 
         potionButton.setOnClickListener {
             val event = GameStore.drinkPotion(this)?.events?.lastOrNull()
+            if (event == null) {
+                Fx.onRefused(this)
+            } else {
+                Fx.onEvent(this, event)
+                push(event.toTicker())
+            }
+            step()
+            TaskbarHeroWidget.refreshAll(this)
+        }
+
+        cubeButton.setOnClickListener {
+            val event = GameStore.cube(this)?.events?.lastOrNull()
             if (event == null) {
                 Fx.onRefused(this)
             } else {
@@ -119,6 +133,7 @@ class DungeonActivity : Activity() {
         scene.bind(state, log.toList())
         levelUpButton.isEnabled = state.canLevelUp(GameStore.balance)
         potionButton.isEnabled = state.canDrinkPotion(GameStore.balance)
+        cubeButton.isEnabled = state.fusableGrade(GameStore.balance) != null
         autoButton.text = getString(if (state.autoLevel) R.string.auto_on else R.string.auto_off)
         if (resetArmedUntil != 0L && System.currentTimeMillis() > resetArmedUntil) {
             resetArmedUntil = 0L

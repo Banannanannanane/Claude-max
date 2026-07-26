@@ -3,6 +3,7 @@ package dev.taskbarhero.paint
 import dev.taskbarhero.engine.Balance
 import dev.taskbarhero.engine.Fmt
 import dev.taskbarhero.engine.GameState
+import dev.taskbarhero.engine.HeroClass
 import dev.taskbarhero.engine.Hud
 import dev.taskbarhero.engine.IconKey
 import dev.taskbarhero.engine.PixelFont
@@ -36,9 +37,13 @@ object DungeonLayout {
     private const val GAP = 4
     private const val MARGIN = 3f
     private const val COIN = 5f
+    private const val FIGHTER = Sprites.FIGHTER_SIZE
 
     /** Four stat pairs, the rune bar, and the "next level" price. */
     private const val STAT_ROWS = 6
+
+    /** One line per party member, plus the stash row underneath. */
+    private const val PARTY_ROWS = 4
 
     /** Below this the room cannot hold a caption, two fighters and their meters. */
     private const val MIN_ROOM = TEXT + 6 + MIN_SPRITE + 10
@@ -66,12 +71,16 @@ object DungeonLayout {
 
         // Reserve the bottom blocks first; the room lives on what remains.
         val logHeight = if (log.isEmpty()) 0 else GAP + minOf(log.size, MAX_LOG_LINES) * LINE
+        val partyHeight = GAP + PARTY_ROWS * (LINE + 3)
         val statsHeight = GAP + STAT_ROWS * LINE
         val roomTop = headerBottom + 3
 
-        var roomBottom = bottom - logHeight - statsHeight - GAP
+        // Sections give way from the bottom up as the viewport shrinks: the log
+        // first, then the stats, then the party roster. The room never goes.
+        var roomBottom = bottom - logHeight - statsHeight - partyHeight - GAP
         var showLog = logHeight > 0
         var showStats = true
+        var showParty = true
         if (roomBottom - roomTop < MIN_ROOM) {
             roomBottom += logHeight
             showLog = false
@@ -80,11 +89,19 @@ object DungeonLayout {
             roomBottom += statsHeight
             showStats = false
         }
+        if (roomBottom - roomTop < MIN_ROOM) {
+            roomBottom += partyHeight
+            showParty = false
+        }
         roomBottom = roomBottom.coerceAtMost(bottom)
 
         drawRoom(p, hud, cols, nowMs, top = roomTop, bottom = roomBottom)
 
         var y = roomBottom + GAP
+        if (showParty) {
+            drawParty(p, hud, state, cols, b, top = y, bottom = bottom)
+            y += partyHeight
+        }
         if (showStats) {
             drawStats(p, hud, state, cols, b, top = y, bottom = bottom)
             y += statsHeight
@@ -102,11 +119,13 @@ object DungeonLayout {
         val meterHeight = 5f
         val meterY = bottom - meterHeight - 3f
         val feet = meterY - 3f
-        val slot = Sprites.FIGHTER_SIZE
-        // Integer scale only, same rule as the bar — here there is room for 3x or 4x.
-        val scale = minOf((feet - (captionY + TEXT + 4f)) / slot, (width - 24f) / 2f / slot, MAX_SCALE)
-            .toInt().coerceAtLeast(1).toFloat()
-        val side = slot * scale
+        // Same block rule as the bar; here there is room for a 2x or 3x party.
+        val members = hud.party.size.coerceAtLeast(1)
+        val scale = minOf(
+            Formation.scale(members, (width - 20f) * 0.55f, feet - (captionY + TEXT + 4f)),
+            MAX_SCALE,
+        )
+        val side = Sprites.FIGHTER_SIZE * scale
         val floorTop = feet - 2f
 
         p.bricks(MARGIN, top.toFloat(), width, floorTop - top, courseHeight = 8, brickWidth = 17)
@@ -120,23 +139,85 @@ object DungeonLayout {
         val textWidth = PixelFont.measure(text).toFloat()
         p.fill(cols / 2f - textWidth / 2f - 3f, captionY - 2f, textWidth + 6f, TEXT + 4f, Palette.STONE_DARK)
         p.text(cols / 2f - textWidth / 2f, captionY, text, if (hud.isDown) Palette.HP else Palette.PARCHMENT)
-        val heroArt = Sprites.heroFrame(nowMs, if (hud.isDown) 1L else 0L)
-        val enemyArt = Sprites.of(hud.enemySprite)
-
-        val heroX = MARGIN + 6f
-        p.shadow(heroX + side / 2f, feet, side * 0.72f)
-        p.sprite(heroX, feet - side, heroArt, side / heroArt.size)
+        val roster = hud.party
+        for (i in Formation.drawOrder(roster.size)) {
+            val member = roster[i]
+            val art = Sprites.heroFrame(member.cls, nowMs, member.down || hud.isDown)
+            val x = MARGIN + 6f + Formation.offset(i, roster.size, side)
+            p.shadow(x + side / 2f, feet, side * 0.72f)
+            p.sprite(x, feet - side, art, side / art.size)
+        }
 
         if (!hud.isDown) {
+            val enemyArt = Sprites.of(hud.enemySprite)
             val enemyX = cols - MARGIN - 6f - side
             p.shadow(enemyX + side / 2f, feet, side * 0.72f)
             p.sprite(enemyX, feet - side, enemyArt, side / enemyArt.size)
         }
 
         val meterWidth = (width / 2f - 12f).coerceAtMost(46f)
-        p.bar(MARGIN + 6f, meterY, meterWidth, meterHeight, hud.heroHp, Palette.HP, Palette.HP_SOCKET)
+        p.bar(MARGIN + 6f, meterY, meterWidth, meterHeight, hud.frontHp, Palette.HP, Palette.HP_SOCKET)
         if (!hud.isDown) {
             p.bar(cols - MARGIN - 6f - meterWidth, meterY, meterWidth, meterHeight, hud.enemyHp, Palette.FOE, Palette.FOE_SOCKET)
+        }
+    }
+
+    /**
+     * The party sheet: who is in it, how strong, how hurt — and the stash under it,
+     * which is the Cube's larder. This is the payoff for opening the widget.
+     */
+    private fun drawParty(
+        p: PixelPainter,
+        hud: Hud,
+        state: GameState,
+        cols: Int,
+        b: Balance,
+        top: Int,
+        bottom: Int,
+    ) {
+        p.divider(MARGIN, top.toFloat(), cols - MARGIN * 2)
+        val row = LINE + 3
+        var y = top + GAP
+
+        // Columns measured from the widest strings, so the bar never lands on a level.
+        val labelX = MARGIN + FIGHTER + 4f
+        val levelX = labelX + HeroClass.entries.maxOf { PixelFont.measure(it.label) } + 4f
+        val barX = levelX + PixelFont.measure("LV 999") + 4f
+        val barWidth = cols - MARGIN - barX
+
+        for (member in hud.party) {
+            if (y + FIGHTER > bottom) return
+            p.sprite(MARGIN, y.toFloat(), Sprites.heroFrame(member.cls, 0L, member.down), 1f)
+            p.text(labelX, y + 2f, member.cls.label, if (member.down) Palette.HP else Palette.PARCHMENT)
+            p.text(levelX, y + 2f, PixelFont.clip(member.level, (barX - levelX - 4f).toInt()), Palette.PARCHMENT_DIM)
+            if (barWidth > 8f) p.bar(barX, y + 3f, barWidth, 5f, member.hp, Palette.HP, Palette.HP_SOCKET)
+            y += row
+        }
+        // Locked slots stay visible: knowing a mage is coming is the point.
+        for (locked in state.party.drop(state.unlocked)) {
+            if (y + FIGHTER > bottom) return
+            p.text(labelX, y + 2f, locked.cls.label, Palette.BEVEL_LIGHT)
+            p.text(levelX, y + 2f, "ACT ${locked.cls.unlockAct}", Palette.BEVEL_LIGHT)
+            y += row
+        }
+
+        if (y + FIGHTER > bottom) return
+        drawStash(p, state, cols, y.toFloat(), b)
+    }
+
+    /** Ten swatches, one per grade, each carrying what the stash holds of it. */
+    private fun drawStash(p: PixelPainter, state: GameState, cols: Int, y: Float, b: Balance) {
+        val slot = (cols - MARGIN * 2) / state.stash.size
+        for ((grade, count) in state.stash.withIndex()) {
+            val x = MARGIN + grade * slot
+            val color = Palette.grade(grade)
+            val lit = count > 0
+            p.fill(x, y, 5f, 5f, if (lit) color else Palette.BEVEL_DARK)
+            p.frame(x, y, 5f, 5f, if (lit) Palette.OUTLINE else Palette.BEVEL_LIGHT)
+            // Empty grades stay as bare swatches: a row of zeroes is just noise, and
+            // a pile one fusion away deserves its own colour.
+            if (!lit) continue
+            p.text(x + 6f, y - 1f, count.toString(), if (count >= b.cubeInput) color else Palette.PARCHMENT_DIM)
         }
     }
 
@@ -154,8 +235,8 @@ object DungeonLayout {
 
         val pairs = listOf(
             Stat("ACT", hud.stage, "BEST", Fmt.stage(state.deepestAct, state.deepestWave)),
-            Stat("LEVEL", state.level.toString(), "SLAIN", Fmt.short(state.kills.toDouble())),
-            Stat("GOLD", hud.gold, "BOSSES", state.bossKills.toString()),
+            Stat("GOLD", hud.gold, "SLAIN", Fmt.short(state.kills.toDouble())),
+            Stat("GEAR", hud.gearBonus, "BOSSES", state.bossKills.toString()),
             Stat("RUNES", state.runes.toString(), "WIPES", state.deaths.toString()),
         )
 
@@ -168,7 +249,11 @@ object DungeonLayout {
         var y = top + GAP
         for (stat in pairs) {
             if (y + TEXT > bottom) return
-            val valueColor = if (stat.label == "GOLD") Palette.GOLD else Palette.PARCHMENT
+            val valueColor = when (stat.label) {
+                "GOLD" -> Palette.GOLD
+                "GEAR" -> Palette.MANA
+                else -> Palette.PARCHMENT
+            }
             drawPair(p, MARGIN, y.toFloat(), stat.label, stat.value, leftBudget, valueColor)
             drawPair(p, rightX, y.toFloat(), stat.rightLabel, stat.rightValue, rightBudget, Palette.PARCHMENT)
             y += LINE
@@ -187,7 +272,7 @@ object DungeonLayout {
             p.text(
                 x + COIN + 2f,
                 y.toFloat(),
-                Fmt.short(b.levelCost(state.level)),
+                Fmt.short(state.levelCost(b)),
                 if (hud.buttonEnabled) Palette.GOLD else Palette.GOLD_DARK,
             )
         }

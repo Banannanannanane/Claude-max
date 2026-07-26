@@ -21,13 +21,15 @@ class AssetsTest {
     fun `the font covers everything the hud can print`() {
         val b = Balance()
         val state = GameState.newRun(0L, b).copy(
-            level = 42, runes = 7, gold = 12_400_000.0, act = 5, wave = 10, deepestAct = 6,
+            runes = 7, gold = 12_400_000.0, act = 5, wave = 10, deepestAct = 6, unlocked = 3,
+            stash = List(Loot.GRADES.size) { 9 },
         )
         val texts = Hud.of(state, b, GameEvent.BossDown(5, Loot.roll(5, 3))).let {
             listOf(
                 it.stage, it.level, it.gold, it.enemyName, it.enemyShort, it.runes,
-                it.deepest, it.buttonLabel, it.buttonCost, it.ticker,
-            )
+                it.deepest, it.buttonLabel, it.buttonCost, it.potionCost,
+                it.cubeLabel, it.gearBonus, it.ticker,
+            ) + it.party.flatMap { hero -> listOf(hero.cls.label, hero.level) }
         }
         val known = PixelFont.supported
         for (text in texts) {
@@ -104,6 +106,22 @@ class AssetsTest {
     }
 
     @Test
+    fun `the cube button reports progress before it can fuse`() {
+        val b = Balance()
+        val empty = GameState.newRun(0L, b)
+        assertEquals("0/${b.cubeInput}", Hud.of(empty, b).cubeLabel)
+        assertEquals(null, Hud.of(empty, b).cubeGrade, "nothing to fuse yet")
+
+        val partway = empty.copy(stash = empty.stash.toMutableList().also { it[1] = 6 })
+        assertEquals("6/${b.cubeInput}", Hud.of(partway, b).cubeLabel)
+        assertEquals(null, Hud.of(partway, b).cubeGrade)
+
+        val ready = empty.copy(stash = empty.stash.toMutableList().also { it[1] = b.cubeInput })
+        assertEquals(2, Hud.of(ready, b).cubeGrade, "fusing grade 1 yields grade 2")
+        assertTrue(Hud.of(ready, b).cubeEnabled)
+    }
+
+    @Test
     fun `loot grades climb with the act and stay inside the ramp`() {
         assertEquals(0, Loot.roll(1, 0).grade)
         assertEquals("COMMON", Loot.GRADES[Loot.roll(1, 0).grade])
@@ -128,10 +146,24 @@ class AssetsTest {
     }
 
     @Test
-    fun `hero animation alternates and yields a grave while down`() {
-        assertEquals(Sprites.of(SpriteKey.HERO), Sprites.heroFrame(0L))
-        assertEquals(Sprites.of(SpriteKey.HERO_SWING), Sprites.heroFrame(500L))
-        assertEquals(Sprites.of(SpriteKey.GRAVE), Sprites.heroFrame(0L, downMs = 1L))
+    fun `the knight swings, the others hold still, and the fallen get a grave`() {
+        assertEquals(Sprites.of(SpriteKey.KNIGHT), Sprites.heroFrame(HeroClass.KNIGHT, 0L))
+        assertEquals(Sprites.of(SpriteKey.KNIGHT_SWING), Sprites.heroFrame(HeroClass.KNIGHT, 500L))
+        assertEquals(Sprites.of(SpriteKey.GRAVE), Sprites.heroFrame(HeroClass.KNIGHT, 0L, down = true))
+        // The other classes have one frame, so their sprite must not depend on time.
+        for (cls in listOf(HeroClass.RANGER, HeroClass.MAGE)) {
+            assertEquals(Sprites.of(cls.sprite), Sprites.heroFrame(cls, 0L))
+            assertEquals(Sprites.of(cls.sprite), Sprites.heroFrame(cls, 500L))
+        }
+    }
+
+    @Test
+    fun `every class has its own sprite and joins at its own act`() {
+        val sprites = HeroClass.entries.map { it.sprite }
+        assertEquals(sprites.size, sprites.toSet().size, "two classes share a sprite")
+        assertEquals(1, HeroClass.KNIGHT.unlockAct, "someone has to start the run")
+        val acts = HeroClass.entries.map { it.unlockAct }
+        assertEquals(acts.sorted(), acts, "recruits should arrive in roster order")
     }
 
     @Test
@@ -179,8 +211,8 @@ class AssetsTest {
         val s = GameState.newRun(0L, b)
         assertTrue(Hud.of(s, b).ticker.startsWith("ACT 1-01"))
         assertEquals("AUTO / IDLING", Hud.of(s.copy(autoLevel = true), b).ticker)
-        assertTrue(Hud.of(s.copy(downUntilMs = 5L), b).ticker.contains("DOWN"))
-        assertEquals("LEVEL 9", Hud.of(s, b, GameEvent.LevelUp(9)).ticker)
+        assertTrue(Hud.of(s.copy(downUntilMs = 5L), b).ticker.contains("WIPED"))
+        assertEquals("PARTY LV 9", Hud.of(s, b, GameEvent.LevelUp(9)).ticker)
         assertEquals("AUTO", Hud.of(s.copy(autoLevel = true), b).buttonLabel)
     }
 }

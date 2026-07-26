@@ -3,6 +3,7 @@ package dev.taskbarhero.paint
 import dev.taskbarhero.engine.Balance
 import dev.taskbarhero.engine.GameState
 import dev.taskbarhero.engine.IdleEngine
+import dev.taskbarhero.engine.Loot
 import dev.taskbarhero.engine.Ticker
 import dev.taskbarhero.engine.Tone
 import kotlin.test.Test
@@ -49,19 +50,24 @@ class LayoutTest {
      */
     private val barSizes = listOf(126 to 32, 93 to 32, 158 to 32, 126 to 67, 158 to 67, 126 to 46)
 
+    /** Sets every hero to the same level, health topped up for the new pool. */
+    private fun GameState.at(level: Int): GameState =
+        copy(party = party.map { it.copy(level = level, hp = b.heroMaxHp(it.cls, level)) })
+
     private fun states(): Map<String, GameState> {
         val fresh = GameState.newRun(t0, b)
         return mapOf(
             "fresh" to fresh,
             "rich" to fresh.copy(gold = 9_999.0),
-            "boss" to fresh.copy(act = 3, wave = 10, level = 24, gold = 4_200.0),
-            "down" to fresh.copy(downUntilMs = t0 + 2_000L, act = 5, wave = 3),
-            "auto" to fresh.copy(autoLevel = true, act = 2, wave = 6, level = 12),
+            "boss" to fresh.copy(act = 3, wave = 10, gold = 4_200.0, unlocked = 2).at(24),
+            "down" to fresh.copy(downUntilMs = t0 + 2_000L, act = 5, wave = 3, unlocked = 3),
+            "auto" to fresh.copy(autoLevel = true, act = 2, wave = 6, unlocked = 2).at(12),
             // Deep-run digits are the widest text the bar ever has to fit.
             "deep" to fresh.copy(
-                act = 12, wave = 9, level = 240, runes = 48, gold = 1.4e12,
+                act = 12, wave = 9, runes = 48, gold = 1.4e12, unlocked = 3,
                 kills = 986_400L, bossKills = 71L, deaths = 34L, deepestAct = 12, deepestWave = 10,
-            ),
+                stash = List(Loot.GRADES.size) { 9 },
+            ).at(240),
             "idled" to IdleEngine.advance(fresh.copy(autoLevel = true), t0 + 1_800_000L, b).state,
         )
     }
@@ -111,7 +117,7 @@ class LayoutTest {
     fun `the action button lights up exactly when the level is affordable`() {
         val cols = 107
         val poor = GameState.newRun(t0, b)
-        val rich = poor.copy(gold = b.levelCost(poor.level))
+        val rich = poor.copy(gold = poor.levelCost(b))
 
         fun goldOpsInButton(state: GameState): Int {
             val surface = RecordingSurface()
@@ -126,9 +132,9 @@ class LayoutTest {
 
     @Test
     fun `the deck split matches the layout weights`() {
-        assertEquals(3, BarLayout.DECK_SPLIT.size)
+        assertEquals(4, BarLayout.DECK_SPLIT.size)
         assertEquals(1f, BarLayout.DECK_SPLIT.sum(), 1e-6f)
-        assertTrue(BarLayout.DECK_SPLIT.all { it > 0.2f }, "every button needs a thumb-sized share")
+        assertTrue(BarLayout.DECK_SPLIT.all { it >= 0.2f }, "every button needs a thumb-sized share")
     }
 
     @Test

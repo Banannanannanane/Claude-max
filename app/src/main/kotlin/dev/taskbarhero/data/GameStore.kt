@@ -25,14 +25,17 @@ object GameStore {
 
     private const val KEY_SCHEMA = "schema"
     private const val KEY_LAST_TICK = "last_tick"
-    private const val KEY_LEVEL = "level"
+    private const val KEY_UNLOCKED = "unlocked"
+    private const val KEY_HERO_LEVEL = "hero_level_"
+    private const val KEY_HERO_HP = "hero_hp_"
+    private const val KEY_STASH = "stash_"
+    private const val SCHEMA_KEYS_PER_HERO = 2
     private const val KEY_RUNES = "runes"
     private const val KEY_GOLD = "gold"
     private const val KEY_XP = "xp"
     private const val KEY_ACT = "act"
     private const val KEY_WAVE = "wave"
     private const val KEY_ENEMY_IDX = "enemy_idx"
-    private const val KEY_HERO_HP = "hero_hp"
     private const val KEY_ENEMY_HP = "enemy_hp"
     private const val KEY_DOWN_UNTIL = "down_until"
     private const val KEY_KILLS = "kills"
@@ -69,7 +72,7 @@ object GameStore {
             save(p, ticked.state, ticked.events.lastOrNull(), nowMs)
             return null
         }
-        val event = GameEvent.LevelUp(levelled.level)
+        val event = GameEvent.LevelUp(levelled.partyLevel)
         save(p, levelled, event, nowMs)
         return ticked.copy(state = levelled, events = ticked.events + event)
     }
@@ -87,6 +90,20 @@ object GameStore {
         val event = GameEvent.Potion(revived = wasDown)
         save(p, healed, event, nowMs)
         return ticked.copy(state = healed, events = ticked.events + event)
+    }
+
+    /** Feeds the Cube: nine of a grade become one of the next. */
+    @Synchronized
+    fun cube(ctx: Context, nowMs: Long = System.currentTimeMillis()): TickResult? {
+        val p = prefs(ctx)
+        val ticked = IdleEngine.advance(load(p, nowMs), nowMs, balance)
+        val (fused, grade) = IdleEngine.cube(ticked.state, balance) ?: run {
+            save(p, ticked.state, ticked.events.lastOrNull(), nowMs)
+            return null
+        }
+        val event = GameEvent.Cubed(grade)
+        save(p, fused, event, nowMs)
+        return ticked.copy(state = fused, events = ticked.events + event)
     }
 
     @Synchronized
@@ -126,16 +143,27 @@ object GameStore {
 
     private fun load(p: SharedPreferences, nowMs: Long): GameState {
         if (p.getInt(KEY_SCHEMA, 0) != SCHEMA) return GameState.newRun(nowMs, balance)
+        val fresh = GameState.newRun(nowMs, balance)
         return GameState(
             lastTickMs = p.getLong(KEY_LAST_TICK, nowMs),
-            level = p.getInt(KEY_LEVEL, 1).coerceAtLeast(1),
+            party = fresh.party.mapIndexed { i, hero ->
+                val level = p.getInt("$KEY_HERO_LEVEL$i", 1).coerceAtLeast(1)
+                hero.copy(
+                    level = level,
+                    hp = p.getFloat("$KEY_HERO_HP$i", 0f).toDouble()
+                        .coerceIn(0.0, balance.heroMaxHp(hero.cls, level)),
+                )
+            },
+            unlocked = p.getInt(KEY_UNLOCKED, 1).coerceIn(1, fresh.party.size),
+            stash = fresh.stash.indices.map { p.getInt("$KEY_STASH$it", 0).coerceAtLeast(0) },
+
             runes = p.getInt(KEY_RUNES, 0).coerceAtLeast(0),
             gold = p.getFloat(KEY_GOLD, 0f).toDouble(),
             xp = p.getFloat(KEY_XP, 0f).toDouble(),
             act = p.getInt(KEY_ACT, 1).coerceAtLeast(1),
             wave = p.getInt(KEY_WAVE, 1).coerceAtLeast(1),
             enemyIdx = p.getInt(KEY_ENEMY_IDX, 0).coerceAtLeast(0),
-            heroHp = p.getFloat(KEY_HERO_HP, 0f).toDouble(),
+
             enemyHp = p.getFloat(KEY_ENEMY_HP, 0f).toDouble(),
             downUntilMs = p.getLong(KEY_DOWN_UNTIL, 0L),
             kills = p.getLong(KEY_KILLS, 0L),
@@ -152,7 +180,13 @@ object GameStore {
         p.edit().apply {
             putInt(KEY_SCHEMA, SCHEMA)
             putLong(KEY_LAST_TICK, s.lastTickMs)
-            putInt(KEY_LEVEL, s.level)
+            putInt(KEY_UNLOCKED, s.unlocked)
+            s.party.forEachIndexed { i, hero ->
+                putInt("$KEY_HERO_LEVEL$i", hero.level)
+                putFloat("$KEY_HERO_HP$i", hero.hp.toFloat())
+            }
+            s.stash.forEachIndexed { grade, count -> putInt("$KEY_STASH$grade", count) }
+
             putInt(KEY_RUNES, s.runes)
             // Floats lose precision on huge idle numbers, which is fine: nothing
             // in the HUD shows more than three significant digits.
@@ -161,7 +195,7 @@ object GameStore {
             putInt(KEY_ACT, s.act)
             putInt(KEY_WAVE, s.wave)
             putInt(KEY_ENEMY_IDX, s.enemyIdx)
-            putFloat(KEY_HERO_HP, s.heroHp.toFloat())
+
             putFloat(KEY_ENEMY_HP, s.enemyHp.toFloat())
             putLong(KEY_DOWN_UNTIL, s.downUntilMs)
             putLong(KEY_KILLS, s.kills)

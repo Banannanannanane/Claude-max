@@ -4,9 +4,9 @@ import kotlin.math.min
 
 /**
  * The auto-battler. Nothing here touches Android, a clock, or the disk: given a
- * state and a wall-clock instant it replays the fight tick by tick, which is
- * what lets a home-screen widget stay correct while being redrawn once a minute
- * (or once a day).
+ * state and a wall-clock instant it replays the fight tick by tick, which is what
+ * lets a home-screen widget stay correct while being redrawn once a minute (or
+ * once a day).
  *
  * Advancing in one call or in a hundred chunks yields the same state, because
  * [GameState.lastTickMs] only ever moves by whole ticks.
@@ -49,32 +49,46 @@ object IdleEngine {
         )
     }
 
-    /** Buys one hero level if it is affordable. Returns null when it is not. */
+    /** Buys a level for the cheapest hero. Returns null when it is unaffordable. */
     fun levelUp(state: GameState, b: Balance = Balance()): GameState? {
-        val cost = b.levelCost(state.level)
+        val index = state.cheapestHeroIndex()
+        val hero = state.roster[index]
+        val cost = b.levelCost(hero.level)
         if (state.gold < cost) return null
-        val level = state.level + 1
-        // Levelling heals the missing share of the new, larger health pool.
-        val healed = state.heroHp + (b.heroMaxHp(level) - b.heroMaxHp(state.level))
+        val level = hero.level + 1
+        // Levelling grants the extra health outright, so it is never a downgrade.
+        val healed = hero.hp + (b.heroMaxHp(hero.cls, level) - hero.maxHp(b))
         return state.copy(
             gold = state.gold - cost,
-            level = level,
-            heroHp = min(healed, b.heroMaxHp(level)),
+            party = state.party.replaceAt(index, hero.copy(level = level, hp = min(healed, b.heroMaxHp(hero.cls, level)))),
         )
     }
 
     /**
-     * Spends gold on a full heal, which doubles as an instant revive while the
-     * hero is down. Returns null when there is nothing to heal or nothing to pay
+     * Spends gold to refill the whole party, which doubles as an instant revive
+     * after a wipe. Returns null when there is nothing to heal or nothing to pay
      * with — the caller turns that into a refusal buzz.
      */
     fun drinkPotion(state: GameState, b: Balance = Balance()): GameState? {
-        val cost = b.potionCost(state.level)
-        if (state.gold < cost) return null
-        val max = b.heroMaxHp(state.level)
-        val hurt = state.heroHp < max - 1e-9
-        if (!hurt && !state.isDown) return null
-        return state.copy(gold = state.gold - cost, heroHp = max, downUntilMs = 0L)
+        if (!state.canDrinkPotion(b)) return null
+        return state.copy(
+            gold = state.gold - b.potionCost(state.partyLevel),
+            party = state.party.map { it.copy(hp = it.maxHp(b)) },
+            downUntilMs = 0L,
+        )
+    }
+
+    /**
+     * The Hero-dric Cube: nine items of one grade go in, one of the next grade
+     * comes out. Always fuses the lowest grade that can, so the stash climbs from
+     * the bottom the way it fills.
+     */
+    fun cube(state: GameState, b: Balance = Balance()): Pair<GameState, Int>? {
+        val grade = state.fusableGrade(b) ?: return null
+        val stash = state.stash.toMutableList()
+        stash[grade] -= b.cubeInput
+        stash[grade + 1] += 1
+        return state.copy(stash = stash) to grade + 1
     }
 
     private fun step(s0: GameState, nowMs: Long, dt: Double, b: Balance, acc: Accumulator): GameState {
@@ -85,28 +99,35 @@ object IdleEngine {
             s = s.copy(downUntilMs = 0L)
         }
 
-        val heroDps = b.heroDps(s.level, s.runes)
         val enemyMax = b.enemyMaxHp(s.act, s.wave)
-        val heroMax = b.heroMaxHp(s.level)
+        var enemyHp = (if (s.enemyHp <= 0.0) enemyMax else s.enemyHp) - s.partyDps(b) * dt
 
-        var enemyHp = (if (s.enemyHp <= 0.0) enemyMax else s.enemyHp) - heroDps * dt
-        var heroHp = min(
-            heroMax,
-            (if (s.heroHp <= 0.0) heroMax else s.heroHp) - b.enemyDps(s.act, s.wave) * dt + b.heroRegenPerSec(s.level) * dt,
+        // The monster chews on the front hero; everyone else regenerates.
+        val front = s.frontIndex
+        if (front < 0) return onWipe(s, nowMs, b, acc)
+        val incoming = b.enemyDps(s.act, s.wave) * dt
+        s = s.copy(
+            party = s.party.mapIndexed { i, hero ->
+                if (i >= s.unlocked || hero.isDown) {
+                    hero
+                } else {
+                    val regen = b.heroRegenPerSec(hero.cls, hero.level) * dt
+                    val damage = if (i == front) incoming else 0.0
+                    hero.copy(hp = (hero.hp - damage + regen).coerceIn(0.0, hero.maxHp(b)))
+                }
+            },
         )
 
         if (enemyHp <= 0.0) {
-            // The hero wins a simultaneous exchange: dying on the killing blow
+            // The party wins a simultaneous exchange: dying on the killing blow
             // reads as a bug on a home screen.
             s = onKill(s, b, acc)
             enemyHp = b.enemyMaxHp(s.act, s.wave)
-            heroHp = heroHp.coerceAtLeast(1.0)
-        } else if (heroHp <= 0.0) {
-            s = onWipe(s, nowMs, b, acc)
-            return s
+        } else if (s.living.isEmpty()) {
+            return onWipe(s, nowMs, b, acc)
         }
 
-        s = s.copy(heroHp = heroHp, enemyHp = enemyHp)
+        s = s.copy(enemyHp = enemyHp)
         s = spendXp(s, b, acc)
         if (s.autoLevel) s = autoBuy(s, b, acc)
         return s
@@ -125,7 +146,12 @@ object IdleEngine {
             kills = s.kills + 1,
             bossKills = if (boss) s.bossKills + 1 else s.bossKills,
         )
-        if (boss) acc.add(GameEvent.BossDown(s.act, Loot.roll(s.act, s.bossKills)))
+        if (boss) {
+            // Bosses are the only source of loot, and loot is the only source of gear.
+            val drop = Loot.roll(s.act, s.bossKills)
+            s = s.copy(stash = s.stash.plusItem(drop.grade))
+            acc.add(GameEvent.BossDown(s.act, drop))
+        }
 
         val idx = s.enemyIdx + 1
         s = if (idx < b.enemiesInWave(s.wave)) {
@@ -136,17 +162,29 @@ object IdleEngine {
             acc.add(GameEvent.ActCleared(s.act))
             s.copy(enemyIdx = 0, wave = 1, act = s.act + 1)
         }
-        return s.withDeepest()
+        return recruit(s.withDeepest(), b, acc)
+    }
+
+    /** Reaching an act is what grows the party — the one thing gold cannot buy. */
+    private fun recruit(s: GameState, b: Balance, acc: Accumulator): GameState {
+        if (s.unlocked >= s.party.size) return s
+        val next = s.party[s.unlocked]
+        if (s.act < next.cls.unlockAct) return s
+        acc.add(GameEvent.HeroJoined(next.cls))
+        return s.copy(
+            unlocked = s.unlocked + 1,
+            party = s.party.replaceAt(s.unlocked, next.copy(hp = next.maxHp(b))),
+        )
     }
 
     private fun onWipe(s0: GameState, nowMs: Long, b: Balance, acc: Accumulator): GameState {
         acc.add(GameEvent.HeroDown(s0.act, s0.wave))
-        // Retreat to the start of the act: gold and levels are kept, the push is not.
+        // Retreat to the start of the act: gold, levels and loot are kept, the push is not.
         return s0.copy(
             deaths = s0.deaths + 1,
             wave = 1,
             enemyIdx = 0,
-            heroHp = b.heroMaxHp(s0.level),
+            party = s0.party.map { it.copy(hp = it.maxHp(b)) },
             enemyHp = b.enemyMaxHp(s0.act, 1),
             downUntilMs = nowMs + b.downMs,
         )
@@ -168,7 +206,7 @@ object IdleEngine {
         while (guard-- > 0) {
             val next = levelUp(s, b) ?: break
             s = next
-            acc.add(GameEvent.LevelUp(s.level))
+            acc.add(GameEvent.LevelUp(s.partyLevel))
         }
         return s
     }
@@ -180,12 +218,18 @@ object IdleEngine {
             this
         }
 
+    private fun List<Hero>.replaceAt(index: Int, hero: Hero): List<Hero> =
+        mapIndexed { i, existing -> if (i == index) hero else existing }
+
+    private fun List<Int>.plusItem(grade: Int): List<Int> =
+        mapIndexed { i, count -> if (i == grade) count + 1 else count }
+
     private class Accumulator(state: GameState) {
         val events = ArrayDeque<GameEvent>()
         var xpGained = 0.0
 
         init {
-            require(state.level >= 1) { "level must be >= 1" }
+            require(state.party.isNotEmpty()) { "a run needs a party" }
         }
 
         fun add(e: GameEvent) {

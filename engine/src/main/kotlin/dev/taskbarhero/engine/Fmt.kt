@@ -44,6 +44,12 @@ object Fmt {
         }
     }
 
+    /**
+     * A multiplier as a percentage gain: 1.0 -> "0%", 2.4 -> "140%". Unlike
+     * [percent] it is not clamped, because gear is meant to run away.
+     */
+    fun gain(multiplier: Double): String = "${floor((multiplier - 1.0).coerceAtLeast(0.0) * 100.0).toInt()}%"
+
     fun percent(fraction: Double): String =
         "${floor(fraction.coerceIn(0.0, 1.0) * 100.0).toInt()}%"
 

@@ -26,7 +26,8 @@ object Fx {
      */
     fun onBackgroundEvents(ctx: Context, events: List<GameEvent>) {
         val notable = events.lastOrNull {
-            it is GameEvent.BossDown || it is GameEvent.ActCleared || it is GameEvent.HeroDown
+            it is GameEvent.BossDown || it is GameEvent.ActCleared ||
+                it is GameEvent.HeroDown || it is GameEvent.HeroJoined
         } ?: return
         onEvent(ctx, notable)
     }
@@ -39,6 +40,8 @@ object Fx {
             is GameEvent.LevelUp -> click(ctx, VibrationEffect.EFFECT_CLICK)
             is GameEvent.HeroDown -> pattern(ctx, longArrayOf(0, 140))
             is GameEvent.Potion -> click(ctx, VibrationEffect.EFFECT_HEAVY_CLICK)
+            is GameEvent.Cubed -> pattern(ctx, longArrayOf(0, 25, 40, 25, 40, 90))
+            is GameEvent.HeroJoined -> pattern(ctx, longArrayOf(0, 60, 60, 60))
             is GameEvent.RuneGained -> Unit // Too frequent to be worth a buzz.
         }
     }

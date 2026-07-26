@@ -6,12 +6,14 @@
     <string name="zone_open">Open the dungeon</string>
     <string name="zone_level">Buy the next hero level</string>
     <string name="zone_potion">Drink a potion: full heal, or an instant revive</string>
+    <string name="zone_cube">Hero-dric Cube: fuse nine items into one of the next grade</string>
     <string name="zone_auto">Toggle automatic levelling</string>
 
     <string name="level_up">LV UP</string>
     <string name="auto_on">AUTO ON</string>
     <string name="auto_off">AUTO OFF</string>
     <string name="potion">POTION</string>
+    <string name="cube">CUBE</string>
     <string name="reset">RESET</string>
     <string name="reset_confirm">SURE?</string>
 </resources>

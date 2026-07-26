@@ -17,9 +17,21 @@ sealed interface GameEvent {
 
     fun toTicker(): Ticker = Ticker(caption, tone, grade)
 
-    data class LevelUp(val level: Int) : GameEvent {
-        override val caption get() = "LEVEL $level"
+    data class LevelUp(val partyLevel: Int) : GameEvent {
+        override val caption get() = "PARTY LV $partyLevel"
         override val tone get() = Tone.GOOD
+    }
+
+    /** A new class reaching the party — the one thing gold cannot buy. */
+    data class HeroJoined(val cls: HeroClass) : GameEvent {
+        override val caption get() = "${cls.label} JOINS"
+        override val tone get() = Tone.GOOD
+    }
+
+    /** The Hero-dric Cube turning nine of a grade into one of the next. */
+    data class Cubed(override val grade: Int) : GameEvent {
+        override val caption get() = "CUBE / ${Loot.GRADES[grade]}"
+        override val tone get() = Tone.LOOT
     }
 
     data class RuneGained(val runes: Int) : GameEvent {

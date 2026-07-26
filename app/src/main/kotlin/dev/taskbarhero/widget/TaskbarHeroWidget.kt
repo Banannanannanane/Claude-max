@@ -62,7 +62,7 @@ class TaskbarHeroWidget : AppWidgetProvider() {
             ACTION_LEVEL_UP -> {
                 val result = GameStore.levelUp(ctx)
                 if (result != null) {
-                    Fx.onEvent(ctx, GameEvent.LevelUp(result.state.level))
+                    Fx.onEvent(ctx, GameEvent.LevelUp(result.state.partyLevel))
                 } else {
                     Fx.onRefused(ctx)
                 }
@@ -71,6 +71,12 @@ class TaskbarHeroWidget : AppWidgetProvider() {
 
             ACTION_POTION -> {
                 val event = GameStore.drinkPotion(ctx)?.events?.lastOrNull()
+                if (event != null) Fx.onEvent(ctx, event) else Fx.onRefused(ctx)
+                refreshAll(ctx)
+            }
+
+            ACTION_CUBE -> {
+                val event = GameStore.cube(ctx)?.events?.lastOrNull()
                 if (event != null) Fx.onEvent(ctx, event) else Fx.onRefused(ctx)
                 refreshAll(ctx)
             }
@@ -123,6 +129,7 @@ class TaskbarHeroWidget : AppWidgetProvider() {
             setOnClickPendingIntent(R.id.zone_level, broadcast(ctx, ACTION_LEVEL_UP, REQ_LEVEL_UP))
             if (tall) {
                 setOnClickPendingIntent(R.id.zone_potion, broadcast(ctx, ACTION_POTION, REQ_POTION))
+                setOnClickPendingIntent(R.id.zone_cube, broadcast(ctx, ACTION_CUBE, REQ_CUBE))
                 setOnClickPendingIntent(R.id.zone_auto, broadcast(ctx, ACTION_AUTO, REQ_AUTO))
             }
         }
@@ -153,12 +160,14 @@ class TaskbarHeroWidget : AppWidgetProvider() {
         const val ACTION_TICK = "dev.taskbarhero.TICK"
         const val ACTION_LEVEL_UP = "dev.taskbarhero.LEVEL_UP"
         const val ACTION_POTION = "dev.taskbarhero.POTION"
+        const val ACTION_CUBE = "dev.taskbarhero.CUBE"
         const val ACTION_AUTO = "dev.taskbarhero.AUTO"
 
         private const val REQ_OPEN = 1
         private const val REQ_LEVEL_UP = 2
         private const val REQ_POTION = 3
-        private const val REQ_AUTO = 4
+        private const val REQ_CUBE = 4
+        private const val REQ_AUTO = 5
 
         /** Redraws every placed instance — used after a tap or from the activity. */
         fun refreshAll(ctx: Context) {

@@ -4,8 +4,8 @@
   bottom carries three real buttons.
 
   Two numbers are a contract with BarLayout, which paints what these zones cover:
-  the 48dp deck height is BarLayout.DECK_HEIGHT_DP, and the 400/300/300 weights are
-  BarLayout.DECK_SPLIT.
+  the 48dp deck height is BarLayout.DECK_HEIGHT_DP, and the 280/240/240/240 weights
+  are BarLayout.DECK_SPLIT.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -43,7 +43,7 @@
                 android:id="@+id/zone_level"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_weight="400"
+                android:layout_weight="280"
                 android:contentDescription="@string/zone_level"
                 android:focusable="true" />
 
@@ -51,15 +51,23 @@
                 android:id="@+id/zone_potion"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_weight="300"
+                android:layout_weight="240"
                 android:contentDescription="@string/zone_potion"
+                android:focusable="true" />
+
+            <FrameLayout
+                android:id="@+id/zone_cube"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="240"
+                android:contentDescription="@string/zone_cube"
                 android:focusable="true" />
 
             <FrameLayout
                 android:id="@+id/zone_auto"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:layout_weight="300"
+                android:layout_weight="240"
                 android:contentDescription="@string/zone_auto"
                 android:focusable="true" />
         </LinearLayout>

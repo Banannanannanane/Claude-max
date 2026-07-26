@@ -41,7 +41,7 @@ object Bestiary {
     }
 }
 
-enum class SpriteKey { HERO, HERO_SWING, SLIME, BAT, SKELETON, GOBLIN, GOLEM, BOSS, GRAVE }
+enum class SpriteKey { KNIGHT, KNIGHT_SWING, RANGER, MAGE, SLIME, BAT, SKELETON, GOBLIN, GOLEM, BOSS, GRAVE }
 
 /**
  * Boss drops. Pure garnish — no stats behind them — but the grade drives the
