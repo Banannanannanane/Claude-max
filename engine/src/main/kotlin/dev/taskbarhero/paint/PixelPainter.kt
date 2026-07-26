@@ -109,18 +109,26 @@ class PixelPainter(private val surface: Surface, val unit: Float) {
      * Dungeon masonry: staggered courses of stone with mortar between them. The
      * backdrop is what makes the bar read as a room rather than a status line.
      */
-    fun bricks(x: Float, y: Float, w: Float, h: Float, courseHeight: Int = 6, brickWidth: Int = 11) {
-        fill(x, y, w, h, Palette.STONE_DARK)
+    fun bricks(
+        x: Float,
+        y: Float,
+        w: Float,
+        h: Float,
+        biome: Biome = Biome.DUNGEON,
+        courseHeight: Int = 6,
+        brickWidth: Int = 11,
+    ) {
+        fill(x, y, w, h, biome.stoneDark)
         var course = 0
         var top = y
         while (top < y + h) {
             val bottom = minOf(top + courseHeight - 1f, y + h)
-            fill(x, top, w, bottom - top, Palette.STONE)
-            fill(x, top, w, 1f, Palette.STONE_LIT)
+            fill(x, top, w, bottom - top, biome.stone)
+            fill(x, top, w, 1f, biome.stoneLit)
             // Mortar joints, offset every other course.
             var joint = x + if (course % 2 == 0) brickWidth.toFloat() else brickWidth / 2f
             while (joint < x + w) {
-                fill(joint, top, 1f, bottom - top, Palette.STONE_DARK)
+                fill(joint, top, 1f, bottom - top, biome.stoneDark)
                 joint += brickWidth
             }
             top += courseHeight
@@ -129,9 +137,29 @@ class PixelPainter(private val surface: Surface, val unit: Float) {
     }
 
     /** Flagstone the fighters stand on. */
-    fun floor(x: Float, y: Float, w: Float, h: Float) {
-        fill(x, y, w, h, Palette.FLOOR)
-        fill(x, y, w, 1f, Palette.STONE_LIT)
+    fun floor(x: Float, y: Float, w: Float, h: Float, biome: Biome = Biome.DUNGEON) {
+        fill(x, y, w, h, biome.floor)
+        fill(x, y, w, 1f, biome.stoneLit)
+    }
+
+    /**
+     * One inventory cell: a sunken socket, the grade's colour as its border, and a
+     * gem in the same colour. Border-is-rarity is the ARPG convention TBH leans on,
+     * so a glance at the stash reads as "what have I got, and how good".
+     */
+    fun itemCell(x: Float, y: Float, size: Float, color: Int, filled: Boolean) {
+        fill(x, y, size, size, if (filled) Palette.STONE_DARK else Palette.BEVEL_DARK)
+        frame(x, y, size, size, if (filled) color else Palette.BEVEL_LIGHT)
+        if (!filled) return
+
+        // A cut gem: waist wide, tapered top and bottom, one specular pixel.
+        val center = x + size / 2f
+        val top = y + size * 0.22f
+        val h = size * 0.56f
+        fill(center - size * 0.22f, top + h * 0.25f, size * 0.44f, h * 0.5f, color)
+        fill(center - size * 0.11f, top, size * 0.22f, h * 0.3f, color)
+        fill(center - size * 0.11f, top + h * 0.7f, size * 0.22f, h * 0.3f, color)
+        pixel(center - size * 0.16f, top + h * 0.3f, Palette.PARCHMENT)
     }
 
     /**

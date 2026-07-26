@@ -97,7 +97,7 @@ object BarLayout {
             val actionLeft = cols * (1f - ACTION_ZONE_FRACTION)
             val statusRight = statusWidth(hud)
             drawStatusColumn(p, hud, statusRight, rows - 1f)
-            drawArena(p, hud, statusRight, actionLeft - 1f, rows - 1f, nowMs, recent)
+            drawArena(p, hud, statusRight, actionLeft - 1f, rows - 1f, nowMs, recent, Biome.of(state.act))
             drawActionButton(p, hud, actionLeft, cols - PAD, rows - 1f)
             return
         }
@@ -112,7 +112,7 @@ object BarLayout {
 
         val statusRight = statusWidth(hud)
         drawStatusColumn(p, hud, statusRight, roomBottom)
-        drawArena(p, hud, statusRight, cols - PAD - 1f, roomBottom, nowMs, recent)
+        drawArena(p, hud, statusRight, cols - PAD - 1f, roomBottom, nowMs, recent, Biome.of(state.act))
         drawInfoLines(p, hud, state, cols, roomBottom + 2f, infoLines, recent)
         drawDeck(p, hud, cols, deckTop.toFloat(), rows - 1f)
     }
@@ -148,6 +148,7 @@ object BarLayout {
         bottom: Float,
         nowMs: Long,
         recent: Ticker?,
+        biome: Biome,
     ) {
         val width = to - from
         if (width < 24f) return
@@ -173,8 +174,8 @@ object BarLayout {
         val side = Sprites.FIGHTER_SIZE * scale
         val floorTop = feet - 1f
 
-        p.bricks(from, top, width, floorTop - top)
-        p.floor(from, floorTop, width, bottom - floorTop)
+        p.bricks(from, top, width, floorTop - top, biome)
+        p.floor(from, floorTop, width, bottom - floorTop, biome)
         // Framed dark, so the room reads as sunk into the panel.
         p.frame(from, top, width, height, Palette.BEVEL_DARK)
 
@@ -187,7 +188,7 @@ object BarLayout {
         val textWidth = PixelFont.measure(text).toFloat()
         val center = (from + to) / 2f
         // A plaque behind the letters: parchment on masonry needs the contrast.
-        p.fill(center - textWidth / 2f - 2f, captionY - 1f, textWidth + 4f, PixelFont.HEIGHT + 2f, Palette.STONE_DARK)
+        p.fill(center - textWidth / 2f - 2f, captionY - 1f, textWidth + 4f, PixelFont.HEIGHT + 2f, biome.stoneDark)
         p.text(center - textWidth / 2f, captionY, text, captionColor)
 
         val roster = hud.party

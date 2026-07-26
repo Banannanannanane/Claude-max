@@ -84,8 +84,8 @@ déchet.
 </p>
 
 Le plein écran est là pour ça : la feuille de groupe (classe, niveau, vie de
-chacun, et les recrues à venir avec leur acte d'arrivée) et la rangée du stash,
-un carré par grade avec ce qu'on en possède.
+chacun, et les recrues à venir avec leur acte d'arrivée) et la grille du stash,
+une case bordée par grade avec ce qu'on en possède.
 
 ## Direction artistique
 
@@ -113,6 +113,19 @@ chiffres dorés, codes ARPG que personne n'a besoin qu'on lui explique.
 - **La teinte porte le sens** : rouge = vie, bleu = progression, or = monnaie, et
   les couleurs de grade sont réservées au butin. Un prix inaccessible ne brille
   pas — la pièce disparaît, elle ne se contente pas de pâlir.
+- **Cinq biomes**, un par tranche de trois actes : donjon, caverne, catacombes,
+  enfer, néant. Seuls le mur, sa lèvre éclairée et le dallage changent — assez
+  pour qu'un run profond ne ressemble pas au premier, jamais assez pour rendre un
+  sprite ou une lettre illisible. Un test le vérifie : chaque pierre reste bien
+  plus sombre que le parchemin qu'on écrit dessus.
+- **L'inventaire tient de l'ARPG, pas du tableur** : une case bordée par grade,
+  bordure couleur du grade, gemme à l'intérieur. La bordure-qui-dit-la-rareté est
+  la convention que TBH exploite ; un coup d'œil suffit à savoir ce qu'on a et ce
+  que ça vaut.
+- **Le plein écran est une fenêtre de jeu** : barre de titre biseautée avec trois
+  boutons de fenêtre — inertes, et volontairement. C'est le clin d'œil à ce
+  qu'est TBH : une fenêtre minuscule toujours au premier plan, dockée à une barre
+  des tâches.
 
 ## Le vrai problème technique
 
@@ -170,7 +183,7 @@ texte (`Ticker`), sinon la couleur serait perdue au prochain rafraîchissement.
 ## Tests
 
 ```bash
-./gradlew :engine:test                          # 52 tests
+./gradlew :engine:test                          # 54 tests
 ./gradlew :preview:run --args="docs/preview"    # régénère les PNG
 ```
 
@@ -213,7 +226,7 @@ sorti sous Android 12) et un accès à `dl.google.com` pour le plugin Gradle
 Android.
 
 **État de vérification, en toute transparence :** le module `engine` et le
-previewer sont compilés et testés (52/52 verts), et les captures ci-dessus en
+previewer sont compilés et testés (54/54 verts), et les captures ci-dessus en
 sortent. Le module `app` n'a **pas** pu être compilé dans l'environnement utilisé
 ici : ni SDK Android, ni accès à `dl.google.com`. Ses sources ont en revanche été
 type-checkées hors Android contre des stubs minimaux des API utilisées, donc les

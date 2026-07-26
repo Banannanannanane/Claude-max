@@ -42,8 +42,8 @@ object DungeonLayout {
     /** Four stat pairs, the rune bar, and the "next level" price. */
     private const val STAT_ROWS = 6
 
-    /** One line per party member, plus the stash row underneath. */
-    private const val PARTY_ROWS = 4
+    /** Three party lines, plus the two-row stash grid underneath. */
+    private const val PARTY_ROWS = 5
 
     /** Below this the room cannot hold a caption, two fighters and their meters. */
     private const val MIN_ROOM = TEXT + 6 + MIN_SPRITE + 10
@@ -63,11 +63,7 @@ object DungeonLayout {
 
         p.fill(0f, 0f, cols.toFloat(), rows.toFloat(), Palette.STONE_DARK)
 
-        p.text(MARGIN, 2f, "TASKBAR HERO", Palette.PARCHMENT)
-        val mode = if (state.autoLevel) "AUTO" else "MANUAL"
-        p.text(cols - MARGIN - PixelFont.measure(mode), 2f, mode, if (state.autoLevel) Palette.GOLD else Palette.PARCHMENT_DIM)
-        val headerBottom = 2 + TEXT + 3
-        p.divider(MARGIN, headerBottom.toFloat(), cols - MARGIN * 2)
+        val headerBottom = drawTitleBar(p, state, cols)
 
         // Reserve the bottom blocks first; the room lives on what remains.
         val logHeight = if (log.isEmpty()) 0 else GAP + minOf(log.size, MAX_LOG_LINES) * LINE
@@ -95,7 +91,7 @@ object DungeonLayout {
         }
         roomBottom = roomBottom.coerceAtMost(bottom)
 
-        drawRoom(p, hud, cols, nowMs, top = roomTop, bottom = roomBottom)
+        drawRoom(p, hud, cols, nowMs, top = roomTop, bottom = roomBottom, biome = Biome.of(state.act))
 
         var y = roomBottom + GAP
         if (showParty) {
@@ -109,8 +105,30 @@ object DungeonLayout {
         if (showLog) drawLog(p, log, cols, top = y, bottom = bottom)
     }
 
+    /**
+     * The title bar of a little game window, because that is what TBH is: a tiny
+     * always-on-top window docked to a taskbar. The three studs on the right are
+     * the window buttons of that conceit — inert, and deliberately so.
+     */
+    private fun drawTitleBar(p: PixelPainter, state: GameState, cols: Int): Int {
+        val height = TEXT + 6f
+        p.panel(0f, 0f, cols.toFloat(), height, Palette.STONE)
+        p.text(MARGIN + 1f, 3f, "TASKBAR HERO", Palette.PARCHMENT)
+
+        var x = cols - MARGIN - 3f
+        for (i in 0 until 3) {
+            p.fill(x, height / 2f - 2f, 3f, 3f, Palette.BEVEL_DARK)
+            p.frame(x, height / 2f - 2f, 3f, 3f, Palette.BEVEL_LIGHT)
+            x -= 5f
+        }
+
+        val mode = if (state.autoLevel) "AUTO" else "MANUAL"
+        p.text(x - PixelFont.measure(mode) - 2f, 3f, mode, if (state.autoLevel) Palette.GOLD else Palette.PARCHMENT_DIM)
+        return (height + 2f).toInt()
+    }
+
     /** The room: brick, torches, flagstone, the duel, a meter under each fighter. */
-    private fun drawRoom(p: PixelPainter, hud: Hud, cols: Int, nowMs: Long, top: Int, bottom: Int) {
+    private fun drawRoom(p: PixelPainter, hud: Hud, cols: Int, nowMs: Long, top: Int, bottom: Int, biome: Biome) {
         val height = bottom - top
         if (height < MIN_ROOM) return
 
@@ -128,8 +146,8 @@ object DungeonLayout {
         val side = Sprites.FIGHTER_SIZE * scale
         val floorTop = feet - 2f
 
-        p.bricks(MARGIN, top.toFloat(), width, floorTop - top, courseHeight = 8, brickWidth = 17)
-        p.floor(MARGIN, floorTop, width, bottom - floorTop)
+        p.bricks(MARGIN, top.toFloat(), width, floorTop - top, biome, courseHeight = 8, brickWidth = 17)
+        p.floor(MARGIN, floorTop, width, bottom - floorTop, biome)
         p.frame(MARGIN, top.toFloat(), width, height.toFloat(), Palette.BEVEL_DARK)
         p.torch(MARGIN + width * 0.18f, top + 10f, nowMs)
         p.torch(MARGIN + width * 0.82f, top + 10f, nowMs + 200L)
@@ -137,7 +155,7 @@ object DungeonLayout {
         val caption = if (hud.isDown) "HERO DEFEATED" else hud.enemyName
         val text = PixelFont.clipWords(caption, (width - 8f).toInt())
         val textWidth = PixelFont.measure(text).toFloat()
-        p.fill(cols / 2f - textWidth / 2f - 3f, captionY - 2f, textWidth + 6f, TEXT + 4f, Palette.STONE_DARK)
+        p.fill(cols / 2f - textWidth / 2f - 3f, captionY - 2f, textWidth + 6f, TEXT + 4f, biome.stoneDark)
         p.text(cols / 2f - textWidth / 2f, captionY, text, if (hud.isDown) Palette.HP else Palette.PARCHMENT)
         val roster = hud.party
         for (i in Formation.drawOrder(roster.size)) {
@@ -205,19 +223,24 @@ object DungeonLayout {
         drawStash(p, state, cols, y.toFloat(), b)
     }
 
-    /** Ten swatches, one per grade, each carrying what the stash holds of it. */
+    /**
+     * The stash as an inventory grid: one bordered cell per grade, its border the
+     * grade's colour, with the count beside it. Two rows, because ten cells in one
+     * row leaves no width for the numbers.
+     */
     private fun drawStash(p: PixelPainter, state: GameState, cols: Int, y: Float, b: Balance) {
-        val slot = (cols - MARGIN * 2) / state.stash.size
+        val perRow = state.stash.size / 2
+        val slot = (cols - MARGIN * 2) / perRow
+        val cell = 11f
         for ((grade, count) in state.stash.withIndex()) {
-            val x = MARGIN + grade * slot
+            val x = MARGIN + (grade % perRow) * slot
+            val row = y + (grade / perRow) * (cell + 3f)
             val color = Palette.grade(grade)
-            val lit = count > 0
-            p.fill(x, y, 5f, 5f, if (lit) color else Palette.BEVEL_DARK)
-            p.frame(x, y, 5f, 5f, if (lit) Palette.OUTLINE else Palette.BEVEL_LIGHT)
-            // Empty grades stay as bare swatches: a row of zeroes is just noise, and
-            // a pile one fusion away deserves its own colour.
-            if (!lit) continue
-            p.text(x + 6f, y - 1f, count.toString(), if (count >= b.cubeInput) color else Palette.PARCHMENT_DIM)
+            p.itemCell(x, row, cell, color, filled = count > 0)
+            if (count == 0) continue
+            // A pile one fusion away wears its grade's colour; the rest stay quiet.
+            val ready = count >= b.cubeInput
+            p.text(x + cell + 2f, row + 2f, count.toString(), if (ready) color else Palette.PARCHMENT_DIM)
         }
     }
 

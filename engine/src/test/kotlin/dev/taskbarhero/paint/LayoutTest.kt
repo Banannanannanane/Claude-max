@@ -131,6 +131,35 @@ class LayoutTest {
     }
 
     @Test
+    fun `each biome is distinct and stays darker than the ink on it`() {
+        val walls = Biome.ALL.map { it.stone }
+        assertEquals(walls.size, walls.toSet().size, "two biomes share a wall colour")
+
+        for (biome in Biome.ALL) {
+            // Text and sprites are drawn light on these; a pale wall would erase them.
+            assertTrue(luma(biome.stone) < luma(Palette.PARCHMENT) * 0.45f, "${biome.label} wall is too bright")
+            assertTrue(luma(biome.stoneDark) < luma(biome.stone), "${biome.label} mortar must be darker than its stone")
+            assertTrue(luma(biome.stoneLit) > luma(biome.stone), "${biome.label} lit lip must be lighter than its stone")
+        }
+    }
+
+    @Test
+    fun `biomes cycle with the acts and never run out`() {
+        assertEquals(Biome.DUNGEON, Biome.of(1), "act 1 opens in the dungeon")
+        assertEquals(Biome.of(1), Biome.of(2), "a biome lasts more than one act")
+        assertTrue(Biome.of(1) != Biome.of(4), "act 4 should look different from act 1")
+        // Deep runs must not fall off the end of the list.
+        for (act in 1..200) assertTrue(Biome.of(act) in Biome.ALL)
+    }
+
+    private fun luma(color: Int): Float {
+        val r = (color ushr 16) and 0xFF
+        val g = (color ushr 8) and 0xFF
+        val b = color and 0xFF
+        return 0.2126f * r + 0.7152f * g + 0.0722f * b
+    }
+
+    @Test
     fun `the deck split matches the layout weights`() {
         assertEquals(4, BarLayout.DECK_SPLIT.size)
         assertEquals(1f, BarLayout.DECK_SPLIT.sum(), 1e-6f)
