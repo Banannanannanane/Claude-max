@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "dev.dotmatrix.taskbarhero"
+    namespace = "dev.taskbarhero"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "dev.dotmatrix.taskbarhero"
+        applicationId = "dev.taskbarhero"
         // Nothing Phone (1) shipped on Android 12; targetCellWidth/Height and
         // widget descriptions need API 31 anyway.
         minSdk = 31

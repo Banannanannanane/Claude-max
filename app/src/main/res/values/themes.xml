@@ -2,26 +2,28 @@
 <resources>
 
     <style name="Theme.Tbh" parent="@android:style/Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/tbh_black</item>
-        <item name="android:navigationBarColor">@color/tbh_black</item>
-        <item name="android:statusBarColor">@color/tbh_black</item>
-        <item name="android:textColor">@color/tbh_ink</item>
+        <item name="android:windowBackground">@color/tbh_stone_dark</item>
+        <item name="android:navigationBarColor">@color/tbh_stone_dark</item>
+        <item name="android:statusBarColor">@color/tbh_stone_dark</item>
+        <item name="android:textColor">@color/tbh_parchment</item>
     </style>
 
-    <!-- Nothing-ish chrome: condensed uppercase, wide tracking, hairline pill. -->
+    <!-- Square corners, hard bevel, monospace caps: chrome that matches the sprites. -->
     <style name="Widget.Tbh.Button" parent="@android:style/Widget.Material.Button.Borderless">
-        <item name="android:background">@drawable/pill_outline</item>
-        <item name="android:textColor">@color/tbh_ink</item>
-        <item name="android:textSize">13sp</item>
-        <item name="android:letterSpacing">0.18</item>
+        <item name="android:background">@drawable/button_stone</item>
+        <item name="android:textColor">@color/tbh_parchment</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:letterSpacing">0.1</item>
         <item name="android:textAllCaps">true</item>
-        <item name="android:fontFamily">sans-serif-condensed</item>
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:textStyle">bold</item>
         <item name="android:minHeight">52dp</item>
         <item name="android:paddingHorizontal">18dp</item>
         <item name="android:stateListAnimator">@null</item>
     </style>
 
     <style name="Widget.Tbh.Button.Accent" parent="Widget.Tbh.Button">
-        <item name="android:background">@drawable/pill_accent</item>
+        <item name="android:background">@drawable/button_gold</item>
+        <item name="android:textColor">@color/tbh_gold</item>
     </style>
 </resources>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bevelled stone slab: light edge on top, dark below, no rounding anywhere. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_enabled="false">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/tbh_stone_dark" />
+            <stroke android:width="2dp" android:color="@color/tbh_bevel_dark" />
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/tbh_bevel_dark" />
+                    <stroke android:width="2dp" android:color="@color/tbh_bevel_light" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item>
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/tbh_stone" />
+                    <stroke android:width="2dp" android:color="@color/tbh_bevel_light" />
+                </shape>
+            </item>
+            <item android:gravity="bottom" android:height="2dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/tbh_bevel_dark" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+</selector>

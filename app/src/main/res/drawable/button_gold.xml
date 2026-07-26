@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The buy button: dark slab, gold trim. Gold is the accent, never the fill. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_enabled="false">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/tbh_stone_dark" />
+            <stroke android:width="2dp" android:color="@color/tbh_bevel_dark" />
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/tbh_gold_dark" />
+            <stroke android:width="2dp" android:color="@color/tbh_gold" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/tbh_stone_dark" />
+            <stroke android:width="2dp" android:color="@color/tbh_gold" />
+        </shape>
+    </item>
+</selector>

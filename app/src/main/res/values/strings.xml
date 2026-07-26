@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Taskbar Hero</string>
-    <string name="widget_description">A dot-matrix idle RPG docked to your home screen. Your hero farms while the screen is off.</string>
+    <string name="widget_description">A pixel-art dungeon docked to your home screen. Your hero farms the waves while the screen is off.</string>
     <string name="widget_content_description">Taskbar Hero, act %1$s, %2$s, %3$s gold. %4$s</string>
     <string name="zone_open">Open the dungeon</string>
     <string name="zone_action">Buy the next hero level</string>

@@ -13,5 +13,5 @@ dependencies {
 
 application {
     // ./gradlew :preview:run --args="docs/preview"
-    mainClass.set("dev.dotmatrix.taskbarhero.preview.PreviewMainKt")
+    mainClass.set("dev.taskbarhero.preview.PreviewMainKt")
 }
