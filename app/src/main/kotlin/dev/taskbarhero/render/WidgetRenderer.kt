@@ -1,5 +1,6 @@
 package dev.taskbarhero.render
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import dev.taskbarhero.engine.Balance
@@ -19,6 +20,7 @@ object WidgetRenderer {
     private const val MAX_BITMAP_PX = 2_048
 
     fun render(
+        ctx: Context,
         state: GameState,
         widthPx: Int,
         heightPx: Int,
@@ -34,7 +36,11 @@ object WidgetRenderer {
         val cols = (w / unit).toInt()
 
         val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        val painter = PixelPainter(AndroidSurface(Canvas(bitmap)), unit)
+        val painter = PixelPainter(
+            surface = AndroidSurface(Canvas(bitmap), DropInArt.bitmap(ctx)),
+            unit = unit,
+            sheet = DropInArt.sheet(ctx),
+        )
         // The deck is a fixed dp height, so its zones line up with the layout's.
         BarLayout.draw(painter, cols, rows, state, nowMs, recent, b, BarLayout.deckRows(unit, density))
         return bitmap

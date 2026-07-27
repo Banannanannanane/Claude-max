@@ -26,6 +26,7 @@ private const val T0 = 1_700_000_000_000L
 
 fun main(args: Array<String>) {
     val outDir = File(args.firstOrNull() ?: "build/preview").apply { mkdirs() }
+    val art = DropInArt.load(args.getOrNull(1)?.let(::File))
 
     val frames = listOf(
         Frame("bar-4x1-idle", 4, 1, state("fresh"), null),
@@ -40,11 +41,11 @@ fun main(args: Array<String>) {
     )
 
     for (frame in frames) {
-        val image = renderBar(frame)
+        val image = renderBar(frame, art)
         ImageIO.write(image, "png", File(outDir, "${frame.name}.png"))
     }
-    ImageIO.write(renderDungeon(state("idled")), "png", File(outDir, "dungeon.png"))
-    ImageIO.write(renderSheet(frames), "png", File(outDir, "sheet.png"))
+    ImageIO.write(renderDungeon(state("idled"), art), "png", File(outDir, "dungeon.png"))
+    ImageIO.write(renderSheet(frames, art), "png", File(outDir, "sheet.png"))
 
     println("wrote ${frames.size + 2} previews to ${outDir.absolutePath}")
 }
@@ -61,7 +62,7 @@ private data class Frame(
     val heightDp: Int get() = cellsTall * 78 - 8
 }
 
-private fun renderBar(frame: Frame): BufferedImage {
+private fun renderBar(frame: Frame, art: DropInArt?): BufferedImage {
     val w = (frame.widthDp * DENSITY).toInt()
     val h = (frame.heightDp * DENSITY).toInt()
     val unit = BarLayout.unitPx(h.toFloat(), DENSITY)
@@ -71,7 +72,7 @@ private fun renderBar(frame: Frame): BufferedImage {
     val image = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
     val g = image.createGraphics()
     BarLayout.draw(
-        PixelPainter(AwtSurface(g), unit),
+        PixelPainter(AwtSurface(g, art?.image), unit, sheet = art?.sheet),
         cols,
         rows,
         frame.state,
@@ -84,7 +85,7 @@ private fun renderBar(frame: Frame): BufferedImage {
     return image
 }
 
-private fun renderDungeon(state: GameState): BufferedImage {
+private fun renderDungeon(state: GameState, art: DropInArt?): BufferedImage {
     val w = 1080
     val h = 1900
     val unit = w.toFloat() / DungeonLayout.TARGET_COLS
@@ -93,7 +94,7 @@ private fun renderDungeon(state: GameState): BufferedImage {
     g.color = java.awt.Color(Palette.STONE_DARK, true)
     g.fillRect(0, 0, w, h)
     DungeonLayout.draw(
-        p = PixelPainter(AwtSurface(g), unit),
+        p = PixelPainter(AwtSurface(g, art?.image), unit, sheet = art?.sheet),
         cols = DungeonLayout.TARGET_COLS,
         rows = (h / unit).toInt(),
         state = state,
@@ -112,8 +113,8 @@ private fun renderDungeon(state: GameState): BufferedImage {
 }
 
 /** One contact sheet with every bar state, labelled in the same dot font. */
-private fun renderSheet(frames: List<Frame>): BufferedImage {
-    val bars = frames.map { it to renderBar(it) }
+private fun renderSheet(frames: List<Frame>, art: DropInArt?): BufferedImage {
+    val bars = frames.map { it to renderBar(it, art) }
     val margin = 48
     val labelHeight = 44
     val width = bars.maxOf { it.second.width } + margin * 2

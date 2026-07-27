@@ -113,6 +113,7 @@ class TaskbarHeroWidget : AppWidgetProvider() {
         val layout = if (tall) R.layout.widget_bar_tall else R.layout.widget_bar_compact
 
         val bitmap = WidgetRenderer.render(
+            ctx = ctx,
             state = state,
             widthPx = size.widthPx(density).toInt(),
             heightPx = heightPx.toInt(),

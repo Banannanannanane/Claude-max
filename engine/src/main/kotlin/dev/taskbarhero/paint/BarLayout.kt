@@ -6,6 +6,7 @@ import dev.taskbarhero.engine.GameState
 import dev.taskbarhero.engine.Hud
 import dev.taskbarhero.engine.IconKey
 import dev.taskbarhero.engine.PixelFont
+import dev.taskbarhero.engine.SpriteKey
 import dev.taskbarhero.engine.Sprites
 import dev.taskbarhero.engine.Ticker
 import dev.taskbarhero.engine.Tone
@@ -176,8 +177,10 @@ object BarLayout {
             members = members,
             maxWidth = (width - 20f) * 0.55f,
             maxHeight = feet - (captionY + p.textHeight + 4f),
+            slotFraction = partyFraction(p, hud),
+            unit = p.spriteUnit,
         )
-        val side = Sprites.FIGHTER_SIZE * scale
+        val side = p.spriteUnit * scale
         val floorTop = feet - 3f
 
         p.bricks(from, top, width, floorTop - top, biome)
@@ -185,7 +188,15 @@ object BarLayout {
         // Framed dark, so the room reads as sunk into the panel.
         p.frame(from, top, width, height, Palette.BEVEL_DARK)
 
-        if (width > 92f) p.torch(from + width / 2f - 4f, top + 20f, nowMs)
+        // Torches on the side walls, not over the middle: the fight stands in the
+        // centre of the room, and a sconce through a hero's head is not lighting.
+        // On a one-row bar there is no wall above the heads either, so the room
+        // goes unlit rather than cluttered.
+        if (width > 92f && top + 36f <= feet - side) {
+            p.torch(from + width * 0.14f, top + 20f, nowMs)
+            // Offset flicker, so the pair does not blink in lockstep.
+            p.torch(from + width * 0.86f - 8f, top + 20f, nowMs + 200L)
+        }
 
         val budget = width - 12f
         val caption = recent?.text ?: if (hud.isDown) fittingWord(p, DEFEAT_WORDS, budget) else hud.enemyShort
@@ -198,20 +209,26 @@ object BarLayout {
         p.text(center - textWidth / 2f, captionY, text, captionColor)
 
         val roster = hud.party
-        val partyLeft = from + 6f
+        // Spaced by how wide the sprites really come out — a pack of narrow heroes
+        // must close ranks rather than stand a box-width apart — and measured on
+        // the party standing, so the formation does not reflow around the smaller
+        // grave sprites the moment it wipes.
+        val slot = roster.maxOf { p.fighterWidth(side, it.cls.sprite.name) }
+        val enemyWidth = if (hud.isDown) 0f else p.fighterWidth(side, hud.enemySprite.name)
+        val scene = Formation.scene(roster.size, slot, enemyWidth, from + 6f, to - 6f)
+
         for (i in Formation.drawOrder(roster.size)) {
             val member = roster[i]
             val art = Sprites.heroFrame(member.cls, nowMs, member.down || hud.isDown)
-            val x = partyLeft + Formation.offset(i, roster.size, side)
-            p.shadow(x + side / 2f, feet - 2f, side * 0.7f)
-            p.sprite(x, feet - side, art, side / art.size)
+            val center = scene.partyLeft + Formation.offset(i, roster.size, slot) + slot / 2f
+            p.shadow(center, feet - 2f, slot * 0.8f)
+            p.fighter(center - side / 2f, feet - side, side, spriteKey(member, hud), art)
         }
 
         if (!hud.isDown) {
             val enemyArt = Sprites.of(hud.enemySprite)
-            val enemyX = to - 6f - side
-            p.shadow(enemyX + side / 2f, feet - 2f, side * 0.7f)
-            p.sprite(enemyX, feet - side, enemyArt, side / enemyArt.size)
+            p.shadow(scene.enemyCenter, feet - 2f, enemyWidth * 0.8f)
+            p.fighter(scene.enemyCenter - side / 2f, feet - side, side, hud.enemySprite.name, enemyArt)
         }
 
         val meterWidth = ((width - 18f) / 2f).coerceAtMost(60f)
@@ -362,6 +379,27 @@ object BarLayout {
             val color = if (button.lit) button.accent else Palette.PARCHMENT_DIM
             p.textCentered(center, valueY, p.clip(button.value, budget), color)
         }
+    }
+
+    /**
+     * Sheet key for a party member. A fallen hero is a grave whatever art is in
+     * use, and the knight's swing is a separate frame the sheet may or may not
+     * provide.
+     */
+    internal fun spriteKey(member: dev.taskbarhero.engine.HeroHud, hud: Hud): String = when {
+        member.down || hud.isDown -> SpriteKey.GRAVE.name
+        else -> member.cls.sprite.name
+    }
+
+    /**
+     * How much of its box the party's art fills across, measured on the standing
+     * sprites. Feeds [Formation.scale] so a pack of slim heroes is sized by what it
+     * draws rather than by the box it was handed.
+     */
+    internal fun partyFraction(p: PixelPainter, hud: Hud): Float {
+        val box = p.spriteUnit.toFloat()
+        val widest = hud.party.maxOfOrNull { p.fighterWidth(box, it.cls.sprite.name) } ?: box
+        return widest / box
     }
 
     /** Tone to colour — the one place the palette's meaning is decided. */

@@ -41,7 +41,7 @@ mieux dépensée en combattants qu'en chiffres déjà affichés ailleurs.
   Cosmic). Si le groupe tombe, il repart au début de l'acte — or, niveaux et
   butin restent acquis, et une potion le relève sur-le-champ.
 - **Réduit en 4×1**, le widget retombe sur une bande : la salle et un seul bouton
-  LV UP sur la droite. Élargi en 5×2, les combattants passent à ×2.
+  LV UP sur la droite. Agrandi en 4×3, les combattants passent à ×2.
 
 <p align="center">
   <img src="docs/preview/bar-4x3.png" width="49%" alt="Widget 4x3 avec ses lignes d'info">
@@ -97,14 +97,22 @@ chiffres dorés, codes ARPG que personne n'a besoin qu'on lui explique.
   gauche, sombre en bas à droite.
 - **Police bitmap 5×7**, chaque pixel posé sur une ombre d'un pixel : c'est ce qui
   rend le parchemin lisible sur la maçonnerie.
-- **Sprites indexés par palette** (`'.'` transparent, `'1'..'9'` = couleurs
-  propres au sprite), écrits en art ASCII dans le code : diffable, testable, et
-  chaque combattant porte son contour en index 1.
-- **Combattants en 32×32**, tous sur la même grille, et **échelles entières
-  uniquement** : réduire un sprite de 32 à 21 px supprime des pixels source et
-  donne cette bouillie caractéristique. C'est aussi pourquoi une barre plus large
-  montre de plus grands héros, alors qu'une barre plus haute montre une plus
-  grande salle.
+- **Les combattants viennent d'un pack de sprites** — *16x16 DungeonTileset II*
+  de [0x72](https://0x72.itch.io/dungeontileset-ii), CC0 — posé dans
+  `app/src/main/assets/` avec un mapping texte qui dit quel rectangle est quel
+  personnage. Rien n'y est obligatoire : chaque nom absent retombe sur l'art
+  interne, sprite par sprite. Tout est dans [docs/ASSETS.md](docs/ASSETS.md).
+- **Sprites internes indexés par palette** (`'.'` transparent, `'1'..'9'` =
+  couleurs propres au sprite), générés dans le code : c'est le filet, et ça reste
+  diffable et testable. Chaque combattant porte son contour en index 1.
+- **Échelles entières uniquement, et communes à tout le casting** : réduire un
+  sprite de 32 à 21 px supprime des pixels source et donne cette bouillie
+  caractéristique. Un seul facteur `boîte / plus grande frame` pour tout le monde,
+  donc les tailles du pack *sont* les proportions à l'écran — l'ogre écrase le
+  chevalier, le crâne d'un héros tombé reste une babiole par terre. C'est aussi
+  pourquoi une barre plus **haute** montre de plus grands combattants, alors
+  qu'une barre plus large montre une plus grande salle : la hauteur est ce qui
+  décide si un cran d'échelle supplémentaire rentre.
 - **La grille de mise en page est deux fois plus fine que la police.** Un sprite
   32×32 ne rentre pas dans une barre de 32 cellules : la barre en fait donc 64, et
   le texte est dessiné en ×2 par-dessus. C'est exactement ce que fait un jeu pixel
@@ -118,7 +126,12 @@ chiffres dorés, codes ARPG que personne n'a besoin qu'on lui explique.
   taille qu'un seul pourrait s'offrir donnent une bouillie illisible. Ils se
   chevauchent d'un quart — assez pour lire une formation, assez peu pour
   reconnaître chaque classe — et le héros de devant, celui qui prend les coups,
-  est le plus proche du monstre et passe au-dessus des autres.
+  est le plus proche du monstre et passe au-dessus des autres. L'espacement suit
+  la largeur **dessinée**, pas la boîte : des héros fins doivent serrer les rangs.
+- **Le duel est centré, écart fixe** : coller le groupe à un mur et le monstre à
+  l'autre donne un combat en 4×1 et deux scènes séparées en 5×2, puisque l'écart
+  grandit avec le widget. Le reste de la place devient du mur — c'est ce qu'est
+  une salle — et les torches sont sur les côtés, jamais au-dessus d'une tête.
 - **La teinte porte le sens** : rouge = vie, bleu = progression, or = monnaie, et
   les couleurs de grade sont réservées au butin. Un prix inaccessible ne brille
   pas — la pièce disparaît, elle ne se contente pas de pâlir.
@@ -134,7 +147,9 @@ chiffres dorés, codes ARPG que personne n'a besoin qu'on lui explique.
 - **Le plein écran est une fenêtre de jeu** : barre de titre biseautée avec trois
   boutons de fenêtre — inertes, et volontairement. C'est le clin d'œil à ce
   qu'est TBH : une fenêtre minuscule toujours au premier plan, dockée à une barre
-  des tâches.
+  des tâches. Ils sautent les premiers si la barre est trop étroite : un titre qui
+  dit le jeu et une pastille qui dit ce qu'il fait valent mieux que trois carrés
+  qui ne font rien.
 
 ## Le vrai problème technique
 
@@ -166,11 +181,12 @@ engine/    Kotlin pur, zéro dépendance Android
   engine/  simulation (IdleEngine, Balance, GameState), police 5x7, sprites, butin
   paint/   Surface (2 méthodes) + PixelPainter + BarLayout / DungeonLayout
 app/       Android : AppWidgetProvider, RemoteViews, SharedPreferences, activité
+  assets/  le pack de sprites : sprites.png + sprites.txt (voir docs/ASSETS.md)
 preview/   Rend les MÊMES layouts en PNG sur JVM (AWT) — revue de design sans émulateur
 ```
 
-Le point d'articulation est `paint.Surface` : une interface de dessin à deux
-méthodes (`rect`, `circle`). La mise en page — chaque pixel, chaque jauge — vit
+Le point d'articulation est `paint.Surface` : une interface de dessin à trois
+méthodes (`rect`, `circle`, `image`). La mise en page — chaque pixel, chaque jauge — vit
 dans le module pur et tourne donc à l'identique dans trois contextes :
 
 | Implémentation | Où | Pour quoi |
@@ -192,7 +208,7 @@ texte (`Ticker`), sinon la couleur serait perdue au prochain rafraîchissement.
 ## Tests
 
 ```bash
-./gradlew :engine:test                          # 54 tests
+./gradlew :engine:test                          # 63 tests
 ./gradlew :preview:run --args="docs/preview"    # régénère les PNG
 ```
 

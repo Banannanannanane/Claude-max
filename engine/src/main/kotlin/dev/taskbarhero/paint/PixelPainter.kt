@@ -20,6 +20,8 @@ class PixelPainter(
      * game renders at a low internal resolution and upscales by an integer.
      */
     val textScale: Float = 2f,
+    /** Drop-in art, when the player has provided some. Null keeps the built-ins. */
+    private val sheet: Sheet? = null,
 ) {
 
     /** Height of a line of text, in cells. */
@@ -58,6 +60,60 @@ class PixelPainter(
 
     fun textCentered(centerX: Float, y: Float, label: String, color: Int, shadow: Int = Palette.OUTLINE): Float =
         text(centerX - measure(label) / 2f, y, label, color, shadow)
+
+    /**
+     * Draws a fighter: the dropped-in sheet frame when there is one for [key],
+     * otherwise the built-in art. The sprite is centred in a [side]-cell box and
+     * bottom-aligned, so frames of any aspect stand on the floor.
+     *
+     * Sheet frames are scaled by a **whole number** of cells per source pixel —
+     * never 1.14x, which would double every seventh row and shred the artwork —
+     * and by the *same* number across the cast, so the pack's own proportions
+     * survive: the ogre towers over the knight, and a fallen hero's skull stays a
+     * trinket on the floor instead of swelling to fill its box.
+     */
+    fun fighter(x: Float, y: Float, side: Float, key: String, art: Sprites.Art) {
+        val frame = sheet?.frame(key)
+        if (frame == null) {
+            sprite(x, y, art, side / art.size)
+            return
+        }
+        val scale = fitScale(side)
+        val w = frame.width * scale
+        val h = frame.height * scale
+        val left = x + (side - w) / 2f
+        val top = y + (side - h)
+        val drawn = surface.image(
+            frame.x, frame.y, frame.width, frame.height,
+            left * unit, top * unit, (left + w) * unit, (top + h) * unit,
+        )
+        if (!drawn) sprite(x, y, art, side / art.size)
+    }
+
+    /**
+     * The grid the fighters are drawn on: the sheet's own pixel size when there is
+     * one, otherwise the built-in art's. Layouts size their fighter boxes in
+     * multiples of this, so a pack of 30-pixel frames can go up a whole step in a
+     * room that would not have fitted two rows of 32.
+     */
+    val spriteUnit: Int get() = sheet?.unit ?: Sprites.FIGHTER_SIZE
+
+    /**
+     * How wide [key] actually comes out in a [side]-cell box. Sheet frames are
+     * rarely square, and a 16-wide knight spaced as if it were 32 wide leaves the
+     * party standing in a scattered line instead of a block — so layouts space
+     * fighters by this, not by the box.
+     */
+    fun fighterWidth(side: Float, key: String): Float {
+        val frame = sheet?.frame(key) ?: return side
+        return frame.width * fitScale(side)
+    }
+
+    /** Whole cells per sheet pixel: whole, and the same for every frame. */
+    private fun fitScale(side: Float): Float {
+        val unit = sheet?.unit ?: return 1f
+        return kotlin.math.floor(side / unit).coerceAtLeast(1f)
+    }
 
     /** Blits palette-indexed art. Colours travel with the sprite, not the call site. */
     fun sprite(x: Float, y: Float, art: Sprites.Art, scale: Float = 1f) {

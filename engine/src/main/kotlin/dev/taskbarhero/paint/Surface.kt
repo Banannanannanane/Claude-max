@@ -80,4 +80,24 @@ interface Surface {
     fun rect(left: Float, top: Float, right: Float, bottom: Float, color: Int)
 
     fun circle(cx: Float, cy: Float, radius: Float, color: Int)
+
+    /**
+     * Blits a rectangle of the loaded sprite sheet, scaled to the destination.
+     * Implementations must sample nearest-neighbour: smoothing a pixel sheet is
+     * what makes drop-in art look like a photograph of art.
+     *
+     * The default does nothing, so a surface with no sheet — the test recorder,
+     * or a device before the image loads — simply draws the built-in sprite the
+     * caller falls back to.
+     */
+    fun image(
+        srcX: Int,
+        srcY: Int,
+        srcWidth: Int,
+        srcHeight: Int,
+        left: Float,
+        top: Float,
+        right: Float,
+        bottom: Float,
+    ): Boolean = false
 }

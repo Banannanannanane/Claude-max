@@ -29,6 +29,8 @@ object DungeonLayout {
     /** One text line plus its leading. */
     private const val LINE = 20
 
+    private const val TITLE = "TASKBAR HERO"
+
     /** Cap on the integer sprite scale: past 4x the fighters swamp the room. */
     private const val MAX_SCALE = 3f
     private const val MIN_SPRITE = 32
@@ -119,17 +121,28 @@ object DungeonLayout {
     private fun drawTitleBar(p: PixelPainter, state: GameState, cols: Int): Int {
         val height = p.textHeight + 12f
         p.panel(0f, 0f, cols.toFloat(), height, Palette.STONE)
-        p.text(MARGIN + 2f, 6f, "TASKBAR HERO", Palette.PARCHMENT)
-
-        var x = cols - MARGIN - 8f
-        for (i in 0 until 3) {
-            p.fill(x, height / 2f - 4f, 8f, 8f, Palette.BEVEL_DARK)
-            p.frame(x, height / 2f - 4f, 8f, 8f, Palette.BEVEL_LIGHT)
-            x -= 12f
-        }
 
         val mode = if (state.autoLevel) "AUTO" else "MANUAL"
-        p.text(x - p.measure(mode) - 16f, 6f, mode, if (state.autoLevel) Palette.GOLD else Palette.PARCHMENT_DIM)
+        val titleX = MARGIN + 2f
+        // The studs are decoration and go first when the bar is tight: a title that
+        // says what the game is, and a chip that says what it is doing, both beat
+        // three squares that do nothing.
+        val studs = titleX + p.measure(TITLE) + 12f + p.measure(mode) + 16f + 36f + MARGIN <= cols
+
+        var x = cols - MARGIN - 8f
+        if (studs) {
+            for (i in 0 until 3) {
+                p.fill(x, height / 2f - 4f, 8f, 8f, Palette.BEVEL_DARK)
+                p.frame(x, height / 2f - 4f, 8f, 8f, Palette.BEVEL_LIGHT)
+                x -= 12f
+            }
+        }
+
+        val modeX = x - p.measure(mode) - 16f
+        p.text(modeX, 6f, mode, if (state.autoLevel) Palette.GOLD else Palette.PARCHMENT_DIM)
+
+        // And the title still yields to the chip rather than running into it.
+        p.text(titleX, 6f, p.clipWords(TITLE, modeX - titleX - 12f), Palette.PARCHMENT)
         return (height + 4f).toInt()
     }
 
@@ -146,10 +159,16 @@ object DungeonLayout {
         // Same block rule as the bar; here there is room for a 2x or 3x party.
         val members = hud.party.size.coerceAtLeast(1)
         val scale = minOf(
-            Formation.scale(members, (width - 40f) * 0.55f, feet - (captionY + p.textHeight + 8f)),
+            Formation.scale(
+                members,
+                (width - 40f) * 0.55f,
+                feet - (captionY + p.textHeight + 8f),
+                BarLayout.partyFraction(p, hud),
+                p.spriteUnit,
+            ),
             MAX_SCALE,
         )
-        val side = Sprites.FIGHTER_SIZE * scale
+        val side = p.spriteUnit * scale
         val floorTop = feet - 4f
 
         p.bricks(MARGIN, top.toFloat(), width, floorTop - top, biome, courseHeight = 16, brickWidth = 34)
@@ -164,19 +183,21 @@ object DungeonLayout {
         p.fill(cols / 2f - textWidth / 2f - 6f, captionY - 4f, textWidth + 12f, p.textHeight + 8f, biome.stoneDark)
         p.text(cols / 2f - textWidth / 2f, captionY, text, if (hud.isDown) Palette.HP else Palette.PARCHMENT)
         val roster = hud.party
+        val slot = roster.maxOf { p.fighterWidth(side, it.cls.sprite.name) }
+        val enemyWidth = if (hud.isDown) 0f else p.fighterWidth(side, hud.enemySprite.name)
+        val scene = Formation.scene(roster.size, slot, enemyWidth, MARGIN + 12f, cols - MARGIN - 12f)
         for (i in Formation.drawOrder(roster.size)) {
             val member = roster[i]
             val art = Sprites.heroFrame(member.cls, nowMs, member.down || hud.isDown)
-            val x = MARGIN + 12f + Formation.offset(i, roster.size, side)
-            p.shadow(x + side / 2f, feet, side * 0.72f)
-            p.sprite(x, feet - side, art, side / art.size)
+            val center = scene.partyLeft + Formation.offset(i, roster.size, slot) + slot / 2f
+            p.shadow(center, feet, slot * 0.8f)
+            p.fighter(center - side / 2f, feet - side, side, BarLayout.spriteKey(member, hud), art)
         }
 
         if (!hud.isDown) {
             val enemyArt = Sprites.of(hud.enemySprite)
-            val enemyX = cols - MARGIN - 12f - side
-            p.shadow(enemyX + side / 2f, feet, side * 0.72f)
-            p.sprite(enemyX, feet - side, enemyArt, side / enemyArt.size)
+            p.shadow(scene.enemyCenter, feet, enemyWidth * 0.8f)
+            p.fighter(scene.enemyCenter - side / 2f, feet - side, side, hud.enemySprite.name, enemyArt)
         }
 
         val meterWidth = (width / 2f - 24f).coerceAtMost(92f)
@@ -211,7 +232,11 @@ object DungeonLayout {
 
         for (member in hud.party) {
             if (y + FIGHTER > bottom) return
-            p.sprite(MARGIN, y.toFloat(), Sprites.heroFrame(member.cls, 0L, member.down))
+            p.fighter(
+                MARGIN, y.toFloat(), FIGHTER.toFloat(),
+                BarLayout.spriteKey(member, hud),
+                Sprites.heroFrame(member.cls, 0L, member.down),
+            )
             val mid = y + (Sprites.FIGHTER_SIZE - p.textHeight) / 2f
             p.text(labelX, mid, member.cls.label, if (member.down) Palette.HP else Palette.PARCHMENT)
             p.text(levelX, mid, p.clip(member.level, barX - levelX - 8f), Palette.PARCHMENT_DIM)

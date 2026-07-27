@@ -1,0 +1,28 @@
+# Frames of sprites.png used by the game, one line per name.
+#   name = x, y, width, height
+#
+# The names are the game's SpriteKey values. Anything not listed here keeps the
+# built-in art, and a malformed line costs only its own sprite.
+#
+# Source: 0x72 "16x16 DungeonTileset II" v1.7 (CC0) — see ATTRIBUTION.txt.
+# The pack's tile_list_v1.7.txt gives each sprite a padded 16-wide cell; the
+# rectangles below are those cells trimmed to their drawn pixels, so every
+# fighter stands on the floor instead of hovering over it, and the party can
+# close ranks. All frames share one scale, set by the tallest of them, so these
+# sizes are also the cast's proportions: the ogre looms, the skull is a trinket.
+
+# --- the party -------------------------------------------------------------
+KNIGHT       = 128, 108, 15, 20   # knight_m_idle_anim_f0
+KNIGHT_SWING = 192, 107, 15, 20   # knight_m_run_anim_f0
+RANGER       = 129,  45, 15, 19   # elf_m_idle_anim_f0
+MAGE         = 130, 173, 14, 19   # wizzard_m_idle_anim_f0
+GRAVE        = 293, 439,  6,  6   # skull — what is left of a fallen hero
+
+# --- the bestiary ----------------------------------------------------------
+SLIME        = 369, 375, 13, 17   # slug_anim_f0
+BAT          = 372,  68, 10, 12   # imp_idle_anim_f0
+SKELETON     = 371,  90, 10, 14   # skelet_idle_anim_f0
+GOBLIN       = 371, 160, 12, 16   # masked_orc_idle_anim_f0 — the pack's own goblin
+                                  # is 10x10, too small to read beside a knight
+GOLEM        =  22, 390, 20, 26   # ogre_idle_anim_f0
+BOSS         =  21, 434, 23, 30   # big_demon_idle_anim_f0

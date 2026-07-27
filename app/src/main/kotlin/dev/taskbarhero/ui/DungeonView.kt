@@ -10,6 +10,7 @@ import dev.taskbarhero.engine.Ticker
 import dev.taskbarhero.paint.PixelPainter
 import dev.taskbarhero.paint.DungeonLayout
 import dev.taskbarhero.render.AndroidSurface
+import dev.taskbarhero.render.DropInArt
 
 /**
  * Hosts [DungeonLayout] on a real View, so the dungeon animates at 4 fps instead
@@ -33,7 +34,7 @@ class DungeonView @JvmOverloads constructor(
         val unit = width.toFloat() / DungeonLayout.TARGET_COLS
         if (unit < 1f) return
         DungeonLayout.draw(
-            p = PixelPainter(AndroidSurface(canvas), unit),
+            p = PixelPainter(AndroidSurface(canvas, DropInArt.bitmap(context)), unit, sheet = DropInArt.sheet(context)),
             cols = DungeonLayout.TARGET_COLS,
             rows = (height / unit).toInt(),
             state = state,
