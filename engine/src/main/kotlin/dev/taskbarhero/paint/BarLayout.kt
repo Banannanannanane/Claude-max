@@ -222,13 +222,13 @@ object BarLayout {
             val art = Sprites.heroFrame(member.cls, nowMs, member.down || hud.isDown)
             val center = scene.partyLeft + Formation.offset(i, roster.size, slot) + slot / 2f
             p.shadow(center, feet - 2f, slot * 0.8f)
-            p.fighter(center - side / 2f, feet - side, side, spriteKey(member, hud), art)
+            p.fighter(center - side / 2f, feet - side, side, spriteKey(member, hud, nowMs), art, nowMs)
         }
 
         if (!hud.isDown) {
             val enemyArt = Sprites.of(hud.enemySprite)
             p.shadow(scene.enemyCenter, feet - 2f, enemyWidth * 0.8f)
-            p.fighter(scene.enemyCenter - side / 2f, feet - side, side, hud.enemySprite.name, enemyArt)
+            p.fighter(scene.enemyCenter - side / 2f, feet - side, side, hud.enemySprite.name, enemyArt, nowMs)
         }
 
         val meterWidth = ((width - 18f) / 2f).coerceAtMost(60f)
@@ -382,14 +382,11 @@ object BarLayout {
     }
 
     /**
-     * Sheet key for a party member. A fallen hero is a grave whatever art is in
-     * use, and the knight's swing is a separate frame the sheet may or may not
-     * provide.
+     * Sheet key for a party member — the same pose the built-in art would be
+     * showing at [nowMs], so both sets of sprites keep the same beat.
      */
-    internal fun spriteKey(member: dev.taskbarhero.engine.HeroHud, hud: Hud): String = when {
-        member.down || hud.isDown -> SpriteKey.GRAVE.name
-        else -> member.cls.sprite.name
-    }
+    internal fun spriteKey(member: dev.taskbarhero.engine.HeroHud, hud: Hud, nowMs: Long): String =
+        Sprites.heroKey(member.cls, nowMs, member.down || hud.isDown).name
 
     /**
      * How much of its box the party's art fills across, measured on the standing

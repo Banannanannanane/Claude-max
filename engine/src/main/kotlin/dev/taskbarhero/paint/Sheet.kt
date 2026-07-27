@@ -1,8 +1,8 @@
 package dev.taskbarhero.paint
 
 /**
- * A sprite sheet dropped in by the player: one image, plus a mapping that says
- * which rectangle of it is which fighter.
+ * A sprite sheet: one image, plus a mapping that says which rectangles of it are
+ * which fighter.
  *
  * The engine never loads the image — that is the platform's job — it only asks
  * where a frame lives. Everything the game draws still works with no sheet at
@@ -10,8 +10,14 @@ package dev.taskbarhero.paint
  * degrades one sprite at a time instead of breaking the widget.
  */
 interface Sheet {
-    /** Source rectangle for [key], or null to fall back to the built-in art. */
-    fun frame(key: String): Frame?
+    /**
+     * Every frame of [key]'s animation, in order. Empty means "not in this sheet",
+     * which is the signal to fall back to the built-in art.
+     */
+    fun frames(key: String): List<Sheet.Frame>
+
+    /** The first frame — what a still needs. */
+    fun frame(key: String): Frame? = frames(key).firstOrNull()
 
     /**
      * The sheet's own pixel grid: the size of its largest frame.
@@ -31,15 +37,19 @@ interface Sheet {
 }
 
 /** A sheet backed by a parsed mapping. */
-class MappedSheet(private val frames: Map<String, Sheet.Frame>) : Sheet {
-    override fun frame(key: String): Sheet.Frame? = frames[key]
+class MappedSheet(private val animations: Map<String, List<Sheet.Frame>>) : Sheet {
+
+    override fun frames(key: String): List<Sheet.Frame> = animations[key].orEmpty()
 
     override val unit: Int =
-        frames.values.maxOfOrNull { maxOf(it.width, it.height) } ?: 1
+        animations.values.flatten().maxOfOrNull { maxOf(it.width, it.height) } ?: 1
 
-    val size: Int get() = frames.size
+    /** Names mapped, not frames drawn — one animation is one sprite. */
+    val size: Int get() = animations.size
 
-    val keys: Set<String> get() = frames.keys
+    val frameCount: Int get() = animations.values.sumOf { it.size }
+
+    val keys: Set<String> get() = animations.keys
 }
 
 /**
@@ -50,18 +60,20 @@ class MappedSheet(private val frames: Map<String, Sheet.Frame>) : Sheet {
  * ```
  * # name = x, y, width, height
  * KNIGHT = 16, 0, 16, 16
+ * KNIGHT = 32, 0, 16, 16   # repeating a name adds a frame to its animation
  * BOSS   = 0, 64, 32, 36
  * ```
  */
 object SheetMapping {
 
     /**
-     * Parses [text], skipping blank lines and `#` comments. Malformed lines are
-     * reported rather than thrown: a typo in one row should cost that sprite, not
+     * Parses [text], skipping blank lines and `#` comments. A repeated name appends
+     * a frame to that sprite's animation, in file order. Malformed lines are
+     * reported rather than thrown: a typo in one row should cost that frame, not
      * the whole sheet.
      */
     fun parse(text: String): Result {
-        val frames = mutableMapOf<String, Sheet.Frame>()
+        val animations = linkedMapOf<String, MutableList<Sheet.Frame>>()
         val problems = mutableListOf<String>()
 
         text.lineSequence().forEachIndexed { index, raw ->
@@ -79,9 +91,10 @@ object SheetMapping {
                 problems += "line ${index + 1}: '$line' is not four positive numbers"
                 return@forEachIndexed
             }
-            frames[name] = Sheet.Frame(parsed[0]!!, parsed[1]!!, parsed[2]!!, parsed[3]!!)
+            animations.getOrPut(name) { mutableListOf() } +=
+                Sheet.Frame(parsed[0]!!, parsed[1]!!, parsed[2]!!, parsed[3]!!)
         }
-        return Result(MappedSheet(frames), problems)
+        return Result(MappedSheet(animations), problems)
     }
 
     data class Result(val sheet: MappedSheet, val problems: List<String>) {

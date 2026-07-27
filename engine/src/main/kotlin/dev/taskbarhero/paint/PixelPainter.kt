@@ -72,12 +72,16 @@ class PixelPainter(
      * survive: the ogre towers over the knight, and a fallen hero's skull stays a
      * trinket on the floor instead of swelling to fill its box.
      */
-    fun fighter(x: Float, y: Float, side: Float, key: String, art: Sprites.Art) {
-        val frame = sheet?.frame(key)
-        if (frame == null) {
+    fun fighter(x: Float, y: Float, side: Float, key: String, art: Sprites.Art, nowMs: Long = 0L) {
+        val frames = sheet?.frames(key).orEmpty()
+        if (frames.isEmpty()) {
             sprite(x, y, art, side / art.size)
             return
         }
+        // Driven by the wall clock, like the torches: every surface redrawing at
+        // the same instant agrees on which frame is showing, and the widget — which
+        // is redrawn at moments nobody chooses — never has a frame counter to lose.
+        val frame = frames[((nowMs / FRAME_MS).mod(frames.size.toLong())).toInt()]
         val scale = fitScale(side)
         val w = frame.width * scale
         val h = frame.height * scale
@@ -105,8 +109,10 @@ class PixelPainter(
      * fighters by this, not by the box.
      */
     fun fighterWidth(side: Float, key: String): Float {
-        val frame = sheet?.frame(key) ?: return side
-        return frame.width * fitScale(side)
+        val frames = sheet?.frames(key).orEmpty()
+        if (frames.isEmpty()) return side
+        // The widest frame, so a walk cycle does not shuffle the whole party.
+        return frames.maxOf { it.width } * fitScale(side)
     }
 
     /** Whole cells per sheet pixel: whole, and the same for every frame. */
@@ -275,4 +281,9 @@ class PixelPainter(
 
     private fun translucent(color: Int, alpha: Float): Int =
         ((alpha * 255f).toInt().coerceIn(0, 255) shl 24) or (color and 0x00FFFFFF)
+
+    private companion object {
+        /** One animation frame, matched to the engine's own 250 ms tick. */
+        const val FRAME_MS = 250L
+    }
 }

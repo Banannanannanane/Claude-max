@@ -137,6 +137,30 @@ class SheetTest {
     }
 
     @Test
+    fun `a repeated name is an animation, played off the wall clock`() {
+        val sheet = SheetMapping.parse(
+            """
+            KNIGHT = 0, 0, 16, 16
+            KNIGHT = 16, 0, 16, 16
+            KNIGHT = 32, 0, 16, 16
+            """.trimIndent(),
+        ).sheet
+        assertEquals(3, sheet.frames("KNIGHT").size)
+        assertEquals(1, sheet.size, "three frames of one sprite is still one sprite")
+        assertEquals(3, sheet.frameCount)
+        assertEquals(Sheet.Frame(0, 0, 16, 16), sheet.frame("KNIGHT"), "a still takes the first frame")
+
+        // 250 ms a frame, and the cycle repeats — two surfaces drawing at the same
+        // instant must land on the same frame, since neither keeps a counter.
+        val surface = BlitRecorder(accept = true)
+        val p = PixelPainter(surface, unit = 1f, sheet = sheet)
+        for (ms in listOf(0L, 250L, 500L, 750L, 1_000L)) {
+            p.fighter(0f, 0f, 32f, SpriteKey.KNIGHT.name, Sprites.of(SpriteKey.KNIGHT), nowMs = ms)
+        }
+        assertEquals(listOf(0, 16, 32, 0, 16), surface.blits.map { it.x })
+    }
+
+    @Test
     fun `frames are scaled by whole pixels, even when that wastes room`() {
         // 16x28 in a 32-cell box would "fit" at 1.14x — which duplicates every
         // seventh row and nothing else. 1x, leaving four cells unused, is the only

@@ -7,6 +7,7 @@ import dev.taskbarhero.engine.HeroClass
 import dev.taskbarhero.engine.Hud
 import dev.taskbarhero.engine.IconKey
 import dev.taskbarhero.engine.PixelFont
+import dev.taskbarhero.engine.SpriteKey
 import dev.taskbarhero.engine.Sprites
 import dev.taskbarhero.engine.Ticker
 
@@ -103,7 +104,7 @@ object DungeonLayout {
 
         var y = roomBottom + GAP
         if (showParty) {
-            drawParty(p, hud, state, cols, b, top = y, bottom = bottom)
+            drawParty(p, hud, state, cols, b, nowMs, top = y, bottom = bottom)
             y += partyHeight
         }
         if (showStats) {
@@ -191,13 +192,13 @@ object DungeonLayout {
             val art = Sprites.heroFrame(member.cls, nowMs, member.down || hud.isDown)
             val center = scene.partyLeft + Formation.offset(i, roster.size, slot) + slot / 2f
             p.shadow(center, feet, slot * 0.8f)
-            p.fighter(center - side / 2f, feet - side, side, BarLayout.spriteKey(member, hud), art)
+            p.fighter(center - side / 2f, feet - side, side, BarLayout.spriteKey(member, hud, nowMs), art, nowMs)
         }
 
         if (!hud.isDown) {
             val enemyArt = Sprites.of(hud.enemySprite)
             p.shadow(scene.enemyCenter, feet, enemyWidth * 0.8f)
-            p.fighter(scene.enemyCenter - side / 2f, feet - side, side, hud.enemySprite.name, enemyArt)
+            p.fighter(scene.enemyCenter - side / 2f, feet - side, side, hud.enemySprite.name, enemyArt, nowMs)
         }
 
         val meterWidth = (width / 2f - 24f).coerceAtMost(92f)
@@ -217,6 +218,7 @@ object DungeonLayout {
         state: GameState,
         cols: Int,
         b: Balance,
+        nowMs: Long,
         top: Int,
         bottom: Int,
     ) {
@@ -232,11 +234,10 @@ object DungeonLayout {
 
         for (member in hud.party) {
             if (y + FIGHTER > bottom) return
-            p.fighter(
-                MARGIN, y.toFloat(), FIGHTER.toFloat(),
-                BarLayout.spriteKey(member, hud),
-                Sprites.heroFrame(member.cls, 0L, member.down),
-            )
+            // The roster is a portrait, not a fight: the hero breathes, but never
+            // swings at a monster that is not there.
+            val pose = if (member.down) SpriteKey.GRAVE else member.cls.sprite
+            p.fighter(MARGIN, y.toFloat(), FIGHTER.toFloat(), pose.name, Sprites.of(pose), nowMs)
             val mid = y + (Sprites.FIGHTER_SIZE - p.textHeight) / 2f
             p.text(labelX, mid, member.cls.label, if (member.down) Palette.HP else Palette.PARCHMENT)
             p.text(levelX, mid, p.clip(member.level, barX - levelX - 8f), Palette.PARCHMENT_DIM)

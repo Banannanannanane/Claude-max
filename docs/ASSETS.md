@@ -43,11 +43,35 @@ BOSS         =  21, 434, 23, 30   # big_demon_idle_anim_f0
 Les noms sont ceux du jeu (`SpriteKey`), insensibles à la casse : quatre héros,
 une tombe, cinq monstres, un boss.
 
+**Répéter un nom ajoute une image à son animation**, jouée dans l'ordre du
+fichier à 4 images par seconde :
+
+```
+KNIGHT       = 128, 106, 15, 22   # knight_m_idle_anim_f0
+KNIGHT       = 144, 106, 15, 22   # knight_m_idle_anim_f1
+KNIGHT       = 160, 106, 15, 22   # knight_m_idle_anim_f2
+KNIGHT       = 176, 106, 15, 22   # knight_m_idle_anim_f3
+```
+
+L'image affichée se déduit de l'horloge, jamais d'un compteur : deux surfaces qui
+dessinent au même instant tombent sur la même image, et le widget — redessiné à
+des moments que personne ne choisit — n'a pas de compteur à perdre. Le plein
+écran tourne à 4 images/seconde, la barre change d'image à chaque réveil.
+
+`KNIGHT_SWING` est le temps d'attaque du chevalier : il alterne avec `KNIGHT`
+toutes les demi-secondes, art interne ou pack, c'est la même horloge.
+
 **Serre les rectangles sur les pixels dessinés.** La plupart des packs livrent
 des cases uniformes (16x16, 16x28…) avec du vide autour du dessin. Ce vide est
 compté comme du sprite : un héros flotte au-dessus du sol, un groupe s'espace
 comme s'il tenait deux fois sa largeur. Les valeurs ci-dessus sont les cases du
 pack rognées à leur contenu.
+
+**Mais rogne une animation entière d'un seul rectangle**, pas image par image :
+recentrer chaque image sur elle-même annule le balancement qu'elle contient et
+fait vibrer le sprite. Même chose entre deux poses d'un même personnage — le
+`KNIGHT` est rogné avec son `KNIGHT_SWING`, sinon il grandirait de deux pixels à
+chaque coup d'épée.
 
 **Les frames n'ont besoin d'être ni carrées ni de même taille**, et c'est même le
 sujet : l'échelle est **commune à tout le casting** — un entier, `boîte / plus
@@ -73,10 +97,13 @@ il trouve `app/src/main/assets/` tout seul (un second argument permet de pointer
 ailleurs). Il annonce ce qu'il a chargé et ce qui manque :
 
 ```
-art: 11 frames on a 30px grid, from 512x512
+art: 11 sprites, 41 frames, on a 31px grid, from 512x512
   SKELETON: no frame, keeping the built-in art
   KNGIHT: not a sprite the game asks for
 ```
+
+`docs/preview/anim.png` sort la même barre à quatre images consécutives : c'est
+là qu'on voit si un sprite s'anime — et surtout s'il tremble en le faisant.
 
 ## Changer de pack — à lire avant de committer
 

@@ -60,7 +60,10 @@ class DropInArt(val image: BufferedImage, val sheet: Sheet) {
          * missing one is a hole the previews would not obviously show.
          */
         private fun report(sheet: MappedSheet, image: BufferedImage) {
-            println("art: ${sheet.size} frames on a ${sheet.unit}px grid, from ${image.width}x${image.height}")
+            println(
+                "art: ${sheet.size} sprites, ${sheet.frameCount} frames, " +
+                    "on a ${sheet.unit}px grid, from ${image.width}x${image.height}",
+            )
             val wanted = SpriteKey.entries.map { it.name }.toSet()
             (wanted - sheet.keys).sorted().forEach { println("  $it: no frame, keeping the built-in art") }
             (sheet.keys - wanted).sorted().forEach { println("  $it: not a sprite the game asks for") }

@@ -48,14 +48,22 @@ object Sprites {
     fun icon(key: IconKey): Art = ICONS.getValue(key)
 
     /**
-     * The frame a hero shows right now: a grave while down, and for the knight a
-     * two-frame swing driven by wall clock so every redraw agrees.
+     * The pose a hero holds right now: a grave while down, and for the knight a
+     * swing every other half-second, driven by the wall clock so every redraw
+     * agrees on it.
+     *
+     * This is the *key*, not the art, because a dropped-in sheet has to follow the
+     * same beat as the built-in sprites — otherwise the knight would swing only
+     * when the player has no sprite pack.
      */
-    fun heroFrame(cls: HeroClass, nowMs: Long, down: Boolean = false): Art = when {
-        down -> of(SpriteKey.GRAVE)
-        cls == HeroClass.KNIGHT && (nowMs / 500L) % 2L != 0L -> of(SpriteKey.KNIGHT_SWING)
-        else -> of(cls.sprite)
+    fun heroKey(cls: HeroClass, nowMs: Long, down: Boolean = false): SpriteKey = when {
+        down -> SpriteKey.GRAVE
+        cls == HeroClass.KNIGHT && (nowMs / 500L) % 2L != 0L -> SpriteKey.KNIGHT_SWING
+        else -> cls.sprite
     }
+
+    fun heroFrame(cls: HeroClass, nowMs: Long, down: Boolean = false): Art =
+        of(heroKey(cls, nowMs, down))
 
     private val ART: Map<SpriteKey, Art> = mapOf(
         // 1 outline, 2 skin, 3 tunic, 4 tunic lit, 5 steel, 6 steel lit, 7 accent, 8 blade

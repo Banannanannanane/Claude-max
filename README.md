@@ -102,6 +102,15 @@ chiffres dorés, codes ARPG que personne n'a besoin qu'on lui explique.
   `app/src/main/assets/` avec un mapping texte qui dit quel rectangle est quel
   personnage. Rien n'y est obligatoire : chaque nom absent retombe sur l'art
   interne, sprite par sprite. Tout est dans [docs/ASSETS.md](docs/ASSETS.md).
+- **Les combattants s'animent**, quatre images par personnage, choisies sur
+  l'horloge et non sur un compteur : deux surfaces qui dessinent au même instant
+  tombent sur la même image, et un widget redessiné à des moments qu'il ne
+  choisit pas n'a rien à perdre. Le chevalier alterne garde et fente toutes les
+  demi-secondes — même beat pour le pack et pour l'art interne, une seule
+  fonction décide.
+
+![Quatre images consécutives](docs/preview/anim.png)
+
 - **Sprites internes indexés par palette** (`'.'` transparent, `'1'..'9'` =
   couleurs propres au sprite), générés dans le code : c'est le filet, et ça reste
   diffable et testable. Chaque combattant porte son contour en index 1.
@@ -208,7 +217,7 @@ texte (`Ticker`), sinon la couleur serait perdue au prochain rafraîchissement.
 ## Tests
 
 ```bash
-./gradlew :engine:test                          # 63 tests
+./gradlew :engine:test                          # 64 tests
 ./gradlew :preview:run --args="docs/preview"    # régénère les PNG
 ```
 

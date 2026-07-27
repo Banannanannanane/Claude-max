@@ -46,8 +46,9 @@ fun main(args: Array<String>) {
     }
     ImageIO.write(renderDungeon(state("idled"), art), "png", File(outDir, "dungeon.png"))
     ImageIO.write(renderSheet(frames, art), "png", File(outDir, "sheet.png"))
+    ImageIO.write(renderFlipbook(frames.first { it.name == "bar-4x2" }, art), "png", File(outDir, "anim.png"))
 
-    println("wrote ${frames.size + 2} previews to ${outDir.absolutePath}")
+    println("wrote ${frames.size + 3} previews to ${outDir.absolutePath}")
 }
 
 private data class Frame(
@@ -62,7 +63,30 @@ private data class Frame(
     val heightDp: Int get() = cellsTall * 78 - 8
 }
 
-private fun renderBar(frame: Frame, art: DropInArt?): BufferedImage {
+/**
+ * One bar drawn at four consecutive animation frames. A still cannot show whether
+ * a sprite animates, or whether it jitters while doing it.
+ */
+private fun renderFlipbook(frame: Frame, art: DropInArt?): BufferedImage {
+    val beats = (0..3).map { renderBar(frame, art, T0 + it * 250L) }
+    val gap = 24
+    val width = beats.maxOf { it.width } + gap * 2
+    val height = gap + beats.sumOf { it.height + gap }
+
+    val sheet = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
+    val g = sheet.createGraphics()
+    g.color = java.awt.Color(Palette.VOID, true)
+    g.fillRect(0, 0, width, height)
+    var y = gap
+    for (beat in beats) {
+        g.drawImage(beat, gap, y, null)
+        y += beat.height + gap
+    }
+    g.dispose()
+    return sheet
+}
+
+private fun renderBar(frame: Frame, art: DropInArt?, nowMs: Long = T0): BufferedImage {
     val w = (frame.widthDp * DENSITY).toInt()
     val h = (frame.heightDp * DENSITY).toInt()
     val unit = BarLayout.unitPx(h.toFloat(), DENSITY)
@@ -76,7 +100,7 @@ private fun renderBar(frame: Frame, art: DropInArt?): BufferedImage {
         cols,
         rows,
         frame.state,
-        T0,
+        nowMs,
         frame.event,
         BALANCE,
         BarLayout.deckRows(unit, DENSITY),
