@@ -43,7 +43,19 @@ object Sprites {
         internal val paletteSize: Int get() = colors.size
     }
 
-    fun of(key: SpriteKey): Art = ART.getValue(key)
+    /**
+     * Monsters the sprite pack draws but the built-in art does not: they borrow the
+     * nearest silhouette rather than pretend to be drawn. This is the fallback path
+     * — with the shipped pack in place none of these are ever used — and three
+     * monsters sharing a drawing beats a bestiary of three.
+     */
+    private val ALIAS = mapOf(
+        SpriteKey.WRAITH to SpriteKey.BAT,
+        SpriteKey.ORC to SpriteKey.GOBLIN,
+        SpriteKey.ZOMBIE to SpriteKey.GOLEM,
+    )
+
+    fun of(key: SpriteKey): Art = ART.getValue(ALIAS[key] ?: key)
 
     fun icon(key: IconKey): Art = ICONS.getValue(key)
 

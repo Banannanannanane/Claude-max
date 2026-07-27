@@ -73,6 +73,14 @@ reculer.
 l'acte — Common à l'acte 1, Cosmic à partir de l'acte 10. Le stash n'est pas
 décoratif : chaque objet ajoute des dégâts, et un grade vaut 1,7× le précédent.
 
+**Un bestiaire qui monte avec le joueur.** Huit monstres classés du plus faible au
+plus lourd, et une fenêtre qui glisse le long de cette échelle : l'acte 1 voit de
+la limace, l'acte 8 des spectres et des ogres, et la limace a disparu depuis
+longtemps. Elle garde toujours trois monstres en jeu — une vague ne devient jamais
+un seul monstre en boucle — et le choix reste déterministe : le même créneau
+(acte, vague, index) donne toujours le même monstre, sinon un widget redessiné
+deux fois de suite clignoterait entre deux sprites.
+
 **Le Hero-dric Cube.** Neuf objets d'un grade en donnent un du grade supérieur —
 la mécanique que le wiki documente mot pour mot. Il consomme toujours le grade le
 plus bas qui peut fusionner, si bien que le stash grimpe par le bas comme il se

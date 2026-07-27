@@ -64,6 +64,21 @@ GOBLIN       = 387, 160, 12, 16   # masked_orc_idle_anim_f1
 GOBLIN       = 403, 160, 12, 16   # masked_orc_idle_anim_f2
 GOBLIN       = 419, 160, 12, 16   # masked_orc_idle_anim_f3
 
+WRAITH       = 368, 231, 14, 17   # necromancer_anim_f0
+WRAITH       = 384, 231, 14, 17   # necromancer_anim_f1
+WRAITH       = 400, 231, 14, 17   # necromancer_anim_f2
+WRAITH       = 416, 231, 14, 17   # necromancer_anim_f3
+
+ORC          = 372, 184, 11, 16   # orc_warrior_idle_anim_f0
+ORC          = 388, 184, 11, 16   # orc_warrior_idle_anim_f1
+ORC          = 404, 184, 11, 16   # orc_warrior_idle_anim_f2
+ORC          = 420, 184, 11, 16   # orc_warrior_idle_anim_f3
+
+ZOMBIE       =  22, 341, 20, 27   # big_zombie_idle_anim_f0
+ZOMBIE       =  54, 341, 20, 27   # big_zombie_idle_anim_f1
+ZOMBIE       =  86, 341, 20, 27   # big_zombie_idle_anim_f2
+ZOMBIE       = 118, 341, 20, 27   # big_zombie_idle_anim_f3
+
 GOLEM        =  21, 390, 22, 26   # ogre_idle_anim_f0
 GOLEM        =  53, 390, 22, 26   # ogre_idle_anim_f1
 GOLEM        =  85, 390, 22, 26   # ogre_idle_anim_f2

@@ -7,12 +7,15 @@ package dev.taskbarhero.engine
  */
 object Bestiary {
 
+    /** Weakest first: the roster is a ladder, and the act decides which rungs. */
     private val MOBS = listOf(
         Mob("SLIME", SpriteKey.SLIME),
         Mob("BAT", SpriteKey.BAT),
         Mob("SKELETON", SpriteKey.SKELETON),
         Mob("GOBLIN", SpriteKey.GOBLIN),
-        Mob("WRAITH", SpriteKey.BAT),
+        Mob("WRAITH", SpriteKey.WRAITH),
+        Mob("ORC", SpriteKey.ORC),
+        Mob("ZOMBIE", SpriteKey.ZOMBIE),
         Mob("GOLEM", SpriteKey.GOLEM),
     )
 
@@ -27,9 +30,11 @@ object Bestiary {
         if (b.isBossWave(wave)) {
             return Mob(BOSSES[(act - 1).mod(BOSSES.size)], SpriteKey.BOSS)
         }
-        // Deeper acts unlock the heavier half of the roster.
+        // The window slides up the ladder: deeper acts unlock the heavier monsters
+        // and stop showing the chaff, but always keep three of them in play so a
+        // wave never turns into one monster on repeat.
         val pool = (2 + act).coerceAtMost(MOBS.size)
-        val floor = if (act >= 4) 2 else 0
+        val floor = ((act - 2) / 2).coerceIn(0, MOBS.size - 3)
         val span = pool - floor
         return MOBS[floor + hash(act, wave, enemyIdx).mod(span)]
     }
@@ -41,7 +46,10 @@ object Bestiary {
     }
 }
 
-enum class SpriteKey { KNIGHT, KNIGHT_SWING, RANGER, MAGE, SLIME, BAT, SKELETON, GOBLIN, GOLEM, BOSS, GRAVE }
+enum class SpriteKey {
+    KNIGHT, KNIGHT_SWING, RANGER, MAGE, GRAVE,
+    SLIME, BAT, SKELETON, GOBLIN, WRAITH, ORC, ZOMBIE, GOLEM, BOSS,
+}
 
 /**
  * Boss drops. Pure garnish — no stats behind them — but the grade drives the
