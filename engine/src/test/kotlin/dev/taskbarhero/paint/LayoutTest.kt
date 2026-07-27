@@ -48,7 +48,7 @@ class LayoutTest {
      * Cell grids a real launcher hands us at 3x density: 4x1, a squeezed 3x1, a
      * stretched 5x1, then the taller variants where the stats strip appears.
      */
-    private val barSizes = listOf(126 to 32, 93 to 32, 158 to 32, 126 to 67, 158 to 67, 126 to 46)
+    private val barSizes = listOf(252 to 64, 186 to 64, 316 to 64, 252 to 134, 316 to 134, 252 to 92)
 
     /** Sets every hero to the same level, health topped up for the new pool. */
     private fun GameState.at(level: Int): GameState =
@@ -79,7 +79,7 @@ class LayoutTest {
                 val surface = RecordingSurface()
                 // unit = 1 makes art cells and surface units the same, so the
                 // assertions read directly in pixels.
-                val deck = if (rows >= BarLayout.ROWS_TALL) 22 else 0
+                val deck = if (rows >= BarLayout.ROWS_TALL) 44 else 0
                 BarLayout.draw(PixelPainter(surface, 1f), cols, rows, state, t0, null, b, deck)
 
                 val content = surface.content()
@@ -99,7 +99,7 @@ class LayoutTest {
         val caption = Ticker("BOSS 7 / CELESTIAL TOTEM AND THEN SOME", Tone.LOOT, grade = 7)
         for ((cols, rows) in barSizes) {
             val surface = RecordingSurface()
-            val deck = if (rows >= BarLayout.ROWS_TALL) 22 else 0
+            val deck = if (rows >= BarLayout.ROWS_TALL) 44 else 0
             BarLayout.draw(PixelPainter(surface, 1f), cols, rows, GameState.newRun(t0, b), t0, caption, b, deck)
             val captionOps = surface.content().filter { it.top < 9f && it.color == Palette.grade(7) }
             assertTrue(captionOps.isNotEmpty(), "caption missing at ${cols}x$rows")
@@ -115,13 +115,13 @@ class LayoutTest {
 
     @Test
     fun `the action button lights up exactly when the level is affordable`() {
-        val cols = 107
+        val cols = 214
         val poor = GameState.newRun(t0, b)
         val rich = poor.copy(gold = poor.levelCost(b))
 
         fun goldOpsInButton(state: GameState): Int {
             val surface = RecordingSurface()
-            BarLayout.draw(PixelPainter(surface, 1f), cols, 30, state, t0, null, b)
+            BarLayout.draw(PixelPainter(surface, 1f), cols, 64, state, t0, null, b)
             val actionLeft = cols * (1f - BarLayout.ACTION_ZONE_FRACTION)
             return surface.content().count { it.color == Palette.GOLD && it.left >= actionLeft }
         }
@@ -172,24 +172,24 @@ class LayoutTest {
         val unit = BarLayout.unitPx(BarLayout.ROW_HEIGHT_DP * density, density)
         val rows = BarLayout.deckRows(unit, density)
         assertEquals(rows, BarLayout.deckRows(BarLayout.unitPx(400f * density, density), density))
-        // 48dp at a 70/32 dp pitch: about 22 art rows, and always a real touch target.
-        assertTrue(rows in 18..26, "deck is $rows rows")
+        // 48dp at a 70/64 dp pitch: about 44 cells, and always a real touch target.
+        assertTrue(rows in 36..52, "deck is $rows rows")
     }
 
     @Test
     fun `a tall bar draws its three buttons inside the deck`() {
-        val cols = 126
-        val rows = 67
-        val deck = 22
+        val cols = 252
+        val rows = 134
+        val deck = 44
         val surface = RecordingSurface()
         val state = states().getValue("rich")
         BarLayout.draw(PixelPainter(surface, 1f), cols, rows, state, t0, null, b, deck)
 
         val deckTop = rows - deck
         // Each third of the deck must carry ink of its own: three real buttons.
-        var x = 2f
+        var x = 4f
         for (share in BarLayout.DECK_SPLIT) {
-            val width = (cols - 4f) * share
+            val width = (cols - 8f) * share
             val painted = surface.content().count {
                 it.top >= deckTop - 1f && it.left >= x - 1f && it.right <= x + width + 1f
             }
@@ -202,14 +202,14 @@ class LayoutTest {
     fun `the deck only appears once the bar is tall enough`() {
         fun deckOps(rows: Int, deck: Int): Int {
             val surface = RecordingSurface()
-            BarLayout.draw(PixelPainter(surface, 1f), 126, rows, states().getValue("rich"), t0, null, b, deck)
+            BarLayout.draw(PixelPainter(surface, 1f), 252, rows, states().getValue("rich"), t0, null, b, deck)
             return surface.content().count { it.top >= rows - deck }
         }
-        assertTrue(deckOps(67, 22) > 0)
+        assertTrue(deckOps(134, 44) > 0)
         // A one-row bar has no deck rows to give, and must not pretend otherwise.
         val compact = RecordingSurface()
-        BarLayout.draw(PixelPainter(compact, 1f), 126, 32, states().getValue("rich"), t0, null, b, 22)
-        assertTrue(compact.content().all { it.bottom <= 32.5f })
+        BarLayout.draw(PixelPainter(compact, 1f), 252, 64, states().getValue("rich"), t0, null, b, 44)
+        assertTrue(compact.content().all { it.bottom <= 64.5f })
     }
 
     @Test
@@ -217,10 +217,10 @@ class LayoutTest {
         val state = states().getValue("idled")
         fun opCount(rows: Int, deck: Int): Int {
             val surface = RecordingSurface()
-            BarLayout.draw(PixelPainter(surface, 1f), 107, rows, state, t0, null, b, deck)
+            BarLayout.draw(PixelPainter(surface, 1f), 214, rows, state, t0, null, b, deck)
             return surface.content().size
         }
-        assertTrue(opCount(67, 22) > opCount(BarLayout.ROWS_COMPACT, 0))
+        assertTrue(opCount(134, 44) > opCount(BarLayout.ROWS_COMPACT, 0))
     }
 
     @Test
@@ -241,10 +241,10 @@ class LayoutTest {
     @Test
     fun `a bar squeezed past readability degrades instead of overflowing`() {
         val surface = RecordingSurface()
-        // 40 cells wide leaves no room for the arena; the layout should drop parts,
+        // 80 cells wide leaves no room for the arena; the layout should drop parts,
         // not spill them.
-        BarLayout.draw(PixelPainter(surface, 1f), 40, 30, states().getValue("deep"), t0, null, b)
-        assertTrue(surface.content().all { it.right <= 40.5f })
+        BarLayout.draw(PixelPainter(surface, 1f), 80, 64, states().getValue("deep"), t0, null, b)
+        assertTrue(surface.content().all { it.right <= 80.5f })
     }
 
     @Test
@@ -256,7 +256,7 @@ class LayoutTest {
             Ticker("WIPED AT 5-08", Tone.BAD),
             Ticker("NEW RUN", Tone.NEUTRAL),
         )
-        for (rows in listOf(90, 120, 74)) {
+        for (rows in listOf(200, 260, 150)) {
             for ((name, state) in states()) {
                 val surface = RecordingSurface()
                 val cols = DungeonLayout.TARGET_COLS
@@ -277,13 +277,13 @@ class LayoutTest {
         DungeonLayout.draw(
             PixelPainter(surface, 1f),
             DungeonLayout.TARGET_COLS,
-            72,
+            150,
             GameState.newRun(t0, b),
             listOf(Ticker("LEVEL 2", Tone.GOOD), Ticker("LEVEL 3", Tone.GOOD)),
             t0,
             b,
         )
-        assertTrue(surface.ops.all { it.bottom <= 72.5f })
+        assertTrue(surface.ops.all { it.bottom <= 150.5f })
     }
 
     @Test
@@ -291,18 +291,18 @@ class LayoutTest {
         val surface = RecordingSurface()
         val p = PixelPainter(surface, 1f)
 
-        p.bar(0f, 0f, 20f, 4f, 0.001, Palette.HP, Palette.HP_SOCKET)
+        p.bar(0f, 0f, 20f, 8f, 0.001, Palette.HP, Palette.HP_SOCKET)
         val sliver = surface.ops.filter { it.color == Palette.HP }
         assertTrue(sliver.isNotEmpty(), "a sliver of health must still show")
-        assertTrue(sliver.all { it.right - it.left <= 1f }, "0.1% must not round up to a wide fill")
+        assertTrue(sliver.all { it.right - it.left <= 2f }, "0.1% must not round up to a wide fill")
 
         surface.ops.clear()
-        p.bar(0f, 0f, 20f, 4f, 0.999, Palette.HP, Palette.HP_SOCKET)
+        p.bar(0f, 0f, 20f, 8f, 0.999, Palette.HP, Palette.HP_SOCKET)
         val nearlyFull = surface.ops.first { it.color == Palette.HP }
-        assertTrue(nearlyFull.right - nearlyFull.left <= 19f, "not-quite-full must not read as full")
+        assertTrue(nearlyFull.right - nearlyFull.left <= 18f, "not-quite-full must not read as full")
 
         surface.ops.clear()
-        p.bar(0f, 0f, 20f, 4f, 1.0, Palette.HP, Palette.HP_SOCKET)
+        p.bar(0f, 0f, 20f, 8f, 1.0, Palette.HP, Palette.HP_SOCKET)
         val full = surface.ops.first { it.color == Palette.HP }
         assertEquals(20f, full.right - full.left)
     }

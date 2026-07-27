@@ -100,11 +100,20 @@ chiffres dorés, codes ARPG que personne n'a besoin qu'on lui explique.
 - **Sprites indexés par palette** (`'.'` transparent, `'1'..'9'` = couleurs
   propres au sprite), écrits en art ASCII dans le code : diffable, testable, et
   chaque combattant porte son contour en index 1.
-- **Échelles entières uniquement.** Réduire un sprite de 16 px à 11 px supprime
-  des pixels source et donne cette bouillie caractéristique ; tous les
-  combattants tiennent donc sur la même grille 12×12 et ne grossissent que par
-  multiples entiers. C'est aussi pourquoi une barre plus large montre de plus
-  grands héros, alors qu'une barre plus haute montre une plus grande salle.
+- **Combattants en 32×32**, tous sur la même grille, et **échelles entières
+  uniquement** : réduire un sprite de 32 à 21 px supprime des pixels source et
+  donne cette bouillie caractéristique. C'est aussi pourquoi une barre plus large
+  montre de plus grands héros, alors qu'une barre plus haute montre une plus
+  grande salle.
+- **La grille de mise en page est deux fois plus fine que la police.** Un sprite
+  32×32 ne rentre pas dans une barre de 32 cellules : la barre en fait donc 64, et
+  le texte est dessiné en ×2 par-dessus. C'est exactement ce que fait un jeu pixel
+  — résolution interne basse, upscale entier — et ça donne des sprites détaillés
+  sans rapetisser une seule lettre.
+- **L'art est généré, pas tapé** : on pose des formes, puis un contour d'un pixel
+  est *grossi* autour de la silhouette. Taper 32 lignes de 32 caractères par
+  sprite n'est pas un plan, et c'est cette passe de contour qui garde un
+  combattant lisible sur de la maçonnerie éclairée.
 - **Le groupe est dimensionné en bloc**, pas sprite par sprite : trois héros à la
   taille qu'un seul pourrait s'offrir donnent une bouillie illisible. Ils se
   chevauchent d'un quart — assez pour lire une formation, assez peu pour

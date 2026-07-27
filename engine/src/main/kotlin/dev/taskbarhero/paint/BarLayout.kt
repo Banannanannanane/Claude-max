@@ -22,20 +22,26 @@ object BarLayout {
     /** Width of the LV UP button as a fraction of the bar. Mirrors the layout weights (300 / 1000). */
     const val ACTION_ZONE_FRACTION = 0.30f
 
-    /** Art pixels across a one-row bar. Everything else derives from this pitch. */
-    const val ROWS_COMPACT = 32
+    /**
+     * Cells across a one-row bar. Fine enough that a 32x32 fighter fits with room
+     * to spare, which is why text is drawn at 2x on top of it.
+     */
+    const val ROWS_COMPACT = 64
 
     /** Nominal height of one launcher row, in dp. */
     const val ROW_HEIGHT_DP = 70f
 
     /** From here up, the bar earns a stats strip under the arena. */
-    const val ROWS_TALL = 44
+    const val ROWS_TALL = 88
 
     /** How long an event holds the arena caption instead of the monster name. */
     const val EVENT_FLASH_MS = 3_500L
 
-    private const val PAD = 2f
-    private const val COIN = 5f
+    private const val PAD = 4f
+
+    /** The coin icon is 5x5 art drawn at 2x, like the text beside it. */
+    private const val COIN = 10f
+    private const val ICON_SCALE = 2f
 
     /**
      * Height of the button deck, in dp. Fixed rather than proportional so the
@@ -52,12 +58,12 @@ object BarLayout {
     val DECK_SPLIT = floatArrayOf(0.28f, 0.24f, 0.24f, 0.24f)
 
     /** One info line above the deck: act and record, then runes and kills. */
-    private const val INFO_LINE = 11
+    private const val INFO_LINE = 22
 
     /** Rows a room needs before it can hold a caption, fighters and their meters. */
-    private const val MIN_ROOM = 30
+    private const val MIN_ROOM = 60
 
-    private val ROW_Y = floatArrayOf(3f, 13f, 23f)
+    private val ROW_Y = floatArrayOf(6f, 26f, 46f)
 
     /**
      * Device pixels per art pixel. Capped at the one-row pitch so a taller widget
@@ -95,10 +101,10 @@ object BarLayout {
         if (deck <= 0) {
             // One-row bar: room plus the single action on the right.
             val actionLeft = cols * (1f - ACTION_ZONE_FRACTION)
-            val statusRight = statusWidth(hud)
-            drawStatusColumn(p, hud, statusRight, rows - 1f)
-            drawArena(p, hud, statusRight, actionLeft - 1f, rows - 1f, nowMs, recent, Biome.of(state.act))
-            drawActionButton(p, hud, actionLeft, cols - PAD, rows - 1f)
+            val statusRight = statusWidth(p, hud)
+            drawStatusColumn(p, hud, statusRight, rows - 2f)
+            drawArena(p, hud, statusRight, actionLeft - 2f, rows - 2f, nowMs, recent, Biome.of(state.act))
+            drawActionButton(p, hud, actionLeft, cols - PAD, rows - 2f)
             return
         }
 
@@ -107,22 +113,22 @@ object BarLayout {
         // on a two-row widget the room wins, since the deck already shows the
         // numbers you act on and the status column the ones you watch.
         val deckTop = rows - deck
-        val infoLines = if (deckTop - MIN_ROOM - 1 >= 2 * INFO_LINE) 2 else 0
-        val roomBottom = deckTop - infoLines * INFO_LINE - 1f
+        val infoLines = if (deckTop - MIN_ROOM - 2 >= 2 * INFO_LINE) 2 else 0
+        val roomBottom = deckTop - infoLines * INFO_LINE - 2f
 
-        val statusRight = statusWidth(hud)
+        val statusRight = statusWidth(p, hud)
         drawStatusColumn(p, hud, statusRight, roomBottom)
-        drawArena(p, hud, statusRight, cols - PAD - 1f, roomBottom, nowMs, recent, Biome.of(state.act))
-        drawInfoLines(p, hud, state, cols, roomBottom + 2f, infoLines, recent)
-        drawDeck(p, hud, cols, deckTop.toFloat(), rows - 1f)
+        drawArena(p, hud, statusRight, cols - PAD - 2f, roomBottom, nowMs, recent, Biome.of(state.act))
+        drawInfoLines(p, hud, state, cols, roomBottom + 4f, infoLines, recent)
+        drawDeck(p, hud, cols, deckTop.toFloat(), rows - 2f)
     }
 
     /** Width of the left column, measured from the strings actually in it. */
-    private fun statusWidth(hud: Hud): Float {
-        val stage = PixelFont.measure(hud.stage).toFloat()
-        val level = PixelFont.measure(hud.level).toFloat()
-        val gold = COIN + 2f + PixelFont.measure(hud.gold)
-        return PAD + 2f + maxOf(stage, level, gold) + 4f
+    private fun statusWidth(p: PixelPainter, hud: Hud): Float {
+        val stage = p.measure(hud.stage)
+        val level = p.measure(hud.level)
+        val gold = COIN + 4f + p.measure(hud.gold)
+        return PAD + 4f + maxOf(stage, level, gold) + 8f
     }
 
     /**
@@ -130,13 +136,13 @@ object BarLayout {
      * left to the tall strip — three lines is all a 4x1 bar can hold.
      */
     private fun drawStatusColumn(p: PixelPainter, hud: Hud, right: Float, bottom: Float) {
-        val x = PAD + 2f
+        val x = PAD + 4f
         p.text(x, ROW_Y[0], hud.stage, Palette.PARCHMENT)
         p.text(x, ROW_Y[1], hud.level, Palette.PARCHMENT_DIM)
-        p.sprite(x, ROW_Y[2] + 1f, Sprites.icon(IconKey.COIN))
-        p.text(x + COIN + 2f, ROW_Y[2], hud.gold, Palette.GOLD)
+        p.sprite(x, ROW_Y[2] + 2f, Sprites.icon(IconKey.COIN), ICON_SCALE)
+        p.text(x + COIN + 4f, ROW_Y[2], hud.gold, Palette.GOLD)
         // Hairline between the stats and the room.
-        p.fill(right - 3f, PAD + 1f, 1f, bottom - PAD - 2f, Palette.BEVEL_DARK)
+        p.fill(right - 6f, PAD + 2f, 2f, bottom - PAD - 4f, Palette.BEVEL_DARK)
     }
 
     /** Middle: the room. Brick wall, torch, flagstone, two fighters, two meters. */
@@ -151,7 +157,7 @@ object BarLayout {
         biome: Biome,
     ) {
         val width = to - from
-        if (width < 24f) return
+        if (width < 48f) return
 
         val top = PAD
         val height = bottom - top
@@ -159,68 +165,68 @@ object BarLayout {
         // Stacked from the top: caption on the wall, fighters standing on the
         // flagstone, their health sunk into the floor beneath their feet. A 4x1 bar
         // has no row to spare, and nothing may cover a sprite's head.
-        val captionY = top + 1f
-        val meterHeight = 3f
-        val meterY = bottom - meterHeight - 1f
-        val feet = meterY - 2f
+        val captionY = top + 2f
+        val meterHeight = 6f
+        val meterY = bottom - meterHeight - 3f
+        val feet = meterY - 5f
         // The party and the monster share the room, so the party is sized as a
         // block: whatever scale lets all of them stand in half the arena.
         val members = hud.party.size.coerceAtLeast(1)
         val scale = Formation.scale(
             members = members,
-            maxWidth = (width - 10f) * 0.55f,
-            maxHeight = feet - (captionY + PixelFont.HEIGHT + 2f),
+            maxWidth = (width - 20f) * 0.55f,
+            maxHeight = feet - (captionY + p.textHeight + 4f),
         )
         val side = Sprites.FIGHTER_SIZE * scale
-        val floorTop = feet - 1f
+        val floorTop = feet - 3f
 
         p.bricks(from, top, width, floorTop - top, biome)
         p.floor(from, floorTop, width, bottom - floorTop, biome)
         // Framed dark, so the room reads as sunk into the panel.
         p.frame(from, top, width, height, Palette.BEVEL_DARK)
 
-        if (width > 46f) p.torch(from + width / 2f - 2f, top + 10f, nowMs)
+        if (width > 92f) p.torch(from + width / 2f - 4f, top + 20f, nowMs)
 
-        val budget = (width - 6f).toInt()
-        val caption = recent?.text ?: if (hud.isDown) fittingWord(DEFEAT_WORDS, budget) else hud.enemyShort
+        val budget = width - 12f
+        val caption = recent?.text ?: if (hud.isDown) fittingWord(p, DEFEAT_WORDS, budget) else hud.enemyShort
         val captionColor = recent?.let(::toneColor) ?: if (hud.isDown) Palette.HP else Palette.PARCHMENT
-        val text = PixelFont.clipWords(caption, budget)
-        val textWidth = PixelFont.measure(text).toFloat()
+        val text = p.clipWords(caption, budget)
+        val textWidth = p.measure(text).toFloat()
         val center = (from + to) / 2f
         // A plaque behind the letters: parchment on masonry needs the contrast.
-        p.fill(center - textWidth / 2f - 2f, captionY - 1f, textWidth + 4f, PixelFont.HEIGHT + 2f, biome.stoneDark)
+        p.fill(center - textWidth / 2f - 4f, captionY - 2f, textWidth + 8f, p.textHeight + 4f, biome.stoneDark)
         p.text(center - textWidth / 2f, captionY, text, captionColor)
 
         val roster = hud.party
-        val partyLeft = from + 3f
+        val partyLeft = from + 6f
         for (i in Formation.drawOrder(roster.size)) {
             val member = roster[i]
             val art = Sprites.heroFrame(member.cls, nowMs, member.down || hud.isDown)
             val x = partyLeft + Formation.offset(i, roster.size, side)
-            p.shadow(x + side / 2f, feet - 1f, side * 0.7f)
+            p.shadow(x + side / 2f, feet - 2f, side * 0.7f)
             p.sprite(x, feet - side, art, side / art.size)
         }
 
         if (!hud.isDown) {
             val enemyArt = Sprites.of(hud.enemySprite)
-            val enemyX = to - 3f - side
-            p.shadow(enemyX + side / 2f, feet - 1f, side * 0.7f)
+            val enemyX = to - 6f - side
+            p.shadow(enemyX + side / 2f, feet - 2f, side * 0.7f)
             p.sprite(enemyX, feet - side, enemyArt, side / enemyArt.size)
         }
 
-        val meterWidth = ((width - 9f) / 2f).coerceAtMost(30f)
-        p.bar(from + 3f, meterY, meterWidth, meterHeight, hud.frontHp, Palette.HP, Palette.HP_SOCKET)
+        val meterWidth = ((width - 18f) / 2f).coerceAtMost(60f)
+        p.bar(from + 6f, meterY, meterWidth, meterHeight, hud.frontHp, Palette.HP, Palette.HP_SOCKET)
         if (!hud.isDown) {
-            p.bar(to - 3f - meterWidth, meterY, meterWidth, meterHeight, hud.enemyHp, Palette.FOE, Palette.FOE_SOCKET)
+            p.bar(to - 6f - meterWidth, meterY, meterWidth, meterHeight, hud.enemyHp, Palette.FOE, Palette.FOE_SOCKET)
         }
     }
 
     /** Right: the single tappable action, as a chunky gold-rimmed button. */
     private fun drawActionButton(p: PixelPainter, hud: Hud, from: Float, to: Float, bottom: Float) {
         val w = to - from
-        if (w < 12f) return
-        val top = PAD + 1f
-        val h = (bottom - 1f - top).coerceAtMost(30f)
+        if (w < 24f) return
+        val top = PAD + 2f
+        val h = (bottom - 2f - top).coerceAtMost(60f)
         val hot = hud.buttonEnabled
 
         // Dark slab either way; gold is the trim, not the fill. A lit button gets a
@@ -229,31 +235,31 @@ object BarLayout {
         p.frame(from, top, w, h, if (hot) Palette.GOLD else Palette.BEVEL_LIGHT)
 
         val center = from + w / 2f
-        val budget = (w - 4f).toInt()
-        val labelY = top + (h - 17f) / 2f
-        p.textCentered(center, labelY, fittingLabel(hud, budget), if (hot) Palette.PARCHMENT else Palette.PARCHMENT_DIM)
+        val budget = w - 8f
+        val labelY = top + (h - 34f) / 2f
+        p.textCentered(center, labelY, fittingLabel(p, hud, budget), if (hot) Palette.PARCHMENT else Palette.PARCHMENT_DIM)
 
         // The coin only appears on a price you can actually pay — an unaffordable
         // level should not glint at you.
         if (hot) {
-            val cost = PixelFont.clip(hud.buttonCost, budget - 7)
-            val costX = center - (COIN + 2f + PixelFont.measure(cost)) / 2f
-            p.sprite(costX, labelY + 10f, Sprites.icon(IconKey.COIN))
-            p.text(costX + COIN + 2f, labelY + 9f, cost, Palette.GOLD)
+            val cost = p.clip(hud.buttonCost, budget - 14f)
+            val costX = center - (COIN + 4f + p.measure(cost)) / 2f
+            p.sprite(costX, labelY + 21f, Sprites.icon(IconKey.COIN), ICON_SCALE)
+            p.text(costX + COIN + 4f, labelY + 19f, cost, Palette.GOLD)
         } else {
-            p.textCentered(center, labelY + 9f, PixelFont.clip(hud.buttonCost, budget), Palette.GOLD_DARK)
+            p.textCentered(center, labelY + 19f, p.clip(hud.buttonCost, budget), Palette.GOLD_DARK)
         }
     }
 
     /** Narrow bars lose the word before they lose the meaning. */
-    private fun fittingLabel(hud: Hud, budget: Int): String =
-        fittingWord(listOf(hud.buttonLabel, "LV+", "UP"), budget)
+    private fun fittingLabel(p: PixelPainter, hud: Hud, budget: Float): String =
+        fittingWord(p, listOf(hud.buttonLabel, "LV+", "UP"), budget)
 
     private val DEFEAT_WORDS = listOf("DEFEATED", "WIPED", "DEAD")
 
     /** First of [words] that fits, falling back to a hard clip of the first. */
-    private fun fittingWord(words: List<String>, budget: Int): String =
-        words.firstOrNull { PixelFont.measure(it) <= budget } ?: PixelFont.clip(words.first(), budget)
+    private fun fittingWord(p: PixelPainter, words: List<String>, budget: Float): String =
+        words.firstOrNull { p.measure(it) <= budget } ?: p.clip(words.first(), budget)
 
     /** Info above the deck: where we stand, and what is accruing on its own. */
     private fun drawInfoLines(
@@ -266,31 +272,31 @@ object BarLayout {
         recent: Ticker?,
     ) {
         if (lines <= 0) return
-        val x = PAD + 2f
-        val right = cols - PAD - 2f
+        val x = PAD + 4f
+        val right = cols - PAD - 4f
 
         // First line: the run's high-water marks. The current act is already in the
         // status column, so repeating it here would waste the only spare line.
-        p.text(x, top, PixelFont.clip(hud.deepest, ((right - x) / 2f).toInt()), Palette.PARCHMENT)
+        p.text(x, top, p.clip(hud.deepest, (right - x) / 2f), Palette.PARCHMENT)
         val slain = "${Fmt.short(state.kills.toDouble())} SLAIN"
-        p.text(right - PixelFont.measure(slain), top, slain, Palette.PARCHMENT_DIM)
+        p.text(right - p.measure(slain), top, slain, Palette.PARCHMENT_DIM)
 
         if (lines < 2) return
         // Second line: passive progress on the left, the ticker on the right.
         val y = top + INFO_LINE
         val runes = "R${state.runes} +${state.runes * 2}%"
         p.text(x, y, runes, Palette.MANA)
-        val meterX = x + PixelFont.measure(runes) + 4f
-        val meterWidth = 22f
-        p.bar(meterX, y + 1f, meterWidth, 4f, hud.runeProgress, Palette.MANA, Palette.MANA_SOCKET)
+        val meterX = x + p.measure(runes) + 8f
+        val meterWidth = 44f
+        p.bar(meterX, y + 3f, meterWidth, 8f, hud.runeProgress, Palette.MANA, Palette.MANA_SOCKET)
 
         // The rest of the line belongs to events. Left empty between them, so a
         // boss drop actually catches the eye instead of replacing a static number.
         val ticker = recent ?: return
-        val budget = (right - (meterX + meterWidth) - 5f).toInt()
-        if (budget > 20) {
-            val clipped = PixelFont.clipWords(ticker.text, budget)
-            p.text(right - PixelFont.measure(clipped), y, clipped, toneColor(ticker))
+        val budget = right - (meterX + meterWidth) - 10f
+        if (budget > 40f) {
+            val clipped = p.clipWords(ticker.text, budget)
+            p.text(right - p.measure(clipped), y, clipped, toneColor(ticker))
         }
     }
 
@@ -301,8 +307,8 @@ object BarLayout {
     private fun drawDeck(p: PixelPainter, hud: Hud, cols: Int, top: Float, bottom: Float) {
         val left = PAD
         val width = cols - PAD * 2f
-        val height = bottom - top - 1f
-        if (height < 12f || width < 30f) return
+        val height = bottom - top - 2f
+        if (height < 24f || width < 60f) return
 
         var x = left
         val buttons = listOf(
@@ -319,8 +325,8 @@ object BarLayout {
             DeckButton(listOf("AUTO"), if (hud.autoOn) "ON" else "OFF", hud.autoOn, Palette.MANA, costHasCoin = false),
         )
         for ((i, button) in buttons.withIndex()) {
-            val w = width * DECK_SPLIT[i] - if (i < buttons.lastIndex) 1f else 0f
-            drawDeckButton(p, button, x, top + 1f, w, height)
+            val w = width * DECK_SPLIT[i] - if (i < buttons.lastIndex) 2f else 0f
+            drawDeckButton(p, button, x, top + 2f, w, height)
             x += width * DECK_SPLIT[i]
         }
     }
@@ -340,21 +346,21 @@ object BarLayout {
         p.frame(x, y, w, h, trim)
 
         val center = x + w / 2f
-        val budget = (w - 4f).toInt()
-        val twoLines = h >= 19f
-        val labelY = if (twoLines) y + (h - 17f) / 2f else y + (h - PixelFont.HEIGHT) / 2f
-        p.textCentered(center, labelY, fittingWord(button.labels, budget), if (button.lit) Palette.PARCHMENT else Palette.PARCHMENT_DIM)
+        val budget = w - 8f
+        val twoLines = h >= 38f
+        val labelY = if (twoLines) y + (h - 34f) / 2f else y + (h - p.textHeight) / 2f
+        p.textCentered(center, labelY, fittingWord(p, button.labels, budget), if (button.lit) Palette.PARCHMENT else Palette.PARCHMENT_DIM)
         if (!twoLines) return
 
-        val valueY = labelY + 10f
+        val valueY = labelY + 20f
         if (button.costHasCoin && button.lit) {
-            val cost = PixelFont.clip(button.value, budget - 7)
-            val costX = center - (COIN + 2f + PixelFont.measure(cost)) / 2f
-            p.sprite(costX, valueY + 1f, Sprites.icon(IconKey.COIN))
-            p.text(costX + COIN + 2f, valueY, cost, Palette.GOLD)
+            val cost = p.clip(button.value, budget - 14f)
+            val costX = center - (COIN + 4f + p.measure(cost)) / 2f
+            p.sprite(costX, valueY + 2f, Sprites.icon(IconKey.COIN), ICON_SCALE)
+            p.text(costX + COIN + 4f, valueY, cost, Palette.GOLD)
         } else {
             val color = if (button.lit) button.accent else Palette.PARCHMENT_DIM
-            p.textCentered(center, valueY, PixelFont.clip(button.value, budget), color)
+            p.textCentered(center, valueY, p.clip(button.value, budget), color)
         }
     }
 

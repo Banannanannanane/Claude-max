@@ -83,7 +83,7 @@ class AssetsTest {
     @Test
     fun `every sprite is square, painted and fully coloured`() {
         for (key in SpriteKey.entries) {
-            assertPixelArt(key.name, Sprites.of(key), minSize = 12)
+            assertPixelArt(key.name, Sprites.of(key), minSize = Sprites.FIGHTER_SIZE)
         }
         for (key in IconKey.entries) {
             assertPixelArt(key.name, Sprites.icon(key), minSize = 5)
@@ -154,6 +154,13 @@ class AssetsTest {
         for (cls in listOf(HeroClass.RANGER, HeroClass.MAGE)) {
             assertEquals(Sprites.of(cls.sprite), Sprites.heroFrame(cls, 0L))
             assertEquals(Sprites.of(cls.sprite), Sprites.heroFrame(cls, 500L))
+        }
+    }
+
+    @Test
+    fun `every fighter shares the one grid, so a single integer scale serves all`() {
+        for (key in SpriteKey.entries) {
+            assertEquals(Sprites.FIGHTER_SIZE, Sprites.of(key).size, "$key is off-grid")
         }
     }
 

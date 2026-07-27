@@ -11,7 +11,29 @@ import dev.taskbarhero.engine.Sprites
  * Everything is a filled square. That is the whole trick behind the look: hard
  * edges, no anti-aliased curves, no gradients.
  */
-class PixelPainter(private val surface: Surface, val unit: Float) {
+class PixelPainter(
+    private val surface: Surface,
+    val unit: Float,
+    /**
+     * Font pixels per cell. The grid is fine enough for 32x32 sprites, which makes
+     * a 1x face too small to read, so text is drawn at 2x — exactly how a pixel
+     * game renders at a low internal resolution and upscales by an integer.
+     */
+    val textScale: Float = 2f,
+) {
+
+    /** Height of a line of text, in cells. */
+    val textHeight: Float get() = PixelFont.HEIGHT * textScale
+
+    /** Width [text] will occupy, in cells. */
+    fun measure(text: String): Float = PixelFont.measure(text) * textScale
+
+    /** Trims [text] to [budgetCells] of drawn width. */
+    fun clip(text: String, budgetCells: Float): String =
+        PixelFont.clip(text, (budgetCells / textScale).toInt())
+
+    fun clipWords(text: String, budgetCells: Float): String =
+        PixelFont.clipWords(text, (budgetCells / textScale).toInt())
 
     /** Fills a rectangle given in cells. */
     fun fill(x: Float, y: Float, w: Float, h: Float, color: Int) {
@@ -25,7 +47,7 @@ class PixelPainter(private val surface: Surface, val unit: Float) {
      * Draws [text] with its top-left at ([x], [y]) over a one-cell shadow.
      * Returns the width used, in cells.
      */
-    fun text(x: Float, y: Float, text: String, color: Int, shadow: Int = Palette.OUTLINE, scale: Float = 1f): Float {
+    fun text(x: Float, y: Float, text: String, color: Int, shadow: Int = Palette.OUTLINE, scale: Float = textScale): Float {
         val cells = PixelFont.cells(text)
         if (shadow != 0) {
             for (c in cells) fill(x + (c.x + 1) * scale, y + (c.y + 1) * scale, scale, scale, shadow)
@@ -34,10 +56,8 @@ class PixelPainter(private val surface: Surface, val unit: Float) {
         return PixelFont.measure(text) * scale
     }
 
-    fun textCentered(centerX: Float, y: Float, label: String, color: Int, shadow: Int = Palette.OUTLINE): Float {
-        val w = PixelFont.measure(label).toFloat()
-        return text(centerX - w / 2f, y, label, color, shadow)
-    }
+    fun textCentered(centerX: Float, y: Float, label: String, color: Int, shadow: Int = Palette.OUTLINE): Float =
+        text(centerX - measure(label) / 2f, y, label, color, shadow)
 
     /** Blits palette-indexed art. Colours travel with the sprite, not the call site. */
     fun sprite(x: Float, y: Float, art: Sprites.Art, scale: Float = 1f) {
@@ -54,8 +74,8 @@ class PixelPainter(private val surface: Surface, val unit: Float) {
      * and wide rather than round: a circle at this size just looks like a ball.
      */
     fun shadow(centerX: Float, y: Float, width: Float) {
-        fill(centerX - width / 2f, y, width, 1f, Palette.SHADOW)
-        fill(centerX - width / 2f + 1f, y + 1f, width - 2f, 1f, Palette.SHADOW)
+        fill(centerX - width / 2f, y, width, 2f, Palette.SHADOW)
+        fill(centerX - width / 2f + 2f, y + 2f, width - 4f, 2f, Palette.SHADOW)
     }
 
     /**
@@ -65,15 +85,15 @@ class PixelPainter(private val surface: Surface, val unit: Float) {
      * below full.
      */
     fun bar(x: Float, y: Float, w: Float, h: Float, fraction: Double, color: Int, socket: Int) {
-        fill(x - 1f, y - 1f, w + 2f, h + 2f, Palette.OUTLINE)
+        fill(x - 2f, y - 2f, w + 4f, h + 4f, Palette.OUTLINE)
         fill(x, y, w, h, socket)
         val f = fraction.coerceIn(0.0, 1.0)
         var filled = (w * f).toFloat()
-        if (f > 0.0 && filled < 1f) filled = 1f
-        if (f < 1.0 && filled > w - 1f) filled = w - 1f
+        if (f > 0.0 && filled < 2f) filled = 2f
+        if (f < 1.0 && filled > w - 2f) filled = w - 2f
         if (filled <= 0f) return
         fill(x, y, filled, h, color)
-        if (h >= 3f) fill(x, y, filled, 1f, tint(color, 0.34f))
+        if (h >= 5f) fill(x, y, filled, 2f, tint(color, 0.34f))
     }
 
     /** Chunky bevelled panel: lit top-left, shaded bottom-right, square corners. */
@@ -85,24 +105,25 @@ class PixelPainter(private val surface: Surface, val unit: Float) {
         face: Int,
         light: Int = Palette.BEVEL_LIGHT,
         dark: Int = Palette.BEVEL_DARK,
+        weight: Float = 2f,
     ) {
         fill(x, y, w, h, face)
-        fill(x, y, w, 1f, light)
-        fill(x, y, 1f, h, light)
-        fill(x, y + h - 1f, w, 1f, dark)
-        fill(x + w - 1f, y, 1f, h, dark)
+        fill(x, y, w, weight, light)
+        fill(x, y, weight, h, light)
+        fill(x, y + h - weight, w, weight, dark)
+        fill(x + w - weight, y, weight, h, dark)
     }
 
     /** The same panel pressed in — bevel reversed — for sockets and unlit buttons. */
-    fun inset(x: Float, y: Float, w: Float, h: Float, face: Int) =
-        panel(x, y, w, h, face, light = Palette.BEVEL_DARK, dark = Palette.BEVEL_LIGHT)
+    fun inset(x: Float, y: Float, w: Float, h: Float, face: Int, weight: Float = 2f) =
+        panel(x, y, w, h, face, light = Palette.BEVEL_DARK, dark = Palette.BEVEL_LIGHT, weight = weight)
 
     /** One-pixel frame, no fill. */
-    fun frame(x: Float, y: Float, w: Float, h: Float, color: Int) {
-        fill(x, y, w, 1f, color)
-        fill(x, y + h - 1f, w, 1f, color)
-        fill(x, y, 1f, h, color)
-        fill(x + w - 1f, y, 1f, h, color)
+    fun frame(x: Float, y: Float, w: Float, h: Float, color: Int, weight: Float = 2f) {
+        fill(x, y, w, weight, color)
+        fill(x, y + h - weight, w, weight, color)
+        fill(x, y, weight, h, color)
+        fill(x + w - weight, y, weight, h, color)
     }
 
     /**
@@ -115,20 +136,20 @@ class PixelPainter(private val surface: Surface, val unit: Float) {
         w: Float,
         h: Float,
         biome: Biome = Biome.DUNGEON,
-        courseHeight: Int = 6,
-        brickWidth: Int = 11,
+        courseHeight: Int = 12,
+        brickWidth: Int = 22,
     ) {
         fill(x, y, w, h, biome.stoneDark)
         var course = 0
         var top = y
         while (top < y + h) {
-            val bottom = minOf(top + courseHeight - 1f, y + h)
+            val bottom = minOf(top + courseHeight - 2f, y + h)
             fill(x, top, w, bottom - top, biome.stone)
-            fill(x, top, w, 1f, biome.stoneLit)
+            fill(x, top, w, 2f, biome.stoneLit)
             // Mortar joints, offset every other course.
             var joint = x + if (course % 2 == 0) brickWidth.toFloat() else brickWidth / 2f
             while (joint < x + w) {
-                fill(joint, top, 1f, bottom - top, biome.stoneDark)
+                fill(joint, top, 2f, bottom - top, biome.stoneDark)
                 joint += brickWidth
             }
             top += courseHeight
@@ -139,7 +160,7 @@ class PixelPainter(private val surface: Surface, val unit: Float) {
     /** Flagstone the fighters stand on. */
     fun floor(x: Float, y: Float, w: Float, h: Float, biome: Biome = Biome.DUNGEON) {
         fill(x, y, w, h, biome.floor)
-        fill(x, y, w, 1f, biome.stoneLit)
+        fill(x, y, w, 2f, biome.stoneLit)
     }
 
     /**
@@ -166,21 +187,21 @@ class PixelPainter(private val surface: Surface, val unit: Float) {
      * Wall torch with a two-frame flame, driven by the wall clock so every redraw
      * agrees on which frame is showing.
      */
-    fun torch(x: Float, y: Float, nowMs: Long) {
-        surface.circle((x + 2f) * unit, (y + 1f) * unit, 4f * unit, translucent(Palette.TORCH, 0.10f))
-        fill(x + 1f, y + 3f, 2f, 4f, Palette.OUTLINE)
-        fill(x, y + 2f, 4f, 1f, Palette.GOLD_DARK)
-        val flame = if ((nowMs / 400L) % 2L == 0L) 3f else 2f
-        fill(x + 1f, y + 2f - flame, 2f, flame, Palette.TORCH)
-        pixel(x + 1f, y + 1f - flame, Palette.TORCH_CORE)
+    fun torch(x: Float, y: Float, nowMs: Long, scale: Float = 2f) {
+        surface.circle((x + 2f * scale) * unit, (y + 1f * scale) * unit, 5f * scale * unit, translucent(Palette.TORCH, 0.10f))
+        fill(x + scale, y + 3f * scale, 2f * scale, 4f * scale, Palette.OUTLINE)
+        fill(x, y + 2f * scale, 4f * scale, scale, Palette.GOLD_DARK)
+        val flame = (if ((nowMs / 400L) % 2L == 0L) 3f else 2f) * scale
+        fill(x + scale, y + 2f * scale - flame, 2f * scale, flame, Palette.TORCH)
+        fill(x + scale, y + scale - flame, scale, scale, Palette.TORCH_CORE)
     }
 
     /** Dotted separator, one pixel tall. */
-    fun divider(x: Float, y: Float, w: Float, color: Int = Palette.BEVEL_LIGHT) {
+    fun divider(x: Float, y: Float, w: Float, color: Int = Palette.BEVEL_LIGHT, size: Float = 2f) {
         var i = 0f
         while (i < w) {
-            fill(x + i, y, 1f, 1f, color)
-            i += 2f
+            fill(x + i, y, size, size, color)
+            i += size * 2f
         }
     }
 
