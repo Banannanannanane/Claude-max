@@ -36,11 +36,12 @@ object IdleEngine {
     fun advance(state: GameState, nowMs: Long, b: Balance = Balance()): Result {
         if (nowMs <= state.lastTickMs) return Result(state, emptyList())
 
+        val cap = b.offlineCapMs + state.runes.offlineBonusMs
         var elapsed = nowMs - state.lastTickMs
         var skipped = 0L
-        if (elapsed > b.offlineCapMs) {
-            skipped = elapsed - b.offlineCapMs
-            elapsed = b.offlineCapMs
+        if (elapsed > cap) {
+            skipped = elapsed - cap
+            elapsed = cap
         }
 
         val ticks = elapsed / TICK_MS
@@ -84,9 +85,12 @@ object IdleEngine {
         // The monster is dead: pay out, then walk to the next one.
         val boss = b.isBossWave(s.wave)
         s = s.copy(
-            gold = s.gold + b.goldFor(s.act, s.wave),
+            gold = s.gold + b.goldFor(s.act, s.wave) * s.runes.gold,
             kills = s.kills + 1,
             bossKills = if (boss) s.bossKills + 1 else s.bossKills,
+            // One rune per boss, and from nowhere else: the only way to buy the
+            // tree is to get further than last time.
+            runes = if (boss) s.runes.copy(earned = s.runes.earned + 1) else s.runes,
         )
         if (boss) {
             val item = Item.roll(s.act, s.bossKills)
@@ -128,14 +132,14 @@ object IdleEngine {
             enemyHp = b.enemyMaxHp(state.act, 1),
             wipes = state.wipes + 1,
             downUntilMs = nowMs + b.downMs,
-            party = state.party.map { it.copy(hp = it.maxHp(b) * 0.35) },
+            party = state.party.map { it.copy(hp = state.heroMaxHp(it, b) * 0.35) },
         )
     }
 
     /** Regeneration, as a fraction of the pool per tick. The dead do not heal. */
     private fun healed(state: GameState, b: Balance, rate: Double): List<Hero> =
         state.party.map { hero ->
-            val max = hero.maxHp(b)
+            val max = state.heroMaxHp(hero, b)
             when {
                 hero.hp <= 0.0 && !state.isDown(state.lastTickMs) -> hero
                 hero.hp >= max -> hero
@@ -171,7 +175,7 @@ object IdleEngine {
         if (!state.canDrinkPotion(b)) return null
         return state.copy(
             gold = state.gold - state.potionCost(b),
-            party = state.party.map { it.copy(hp = it.maxHp(b)) },
+            party = state.party.map { it.copy(hp = state.heroMaxHp(it, b)) },
             downUntilMs = 0L,
         )
     }

@@ -317,3 +317,74 @@ class BalanceTest {
         assertTrue(Fmt.short(1e60).length <= 7, "'${Fmt.short(1e60)}' will not fit a widget")
     }
 }
+
+class RuneTest {
+
+    @Test
+    fun `runes come from bosses and from nowhere else`() {
+        val s = IdleEngine.advance(
+            GameState.newRun(T0, B).copy(autoLevel = true), T0 + 3_600_000L, B,
+        ).state
+        assertEquals(s.bossKills.toInt(), s.runes.earned, "one rune per boss, no more and no fewer")
+    }
+
+    @Test
+    fun `a rank costs one more than the last, and cannot be bought without them`() {
+        val broke = RuneState(earned = 0)
+        assertNull(broke.buy(Rune.POWER), "nothing is bought with nothing")
+
+        var runes = RuneState(earned = 6)
+        runes = runes.buy(Rune.POWER)!!
+        assertEquals(1, runes.rank(Rune.POWER))
+        assertEquals(5, runes.available, "rank one costs one")
+
+        runes = runes.buy(Rune.POWER)!!
+        assertEquals(3, runes.available, "rank two costs two")
+        assertEquals(3, runes.used)
+    }
+
+    @Test
+    fun `a rune cannot be pushed past its last rank`() {
+        var runes = RuneState(earned = 500)
+        repeat(Rune.HASTE.ranks) { runes = runes.buy(Rune.HASTE)!! }
+        assertEquals(Rune.HASTE.ranks, runes.rank(Rune.HASTE))
+        assertNull(runes.buy(Rune.HASTE), "a maxed rune has nothing left to sell")
+    }
+
+    @Test
+    fun `ranks change the run, each in its own direction`() {
+        val bare = GameState.newRun(T0, B).copy(unlocked = 3)
+        val strong = bare.copy(runes = RuneState(earned = 99, spent = mapOf(Rune.POWER to 3)))
+        assertTrue(strong.partyDps(B) > bare.partyDps(B), "POWER should hit harder")
+
+        val tough = bare.copy(runes = RuneState(earned = 99, spent = mapOf(Rune.VIGOUR to 3)))
+        assertTrue(tough.heroMaxHp(tough.party[0], B) > bare.heroMaxHp(bare.party[0], B))
+
+        val thrifty = bare.copy(runes = RuneState(earned = 99, spent = mapOf(Rune.HASTE to 3)))
+        assertTrue(thrifty.levelCost(B) < bare.levelCost(B), "HASTE should make levels cheaper")
+
+        // And the discount stops well short of free, or the game would end there.
+        val maxed = RuneState(earned = 99, spent = mapOf(Rune.HASTE to Rune.HASTE.ranks))
+        assertTrue(maxed.levelCost >= 0.5)
+    }
+
+    @Test
+    fun `REST buys real offline time`() {
+        val rested = GameState.newRun(T0, B)
+            .copy(runes = RuneState(earned = 99, spent = mapOf(Rune.REST to 3)))
+        val plain = GameState.newRun(T0, B)
+        val away = B.offlineCapMs + 5 * 60 * 60 * 1000L
+
+        val restedRun = IdleEngine.advance(rested, T0 + away, B)
+        val plainRun = IdleEngine.advance(plain, T0 + away, B)
+        assertTrue(restedRun.skippedMs < plainRun.skippedMs, "REST should waste less of an absence")
+        assertTrue(restedRun.state.kills > plainRun.state.kills, "and should have played longer")
+    }
+
+    @Test
+    fun `runes survive being written down and read back`() {
+        val runes = RuneState(earned = 40, spent = mapOf(Rune.POWER to 2, Rune.REST to 5))
+        assertEquals(runes, RuneState.decode(runes.encode()))
+        assertEquals(RuneState(), RuneState.decode(""), "a save with no runes yet reads as none")
+    }
+}

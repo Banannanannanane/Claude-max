@@ -1,0 +1,15 @@
+# Pieces of icons.png used by the game.
+#   NAME = x, y, width, height
+#
+# Source: Shikashi's Fantasy Icons Pack v2 — see LICENSE-shikashi.txt and
+# ATTRIBUTION.txt. The sheet is a 16-column grid of 32x32 cells in the order the
+# author lists them, so a rectangle here is just cell number x 32.
+#
+# These are drawn whole, never trimmed: an icon is a composed square, and cropping
+# one to its ink would make a lightning bolt and a heart different sizes.
+
+RUNE_POWER   =   0, 96, 32, 32   # cell 48, dripping blade
+RUNE_VIGOUR  =   0, 32, 32, 32   # cell 16, heart
+RUNE_HASTE   =  64, 96, 32, 32   # cell 50, lightning attack
+RUNE_REST    = 224,  0, 32, 32   # cell 7, sleeping
+RUNE_GOLD    = 128, 96, 32, 32   # cell 52, raining arrows — stands in for plunder

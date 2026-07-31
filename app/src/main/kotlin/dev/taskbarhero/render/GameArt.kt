@@ -24,8 +24,10 @@ object GameArt {
         data class Ready(
             val dungeon: Atlas,
             val ui: Atlas,
+            val icons: Atlas,
             val dungeonBitmap: Bitmap,
             val uiBitmap: Bitmap,
+            val iconBitmap: Bitmap,
             val font: Typeface,
         ) : Load
 
@@ -47,23 +49,28 @@ object GameArt {
 
         val dungeon = parse(ctx, "art/dungeon.txt", problems)
         val ui = parse(ctx, "art/ui.txt", problems)
+        val icons = parse(ctx, "art/icons.txt", problems)
         if (dungeon != null) problems += Art.missingFrom(dungeon, Art.dungeonKeys).map {
             "art/dungeon.txt: nothing named $it, which the game draws"
         }
         if (ui != null) problems += Art.missingFrom(ui, Art.uiKeys).map {
             "art/ui.txt: nothing named $it, which the game draws"
         }
+        if (icons != null) problems += Art.missingFrom(icons, Art.iconKeys).map {
+            "art/icons.txt: nothing named $it, which the game draws"
+        }
 
         val dungeonBitmap = decode(ctx, AssetManifest.DUNGEON, problems)
         val uiBitmap = decode(ctx, AssetManifest.UI, problems)
+        val iconBitmap = decode(ctx, AssetManifest.ICONS, problems)
         val font = typeface(ctx, problems)
 
-        if (problems.isNotEmpty() || dungeon == null || ui == null ||
-            dungeonBitmap == null || uiBitmap == null || font == null
+        if (problems.isNotEmpty() || dungeon == null || ui == null || icons == null ||
+            dungeonBitmap == null || uiBitmap == null || iconBitmap == null || font == null
         ) {
             return Load.Broken(listOf("The art is there but unusable:") + problems)
         }
-        return Load.Ready(dungeon, ui, dungeonBitmap, uiBitmap, font)
+        return Load.Ready(dungeon, ui, icons, dungeonBitmap, uiBitmap, iconBitmap, font)
     }
 
     private fun parse(ctx: Context, path: String, problems: MutableList<String>): Atlas? {

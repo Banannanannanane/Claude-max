@@ -8,7 +8,9 @@ import dev.taskbarhero.game.GameState
 import dev.taskbarhero.game.Hero
 import dev.taskbarhero.game.HeroClass
 import dev.taskbarhero.game.IdleEngine
-import dev.taskbarhero.game.Loot
+import dev.taskbarhero.game.Loadout
+import dev.taskbarhero.game.Rune
+import dev.taskbarhero.game.RuneState
 import dev.taskbarhero.game.Ticker
 import dev.taskbarhero.game.Tone
 import dev.taskbarhero.game.toTicker
@@ -82,6 +84,16 @@ object GameStore {
         return on
     }
 
+    /** Spends a rune. Null when there is nothing to spend or nothing left to buy. */
+    @Synchronized
+    fun buyRune(ctx: Context, rune: Rune): Boolean {
+        val state = tick(ctx).state
+        val runes = state.runes.buy(rune) ?: return false
+        write(ctx, state.copy(runes = runes))
+        rememberTicker(ctx, Ticker("${rune.label} ${runes.rank(rune)}", Tone.MAGIC))
+        return true
+    }
+
     @Synchronized
     fun reset(ctx: Context) {
         write(ctx, GameState.newRun(System.currentTimeMillis(), balance))
@@ -126,7 +138,6 @@ object GameStore {
             val level = levels.getOrElse(i) { 1 }
             Hero(cls, level, healths.getOrElse(i) { balance.heroMaxHp(cls, level) })
         }
-        val stash = p.getString("stash", "")!!.split(SEPARATOR).mapNotNull { it.toIntOrNull() }
 
         return GameState(
             party = party,
@@ -136,7 +147,8 @@ object GameStore {
             enemyHp = p.getFloat("enemyHp", 0f).toDouble(),
             enemyIndex = p.getInt("enemyIndex", 0),
             gold = Double.fromBits(p.getLong("gold", 0L)),
-            stash = if (stash.size == Loot.GRADES.size) stash else List(Loot.GRADES.size) { 0 },
+            loadout = Loadout.decode(p.getString("loadout", "") ?: ""),
+            runes = RuneState.decode(p.getString("runes", "") ?: ""),
             kills = p.getLong("kills", 0L),
             bossKills = p.getLong("bossKills", 0L),
             wipes = p.getLong("wipes", 0L),
@@ -152,7 +164,8 @@ object GameStore {
         prefs(ctx).edit()
             .putString("levels", s.party.joinToString(SEPARATOR) { it.level.toString() })
             .putString("healths", s.party.joinToString(SEPARATOR) { it.hp.toString() })
-            .putString("stash", s.stash.joinToString(SEPARATOR))
+            .putString("loadout", s.loadout.encode())
+            .putString("runes", s.runes.encode())
             .putInt("unlocked", s.unlocked)
             .putInt("act", s.act)
             .putInt("wave", s.wave)

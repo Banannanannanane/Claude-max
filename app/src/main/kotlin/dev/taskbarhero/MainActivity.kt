@@ -18,6 +18,8 @@ import dev.taskbarhero.data.GameStore
 import dev.taskbarhero.game.GameState
 import dev.taskbarhero.paint.BarLayout
 import dev.taskbarhero.paint.Painter
+import dev.taskbarhero.paint.Screen
+import dev.taskbarhero.paint.ScreenLayout
 import dev.taskbarhero.render.AndroidSurface
 import dev.taskbarhero.render.GameArt
 import dev.taskbarhero.widget.TaskbarHeroWidget
@@ -82,11 +84,13 @@ class MainActivity : Activity() {
         private val art: GameArt.Load.Ready,
     ) : View(ctx) {
 
+        private var screen = Screen.FIELD
+
         override fun onDraw(canvas: Canvas) {
-            val density = resources.displayMetrics.density
-            BarLayout.draw(
-                Painter(AndroidSurface(canvas, art), art.dungeon, art.ui),
-                width.toFloat(), height.toFloat(), density,
+            ScreenLayout.draw(
+                Painter(AndroidSurface(canvas, art), art.dungeon, art.ui, art.icons),
+                screen,
+                width.toFloat(), height.toFloat(), resources.displayMetrics.density,
                 GameStore.peek(context),
                 System.currentTimeMillis(),
                 GameStore.recentTicker(context, BarLayout.EVENT_MS),
@@ -97,30 +101,48 @@ class MainActivity : Activity() {
         override fun onTouchEvent(event: MotionEvent): Boolean {
             if (event.action != MotionEvent.ACTION_UP) return true
             val density = resources.displayMetrics.density
-            val deck = BarLayout.deckHeight(density)
-            if (event.y < height - deck) return true
+            val nav = ScreenLayout.navHeight(density)
 
-            // The deck is split exactly as it is painted, so a tap and the button
-            // under the finger are the same thing.
-            var x = 0f
-            for ((index, share) in BarLayout.DECK_SPLIT.withIndex()) {
-                val w = width * share
-                if (event.x >= x && event.x < x + w) {
-                    press(index)
-                    return true
+            if (event.y >= height - nav) {
+                screen = ScreenLayout.screenAt(event.x, width.toFloat())
+                invalidate()
+                return true
+            }
+            when (screen) {
+                Screen.FIELD -> fieldTap(event.x, event.y, density, nav)
+                Screen.RUNES -> ScreenLayout.runeAt(event.y, density)?.let {
+                    if (GameStore.buyRune(context, it)) after()
                 }
-                x += w
+                else -> Unit
             }
             return true
         }
 
-        private fun press(slot: Int) {
-            when (slot) {
-                0 -> GameStore.levelUp(context)
-                1 -> GameStore.drinkPotion(context)
-                2 -> GameStore.cube(context)
-                else -> GameStore.toggleAuto(context)
+        /** The deck is split exactly as it is painted, so a tap and the button
+         *  under the finger are the same thing. */
+        private fun fieldTap(x: Float, y: Float, density: Float, nav: Float) {
+            val deck = BarLayout.deckHeight(density)
+            val fieldBottom = height - nav
+            if (y < fieldBottom - deck) return
+
+            var left = 0f
+            for ((index, share) in BarLayout.DECK_SPLIT.withIndex()) {
+                val w = width * share
+                if (x >= left && x < left + w) {
+                    when (index) {
+                        0 -> GameStore.levelUp(context)
+                        1 -> GameStore.drinkPotion(context)
+                        2 -> GameStore.cube(context)
+                        else -> GameStore.toggleAuto(context)
+                    }
+                    after()
+                    return
+                }
+                left += w
             }
+        }
+
+        private fun after() {
             invalidate()
             TaskbarHeroWidget.refreshAll(context)
         }

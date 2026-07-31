@@ -54,11 +54,11 @@ data class Hud(
                     HeroHud(
                         cls = hero.cls,
                         level = "LV ${hero.level}",
-                        fraction = (hero.hp / hero.maxHp(b)).coerceIn(0.0, 1.0),
+                        fraction = (hero.hp / state.heroMaxHp(hero, b)).coerceIn(0.0, 1.0),
                         down = hero.hp <= 0.0,
                     )
                 },
-                frontFraction = front?.let { (it.hp / it.maxHp(b)).coerceIn(0.0, 1.0) } ?: 0.0,
+                frontFraction = front?.let { (it.hp / state.heroMaxHp(it, b)).coerceIn(0.0, 1.0) } ?: 0.0,
                 isDown = down,
                 levelCost = Fmt.short(state.levelCost(b)),
                 canLevelUp = state.canLevelUp(b),

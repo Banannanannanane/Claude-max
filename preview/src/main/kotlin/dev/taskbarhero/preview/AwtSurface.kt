@@ -16,6 +16,7 @@ class AwtSurface(
     private val g: Graphics2D,
     private val dungeon: BufferedImage,
     private val ui: BufferedImage,
+    private val icons: BufferedImage,
     private val font: Font,
 ) : Surface {
 
@@ -42,7 +43,11 @@ class AwtSurface(
         right: Float,
         bottom: Float,
     ) {
-        val image = if (sheet == Surface.Sheet.DUNGEON) dungeon else ui
+        val image = when (sheet) {
+            Surface.Sheet.DUNGEON -> dungeon
+            Surface.Sheet.UI -> ui
+            Surface.Sheet.ICONS -> icons
+        }
         g.drawImage(
             image,
             left.toInt(), top.toInt(), right.toInt(), bottom.toInt(),

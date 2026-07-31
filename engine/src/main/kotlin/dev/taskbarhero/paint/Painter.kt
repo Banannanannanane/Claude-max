@@ -17,7 +17,22 @@ class Painter(
     val surface: Surface,
     private val dungeon: Atlas,
     private val ui: Atlas,
+    private val icons: Atlas = Atlas(emptyMap()),
 ) {
+
+    /**
+     * An icon, drawn whole into a square box.
+     *
+     * Unlike a fighter these are not bottom-aligned and not trimmed: an icon is a
+     * composed square, and cropping one to its ink would make a lightning bolt and
+     * a heart come out different sizes on the same row.
+     */
+    fun icon(key: String, x: Float, y: Float, size: Float) {
+        val f = icons[key] ?: return
+        surface.image(Surface.Sheet.ICONS, f.x, f.y, f.width, f.height, x, y, x + size, y + size)
+    }
+
+    fun hasIcon(key: String): Boolean = icons[key] != null
 
     /** The pack's own pixel grid: its tallest drawn frame. */
     val artUnit: Int get() = dungeon.unit

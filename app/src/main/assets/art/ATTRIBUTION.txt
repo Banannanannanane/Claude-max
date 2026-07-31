@@ -17,6 +17,16 @@ ui.png
   Licence : CC0 1.0 (public domain) — same terms as above
   File    : Spritesheet/uipack_rpg_sheet.png, unmodified.
 
+icons.png
+  Pack    : Shikashi's Fantasy Icons Pack v2
+  Author  : Shikashi — https://shikashiassets.itch.io
+  Licence : the author's own terms, kept verbatim in LICENSE-shikashi.txt:
+            "You can use and remix these icons for commercial games and
+            projects." The author also notes that many are based on designs from
+            game-icons.net, which are CC BY 3.0 — hence the credit to both.
+  Credit  : Shikashi, and game-icons.net (CC BY 3.0)
+  File    : "#1 - Transparent Icons.png", unmodified. 32x32 cells, 16 per row.
+
 m5x7.ttf
   Font    : m5x7
   Author  : Daniel Linssen — https://managore.itch.io/m5x7

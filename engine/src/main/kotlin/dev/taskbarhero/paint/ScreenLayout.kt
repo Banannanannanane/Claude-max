@@ -6,6 +6,7 @@ import dev.taskbarhero.game.GameState
 import dev.taskbarhero.game.Hud
 import dev.taskbarhero.game.Item
 import dev.taskbarhero.game.Loot
+import dev.taskbarhero.game.Rune
 import dev.taskbarhero.game.Slot
 import dev.taskbarhero.game.Ticker
 import kotlin.math.roundToInt
@@ -58,7 +59,7 @@ object ScreenLayout {
         when (screen) {
             Screen.FIELD -> BarLayout.draw(p, widthPx, bodyBottom, density, state, nowMs, recent, b)
             Screen.HERO -> drawHero(p, state, widthPx, bodyBottom, density, text, b)
-            Screen.RUNES -> notYet(p, "RUNES", widthPx, bodyBottom, text)
+            Screen.RUNES -> drawRunes(p, state, widthPx, bodyBottom, density, text)
             Screen.PORTAL -> notYet(p, "PORTAL", widthPx, bodyBottom, text)
         }
         drawNav(p, screen, widthPx, heightPx - nav, heightPx, density, text)
@@ -147,6 +148,80 @@ object ScreenLayout {
 
         val scale = p.scaleToFit(item.slot.sprite, size - pad * 4f)
         p.sprite(item.slot.sprite, x + size / 2f, y + size - pad * 2f, scale)
+    }
+
+    /**
+     * The rune tree: one row per rune, its rank as pips, and what the next one
+     * costs.
+     *
+     * A rune is bought with bosses, never with gold, so this screen is the only
+     * place in the game where the currency is progress itself. The row is dimmed
+     * when it cannot be afforded — a tree that lets you tap a node you cannot buy
+     * teaches nothing.
+     */
+    private fun drawRunes(
+        p: Painter,
+        state: GameState,
+        widthPx: Float,
+        bottom: Float,
+        density: Float,
+        text: Float,
+    ) {
+        val margin = 16f * density
+        val line = p.surface.lineHeight(text)
+        val icon = 40f * density
+        var y = margin
+
+        p.textCentre(widthPx / 2f, y, "RUNES", text, Palette.PARCHMENT)
+        y += line + 2f * density
+        p.textCentre(
+            widthPx / 2f, y,
+            "${state.runes.available} TO SPEND — ONE PER BOSS", text * 0.75f, Palette.MAGIC,
+        )
+        y += line + 8f * density
+
+        for (rune in Rune.entries) {
+            if (y + icon > bottom) break
+            val rank = state.runes.rank(rune)
+            val maxed = rank >= rune.ranks
+            val affordable = state.runes.canBuy(rune)
+
+            p.button(margin, y, widthPx - margin * 2f, icon, affordable, corner = 10f * density)
+            p.icon(rune.icon, margin + 6f * density, y + 4f * density, icon - 8f * density)
+
+            val textX = margin + icon + 6f * density
+            val colour = if (affordable || maxed) Palette.PARCHMENT else Palette.PARCHMENT_DIM
+            p.text(textX, y + 4f * density, rune.label, text, colour)
+            p.text(textX, y + 4f * density + line * 0.85f, rune.note, text * 0.7f, Palette.PARCHMENT_DIM)
+
+            // Rank as pips rather than "3/6": you can count five dots at a glance
+            // and you cannot read a fraction at a glance.
+            val pip = 8f * density
+            var px = widthPx - margin - 8f * density - rune.ranks * pip
+            for (i in 0 until rune.ranks) {
+                p.fill(px + 1f, y + icon / 2f - pip / 2f, pip - 2f, pip - 2f,
+                    if (i < rank) Palette.GOLD else Palette.EMPTY)
+                px += pip
+            }
+            p.textRight(
+                widthPx - margin - 8f * density, y + icon - line * 0.8f,
+                if (maxed) "MAX" else "${rune.costOf(rank)}",
+                text * 0.7f,
+                if (maxed) Palette.GOLD else colour,
+            )
+            y += icon + 6f * density
+        }
+    }
+
+    /** Which rune a tap at [y] on the rune screen lands on, if any. */
+    fun runeAt(y: Float, density: Float): Rune? {
+        val margin = 16f * density
+        val line = 16f * density * 1.8f
+        val icon = 40f * density
+        val first = margin + line * 2f + 10f * density
+        if (y < first) return null
+        val index = ((y - first) / (icon + 6f * density)).toInt()
+        return Rune.entries.getOrNull(index)
     }
 
     /** A screen that exists in the nav but not yet in the game. Says so plainly. */

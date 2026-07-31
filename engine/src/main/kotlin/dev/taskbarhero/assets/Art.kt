@@ -64,6 +64,12 @@ object Art {
         listOf(PANEL, PANEL_LIT, PANEL_INSET, BUTTON, BUTTON_DOWN, BUTTON_OFF, CHECK, CROSS) +
             Bar.entries.flatMap { listOf(it.left, it.mid, it.right) }
 
+    // --- icons.png -----------------------------------------------------------
+
+    /** One per rune. The names match the enum, so a new rune needs one new line. */
+    val iconKeys: List<String> =
+        listOf("RUNE_POWER", "RUNE_VIGOUR", "RUNE_GOLD", "RUNE_HASTE", "RUNE_REST")
+
     /**
      * Names the game will ask for and this sheet cannot answer. Empty means the
      * pack is complete; anything else is what the startup check reports.

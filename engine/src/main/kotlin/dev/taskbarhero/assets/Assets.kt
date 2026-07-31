@@ -41,6 +41,7 @@ object AssetManifest {
 
     const val DUNGEON = "art/dungeon.png"
     const val UI = "art/ui.png"
+    const val ICONS = "art/icons.png"
     const val FONT = "art/m5x7.ttf"
 
     /** Files without which there is no game at all. */
@@ -66,6 +67,16 @@ object AssetManifest {
             path = "art/ui.txt",
             kind = Kind.MAPPING,
             why = "Which rectangle of ui.png is which piece of interface.",
+        ),
+        Asset(
+            path = ICONS,
+            kind = Kind.ATLAS,
+            why = "One icon per rune, drawn whole in 32x32 cells.",
+        ),
+        Asset(
+            path = "art/icons.txt",
+            kind = Kind.MAPPING,
+            why = "Which cell of icons.png is which rune.",
         ),
         Asset(
             path = FONT,

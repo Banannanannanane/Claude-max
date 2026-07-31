@@ -53,7 +53,11 @@ class AndroidSurface(
         right: Float,
         bottom: Float,
     ) {
-        val bitmap: Bitmap = if (sheet == Surface.Sheet.DUNGEON) art.dungeonBitmap else art.uiBitmap
+        val bitmap: Bitmap = when (sheet) {
+            Surface.Sheet.DUNGEON -> art.dungeonBitmap
+            Surface.Sheet.UI -> art.uiBitmap
+            Surface.Sheet.ICONS -> art.iconBitmap
+        }
         if (srcX < 0 || srcY < 0 || srcX + srcWidth > bitmap.width || srcY + srcHeight > bitmap.height) return
         src.set(srcX, srcY, srcX + srcWidth, srcY + srcHeight)
         dst.set(left, top, right, bottom)

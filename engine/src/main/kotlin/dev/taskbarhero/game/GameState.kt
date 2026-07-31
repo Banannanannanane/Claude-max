@@ -29,6 +29,8 @@ data class GameState(
     val wipes: Long = 0,
     val deepestAct: Int = 1,
     val deepestWave: Int = 1,
+    /** Earned from bosses, spent on the tree. The only progress gold cannot buy. */
+    val runes: RuneState = RuneState(),
     val autoLevel: Boolean = false,
     /** Wall clock the simulation has been advanced to. */
     val lastTickMs: Long = 0L,
@@ -51,20 +53,23 @@ data class GameState(
     fun partyDps(b: Balance): Double =
         roster.withIndex().filter { it.value.hp > 0.0 }.sumOf { (i, hero) ->
             b.heroDps(hero.cls, hero.level, loadout.power(i, b))
-        }
+        } * runes.damage
+
+    fun heroMaxHp(hero: Hero, b: Balance): Double = b.heroMaxHp(hero.cls, hero.level) * runes.health
 
     /** The hero a level-up should go to: the cheapest, so the party rises as a block. */
     fun cheapestHeroIndex(): Int =
         roster.indices.minByOrNull { roster[it].level } ?: 0
 
-    fun levelCost(b: Balance): Double = b.levelCost(roster[cheapestHeroIndex()].level)
+    fun levelCost(b: Balance): Double =
+        b.levelCost(roster[cheapestHeroIndex()].level) * runes.levelCost
 
     fun canLevelUp(b: Balance): Boolean = gold >= levelCost(b)
 
     fun potionCost(b: Balance): Double = b.potionCost(partyLevel)
 
     fun canDrinkPotion(b: Balance): Boolean =
-        gold >= potionCost(b) && roster.any { it.hp < it.maxHp(b) }
+        gold >= potionCost(b) && roster.any { it.hp < heroMaxHp(it, b) }
 
     fun fusableGrade(b: Balance): Int? = loadout.fusableGrade(b)
 
