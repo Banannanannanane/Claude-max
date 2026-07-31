@@ -107,13 +107,18 @@ object BarLayout {
 
         val plateH = p.surface.lineHeight(text) + 4f * density
         val lineH = maxOf(3f, 2f * density)
-        // A thin strip of ground at the bottom, and the fighters get all the rest.
-        // The ground is scenery: give it a third of the bar and the party ends up
-        // small under a wide empty sky, which is the opposite of what this game is.
-        val groundH = (h * 0.16f).coerceIn(8f, 26f * density)
+        // A thin strip of ground at the bottom, a thinner horizon just above it,
+        // and the fighters get all the rest. Scenery given a third of the bar
+        // leaves the party small under a wide empty sky, which is the opposite of
+        // what this game is about.
+        val groundH = (h * 0.14f).coerceIn(6f, 22f * density)
         val floorY = bottom - groundH
-        val groundScale = maxOf(1, (groundH / 12f).roundToInt())
-        p.tile(Art.FLOOR, left, floorY, w, groundH, groundScale)
+        // The horizon is the first thing to go. On a one-row bar every pixel of
+        // height belongs to the fighters, and a distant treeline nobody can see
+        // past a knight's head is not scenery, it is a stripe.
+        val horizonH = groundH * 0.8f
+        if (h > 150f) p.band(Art.horizon(state.act), left, floorY - horizonH, w, horizonH)
+        p.band(Art.ground(state.act), left, floorY, w, groundH)
 
         val headroom = top + plateH + lineH * 4f
         val scale = p.scaleFor(floorY - headroom)

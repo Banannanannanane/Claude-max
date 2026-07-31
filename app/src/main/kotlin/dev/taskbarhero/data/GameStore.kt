@@ -94,6 +94,16 @@ object GameStore {
         return true
     }
 
+    /** Walks the party back to an act it has cleared. False when it cannot. */
+    @Synchronized
+    fun travel(ctx: Context, act: Int): Boolean {
+        val state = tick(ctx).state
+        val after = IdleEngine.travel(state, act, balance) ?: return false
+        write(ctx, after)
+        rememberTicker(ctx, Ticker("ACT $act", Tone.MAGIC))
+        return true
+    }
+
     @Synchronized
     fun reset(ctx: Context) {
         write(ctx, GameState.newRun(System.currentTimeMillis(), balance))

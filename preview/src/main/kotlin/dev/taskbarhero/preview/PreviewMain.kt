@@ -58,7 +58,8 @@ fun main(args: Array<String>) {
     println("wrote ${shots.size + 2 + dev.taskbarhero.paint.Screen.entries.size} previews to ${outDir.absolutePath}")
     println("art: ${art.dungeon.size} dungeon frames on a ${art.dungeon.unit}px grid, ${art.ui.size} ui pieces")
     val holes = Art.missingFrom(art.dungeon, Art.dungeonKeys) +
-        Art.missingFrom(art.ui, Art.uiKeys) + Art.missingFrom(art.icons, Art.iconKeys)
+        Art.missingFrom(art.ui, Art.uiKeys) + Art.missingFrom(art.icons, Art.iconKeys) +
+        Art.missingFrom(art.scene, Art.sceneKeys)
     if (holes.isNotEmpty()) println("MISSING: ${holes.joinToString()}")
 }
 
@@ -67,10 +68,12 @@ private class Art3(dir: File) {
     val dungeon: Atlas
     val ui: Atlas
     val icons: Atlas
+    val scene: Atlas
     val font: Font
     val dungeonImage: BufferedImage
     val uiImage: BufferedImage
     val iconImage: BufferedImage
+    val sceneImage: BufferedImage
 
     init {
         fun read(path: String) = File(dir, path).also {
@@ -79,9 +82,11 @@ private class Art3(dir: File) {
         dungeon = Atlas.parse(read("art/dungeon.txt").readText()).also { report(it, "dungeon.txt") }.atlas
         ui = Atlas.parse(read("art/ui.txt").readText()).also { report(it, "ui.txt") }.atlas
         icons = Atlas.parse(read("art/icons.txt").readText()).also { report(it, "icons.txt") }.atlas
+        scene = Atlas.parse(read("art/scene.txt").readText()).also { report(it, "scene.txt") }.atlas
         dungeonImage = ImageIO.read(read(AssetManifest.DUNGEON))
         uiImage = ImageIO.read(read(AssetManifest.UI))
         iconImage = ImageIO.read(read(AssetManifest.ICONS))
+        sceneImage = ImageIO.read(read(AssetManifest.SCENE))
         font = Font.createFont(Font.TRUETYPE_FONT, read(AssetManifest.FONT))
     }
 
@@ -107,9 +112,9 @@ private fun render(shot: Shot, art: Art3, nowMs: Long = T0): BufferedImage {
     val h = (shot.heightDp * DENSITY).toInt()
     val image = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
     val g = image.createGraphics()
-    val surface = AwtSurface(g, art.dungeonImage, art.uiImage, art.iconImage, art.font)
+    val surface = AwtSurface(g, art.dungeonImage, art.uiImage, art.iconImage, art.sceneImage, art.font)
     BarLayout.draw(
-        Painter(surface, art.dungeon, art.ui, art.icons),
+        Painter(surface, art.dungeon, art.ui, art.icons, art.scene),
         w.toFloat(), h.toFloat(), DENSITY,
         shot.state, nowMs, shot.event, B,
     )
@@ -128,7 +133,7 @@ private fun renderScreen(
     val image = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
     val g = image.createGraphics()
     dev.taskbarhero.paint.ScreenLayout.draw(
-        Painter(AwtSurface(g, art.dungeonImage, art.uiImage, art.iconImage, art.font), art.dungeon, art.ui, art.icons),
+        Painter(AwtSurface(g, art.dungeonImage, art.uiImage, art.iconImage, art.sceneImage, art.font), art.dungeon, art.ui, art.icons, art.scene),
         screen, w.toFloat(), h.toFloat(), DENSITY, state, T0, null, B,
     )
     g.dispose()
@@ -147,7 +152,7 @@ private fun contactSheet(shots: List<Shot>, art: Art3): BufferedImage {
     val g = sheet.createGraphics()
     g.color = java.awt.Color(Palette.VOID, true)
     g.fillRect(0, 0, width, height)
-    val surface = AwtSurface(g, art.dungeonImage, art.uiImage, art.iconImage, art.font)
+    val surface = AwtSurface(g, art.dungeonImage, art.uiImage, art.iconImage, art.sceneImage, art.font)
 
     var y = margin
     for ((shot, bar) in bars) {

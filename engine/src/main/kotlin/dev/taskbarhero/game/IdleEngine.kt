@@ -180,6 +180,31 @@ object IdleEngine {
         )
     }
 
+    /**
+     * Walks the party back to the start of an act it has already cleared.
+     *
+     * The reason to go back is the reason the original game has a portal: a party
+     * that wipes every wave in act 20 earns less than one that clears act 15
+     * without stopping, because a wipe costs the whole act's progress. Choosing
+     * where to stand is the only strategic decision an idle game can offer, and
+     * this is it.
+     *
+     * Forward is never on offer — that would skip the fight that pays for it.
+     */
+    fun travel(state: GameState, act: Int, b: Balance = Balance()): GameState? {
+        if (act < 1 || act > state.deepestAct || act == state.act) return null
+        return state.copy(
+            act = act,
+            wave = 1,
+            enemyIndex = 0,
+            enemyHp = b.enemyMaxHp(act, 1),
+            // Arriving on their feet: a portal that dropped the party into a fight
+            // at the health they left with would just be a slower wipe.
+            party = state.party.map { it.copy(hp = state.heroMaxHp(it, b)) },
+            downUntilMs = 0L,
+        )
+    }
+
     /** Nine of a grade become one of the next. Always the lowest grade that can. */
     fun cube(state: GameState, b: Balance = Balance()): Pair<GameState, GameEvent>? {
         val (loadout, made) = state.loadout.cube(b) ?: return null

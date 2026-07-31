@@ -114,7 +114,7 @@ class TaskbarHeroWidget : AppWidgetProvider() {
 
             val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
             BarLayout.draw(
-                Painter(AndroidSurface(Canvas(bitmap), art), art.dungeon, art.ui, art.icons),
+                Painter(AndroidSurface(Canvas(bitmap), art), art.dungeon, art.ui, art.icons, art.scene),
                 w.toFloat(), h.toFloat(), density,
                 GameStore.peek(ctx),
                 System.currentTimeMillis(),

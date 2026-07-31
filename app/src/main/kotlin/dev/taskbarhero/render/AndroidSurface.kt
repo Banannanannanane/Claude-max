@@ -57,6 +57,7 @@ class AndroidSurface(
             Surface.Sheet.DUNGEON -> art.dungeonBitmap
             Surface.Sheet.UI -> art.uiBitmap
             Surface.Sheet.ICONS -> art.iconBitmap
+            Surface.Sheet.SCENE -> art.sceneBitmap
         }
         if (srcX < 0 || srcY < 0 || srcX + srcWidth > bitmap.width || srcY + srcHeight > bitmap.height) return
         src.set(srcX, srcY, srcX + srcWidth, srcY + srcHeight)

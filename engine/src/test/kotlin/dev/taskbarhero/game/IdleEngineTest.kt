@@ -388,3 +388,37 @@ class RuneTest {
         assertEquals(RuneState(), RuneState.decode(""), "a save with no runes yet reads as none")
     }
 }
+
+class PortalTest {
+
+    @Test
+    fun `the portal only goes back, and only where the party has been`() {
+        val s = GameState.newRun(T0, B).copy(act = 8, deepestAct = 8)
+        assertNull(IdleEngine.travel(s, 9, B), "forward would skip the fight that pays for it")
+        assertNull(IdleEngine.travel(s, 8, B), "there is nowhere to go from where you are")
+        assertNull(IdleEngine.travel(s, 0, B))
+        assertNotNull(IdleEngine.travel(s, 3, B))
+    }
+
+    @Test
+    fun `arriving through the portal starts the act, on your feet`() {
+        val battered = GameState.newRun(T0, B).copy(
+            act = 12, wave = 7, deepestAct = 12, downUntilMs = T0 + 9_000L,
+        ).let { s -> s.copy(party = s.party.map { it.copy(hp = 1.0) }) }
+
+        val after = IdleEngine.travel(battered, 4, B)!!
+        assertEquals(4, after.act)
+        assertEquals(1, after.wave, "a portal lands at the start of an act")
+        assertEquals(B.enemyMaxHp(4, 1), after.enemyHp)
+        assertTrue(after.party.all { it.hp == after.heroMaxHp(it, B) }, "and not into a slower wipe")
+        assertFalse(after.isDown(T0 + 1_000L))
+    }
+
+    @Test
+    fun `the deepest act is remembered across a trip back`() {
+        val s = GameState.newRun(T0, B).copy(act = 12, wave = 3, deepestAct = 12, deepestWave = 4)
+        val back = IdleEngine.travel(s, 5, B)!!
+        assertEquals(12, back.deepestAct, "going back must not cost the record")
+        assertNotNull(IdleEngine.travel(back, 11, B), "and the way forward again stays open")
+    }
+}

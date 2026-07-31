@@ -88,7 +88,7 @@ class MainActivity : Activity() {
 
         override fun onDraw(canvas: Canvas) {
             ScreenLayout.draw(
-                Painter(AndroidSurface(canvas, art), art.dungeon, art.ui, art.icons),
+                Painter(AndroidSurface(canvas, art), art.dungeon, art.ui, art.icons, art.scene),
                 screen,
                 width.toFloat(), height.toFloat(), resources.displayMetrics.density,
                 GameStore.peek(context),
@@ -112,6 +112,12 @@ class MainActivity : Activity() {
                 Screen.FIELD -> fieldTap(event.x, event.y, density, nav)
                 Screen.RUNES -> ScreenLayout.runeAt(event.y, density)?.let {
                     if (GameStore.buyRune(context, it)) after()
+                }
+                Screen.PORTAL -> {
+                    val deepest = GameStore.peek(context).deepestAct
+                    ScreenLayout.actAt(event.x, event.y, width.toFloat(), density, deepest)?.let {
+                        if (GameStore.travel(context, it)) after()
+                    }
                 }
                 else -> Unit
             }

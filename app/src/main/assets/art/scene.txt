@@ -1,0 +1,21 @@
+# Pieces of scene.png: the ground the party walks and the horizon behind it.
+#   NAME = x, y, width, height
+#
+# Source: Kenney "Pixel Platformer" (CC0) — see LICENSE-kenney.txt. 24x24 tiles,
+# 8 per row, three colour families down the columns. Those three are the game's
+# three biomes, so a run that goes deep does not spend its whole life in one
+# place.
+#
+# Only two bands per biome are taken. The sky stays the game's own dark, because
+# these tiles are painted for bright daylight and the fighters are not: a pastel
+# blue behind a dungeon sprite reads as a sticker on a photograph.
+
+# Grass first, sand next, pale last. The order is not the sheet's, it is how
+# well each sits under dark sprites: the pale band is the harshest of the three,
+# so a run meets it deep, where being somewhere strange is the point.
+HORIZON_1  = 168,  24, 24, 24   # tile 15 — hills and woods
+GROUND_1   = 168,  48, 24, 24   # tile 23
+HORIZON_2  = 120,  24, 24, 24   # tile 13 — dunes and cactus
+GROUND_2   = 120,  48, 24, 24   # tile 21
+HORIZON_3  =  24,  24, 24, 24   # tile 9  — clouds and trees
+GROUND_3   =  24,  48, 24, 24   # tile 17

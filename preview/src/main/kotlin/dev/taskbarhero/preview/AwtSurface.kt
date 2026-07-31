@@ -17,6 +17,7 @@ class AwtSurface(
     private val dungeon: BufferedImage,
     private val ui: BufferedImage,
     private val icons: BufferedImage,
+    private val scene: BufferedImage,
     private val font: Font,
 ) : Surface {
 
@@ -47,6 +48,7 @@ class AwtSurface(
             Surface.Sheet.DUNGEON -> dungeon
             Surface.Sheet.UI -> ui
             Surface.Sheet.ICONS -> icons
+            Surface.Sheet.SCENE -> scene
         }
         g.drawImage(
             image,

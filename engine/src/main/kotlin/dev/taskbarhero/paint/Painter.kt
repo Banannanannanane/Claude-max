@@ -18,7 +18,29 @@ class Painter(
     private val dungeon: Atlas,
     private val ui: Atlas,
     private val icons: Atlas = Atlas(emptyMap()),
+    private val scene: Atlas = Atlas(emptyMap()),
 ) {
+
+    /**
+     * Repeats a scenery tile across a band, at a whole scale.
+     *
+     * The last column is clipped rather than squeezed: a horizon whose final tree
+     * is narrower than the rest is a horizon nobody looks at twice, and one that is
+     * squashed is the first thing the eye finds.
+     */
+    fun band(key: String, x: Float, y: Float, w: Float, h: Float) {
+        val f = scene[key] ?: return
+        val step = (f.width * (h / f.height)).coerceAtLeast(1f)
+        var tx = x
+        while (tx < x + w) {
+            val right = minOf(tx + step, x + w)
+            val srcW = ((right - tx) / step * f.width).toInt().coerceAtLeast(1)
+            surface.image(Surface.Sheet.SCENE, f.x, f.y, srcW, f.height, tx, y, right, y + h)
+            tx += step
+        }
+    }
+
+    fun hasScene(key: String): Boolean = scene[key] != null
 
     /**
      * An icon, drawn whole into a square box.

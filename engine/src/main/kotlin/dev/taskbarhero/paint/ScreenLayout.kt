@@ -60,7 +60,7 @@ object ScreenLayout {
             Screen.FIELD -> BarLayout.draw(p, widthPx, bodyBottom, density, state, nowMs, recent, b)
             Screen.HERO -> drawHero(p, state, widthPx, bodyBottom, density, text, b)
             Screen.RUNES -> drawRunes(p, state, widthPx, bodyBottom, density, text)
-            Screen.PORTAL -> notYet(p, "PORTAL", widthPx, bodyBottom, text)
+            Screen.PORTAL -> drawPortal(p, state, widthPx, bodyBottom, density, text)
         }
         drawNav(p, screen, widthPx, heightPx - nav, heightPx, density, text)
     }
@@ -224,10 +224,66 @@ object ScreenLayout {
         return Rune.entries.getOrNull(index)
     }
 
-    /** A screen that exists in the nav but not yet in the game. Says so plainly. */
-    private fun notYet(p: Painter, name: String, widthPx: Float, bottom: Float, text: Float) {
-        p.textCentre(widthPx / 2f, bottom / 2f - text, name, text, Palette.PARCHMENT)
-        p.textCentre(widthPx / 2f, bottom / 2f + text, "NOT BUILT YET", text * 0.75f, Palette.PARCHMENT_DIM)
+    /**
+     * The portal: every act the party has cleared, and the one it is standing in.
+     *
+     * Only backwards. Going forward would skip the fight that pays for it, and the
+     * point of coming back is that a party clearing act 15 cleanly out-earns one
+     * dying over and over in act 20.
+     */
+    private fun drawPortal(
+        p: Painter,
+        state: GameState,
+        widthPx: Float,
+        bottom: Float,
+        density: Float,
+        text: Float,
+    ) {
+        val margin = 16f * density
+        val line = p.surface.lineHeight(text)
+        var y = margin
+
+        p.textCentre(widthPx / 2f, y, "PORTAL", text, Palette.PARCHMENT)
+        y += line + 2f * density
+        p.textCentre(widthPx / 2f, y, "DEEPEST ${state.deepestAct}", text * 0.75f, Palette.MAGIC)
+        y += line + 8f * density
+
+        val cell = portalCell(density)
+        val perRow = portalPerRow(widthPx, density)
+        for (act in 1..state.deepestAct) {
+            val index = act - 1
+            val row = index / perRow
+            val topY = y + row * cell
+            if (topY + cell > bottom) break
+
+            val x = margin + (index % perRow) * cell
+            val here = act == state.act
+            p.button(x + 2f, topY + 2f, cell - 4f, cell - 4f, here, corner = 8f * density)
+            p.textCentre(
+                x + cell / 2f, topY + cell / 2f - line / 2f, act.toString(), text,
+                if (here) Palette.GOLD else Palette.PARCHMENT,
+            )
+        }
+    }
+
+    private fun portalCell(density: Float): Float = 52f * density
+
+    private fun portalPerRow(widthPx: Float, density: Float): Int =
+        ((widthPx - 32f * density) / portalCell(density)).toInt().coerceAtLeast(1)
+
+    /** Which act a tap on the portal screen lands on, if any. */
+    fun actAt(x: Float, y: Float, widthPx: Float, density: Float, deepest: Int): Int? {
+        val margin = 16f * density
+        val line = 16f * density * 1.8f
+        val first = margin + line * 2f + 10f * density
+        if (y < first || x < margin) return null
+
+        val cell = portalCell(density)
+        val perRow = portalPerRow(widthPx, density)
+        val col = ((x - margin) / cell).toInt()
+        if (col >= perRow) return null
+        val act = ((y - first) / cell).toInt() * perRow + col + 1
+        return if (act in 1..deepest) act else null
     }
 
     /** The row of round buttons. Lit is where you are. */

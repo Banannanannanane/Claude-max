@@ -14,7 +14,7 @@ package dev.taskbarhero.paint
 interface Surface {
 
     /** Which sheet a blit reads from. Named rather than numbered. */
-    enum class Sheet { DUNGEON, UI, ICONS }
+    enum class Sheet { DUNGEON, UI, ICONS, SCENE }
 
     fun rect(left: Float, top: Float, right: Float, bottom: Float, color: Int)
 

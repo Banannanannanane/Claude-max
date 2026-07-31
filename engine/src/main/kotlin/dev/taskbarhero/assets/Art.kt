@@ -40,6 +40,24 @@ object Art {
         COIN, POTION, GEM, SWORD,
     ) + MONSTERS
 
+    // --- scene.png -----------------------------------------------------------
+
+    /**
+     * The three biomes, in the order a run meets them.
+     *
+     * One per three acts, so a deep run does not spend its whole life in one
+     * place, and every act inside a band looks like the same journey.
+     */
+    const val BIOMES = 3
+
+    fun horizon(act: Int): String = "HORIZON_${biome(act)}"
+
+    fun ground(act: Int): String = "GROUND_${biome(act)}"
+
+    private fun biome(act: Int): Int = ((act - 1) / 3).mod(BIOMES) + 1
+
+    val sceneKeys: List<String> = (1..BIOMES).flatMap { listOf("HORIZON_$it", "GROUND_$it") }
+
     // --- ui.png --------------------------------------------------------------
 
     const val PANEL = "PANEL"
