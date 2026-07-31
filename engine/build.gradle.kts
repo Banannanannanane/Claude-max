@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    kotlin("jvm")
 }
 
 kotlin {
@@ -12,5 +12,5 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
-    testLogging { events("passed", "failed") }
+    testLogging { events("failed") }
 }

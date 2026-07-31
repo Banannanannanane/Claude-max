@@ -1,6 +1,6 @@
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
+    id("com.android.application")
+    kotlin("android")
 }
 
 android {
@@ -9,19 +9,22 @@ android {
 
     defaultConfig {
         applicationId = "dev.taskbarhero"
-        // Nothing Phone (1) shipped on Android 12; targetCellWidth/Height and
-        // widget descriptions need API 31 anyway.
-        minSdk = 31
+        // 26: the oldest Android that can schedule the widget's own alarms the way
+        // this game needs. Every Nothing Phone is far past it.
+        minSdk = 26
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.1"
     }
 
     buildTypes {
+        debug {
+            // The APK the CI publishes. Debuggable, signed with the throwaway debug
+            // key every Android install trusts, so it can be side-loaded directly.
+            isMinifyEnabled = false
+        }
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            isMinifyEnabled = false
         }
     }
 
@@ -29,15 +32,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+}
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
-    sourceSets["main"].java.srcDirs("src/main/kotlin")
+kotlin {
+    jvmToolchain(17)
 }
 
 dependencies {
     implementation(project(":engine"))
-    implementation(libs.androidx.core.ktx)
 }
