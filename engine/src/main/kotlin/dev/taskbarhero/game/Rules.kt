@@ -145,8 +145,8 @@ object Bestiary {
     private val NAMES = dev.taskbarhero.assets.Art.MONSTERS
 
     private val BOSSES = listOf(
-        "SLIME KING", "PLAGUE RAT", "BROOD MOTHER", "CARAPACE",
-        "THE PALE ONE", "DEEP CRAB", "WARLORD", "THE FIRST",
+        "SLIME KING", "PIT IMP", "BONE PRIOR", "GOBLIN KING",
+        "THE PALE ONE", "WARLORD", "THE ROTTING", "THE FIRST",
     )
 
     data class Mob(val name: String, val sprite: String, val isBoss: Boolean = false)

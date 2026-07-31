@@ -1,43 +1,42 @@
-# The cast, the room and the props, from Kenney "Tiny Dungeon" (CC0).
+# The cast, the room and the props, from 0x72 "16x16 DungeonTileset II" v1.7 (CC0).
 #   NAME = x, y, width, height[, scale]
 #
-# Every tile of the pack is 16x16 with the drawing floating somewhere inside it.
-# The rectangles below are those tiles trimmed to their drawn pixels, so a
-# fighter stands on the floor instead of hovering over it, and a party closes
-# ranks instead of spacing itself by the empty cells around each sprite. The
-# tile number in the comment is the pack's own, for swapping one out by hand.
+# The pack's own tile_list gives each sprite a padded cell; the rectangles below
+# are those cells trimmed to their drawn pixels, so a fighter stands on the floor
+# instead of hovering over it and a party can close ranks. Unlike a tile pack,
+# these sprites are cut out ? no backing plate travels with them onto the wall.
+# The tile name in the comment is the author's own, for swapping one by hand.
 
 # --- the party ---------------------------------------------------------------
-KNIGHT     =   0, 129, 16, 15   # tile 96
-RANGER     =  64, 144, 16, 16   # tile 112
-MAGE       =   0, 112, 16, 16   # tile 84
-GRAVE      =  65,  81, 14, 14   # tile 64
+KNIGHT      = 128, 108, 15, 20   # 128,100 16x28
+RANGER      = 129,  45, 15, 19   # 128,36 16x28
+MAGE        = 130, 173, 14, 19   # 128,164 16x28
+GRAVE       = 293, 439,  6,  6   # 288,432 16x16
 
 # --- the bestiary, weakest first ---------------------------------------------
-SLIME      =   1, 146, 14, 12   # tile 108
-RAT        =  64, 160, 16, 16   # tile 124
-SPIDER     =  32, 160, 16, 16   # tile 122
-BEETLE     =   0, 162, 16, 12   # tile 120
-GHOST      =  16, 161, 16, 15   # tile 121
-CRAB       =  32, 144, 16, 16   # tile 110
-ORC        =  32, 113, 16, 15   # tile 86
-BRUTE      =  16, 144, 16, 16   # tile 109
+SLIME       = 369, 375, 13, 17   # 368,369 16x23
+IMP         = 372,  68, 10, 12   # 368,64 16x16
+SKELETON    = 371,  90, 10, 14   # 368,88 16x16
+GOBLIN      = 371, 160, 12, 16   # 368,153 16x23
+WRAITH      = 369, 233, 13, 15   # 368,225 16x23
+ORC         = 372, 184, 11, 16   # 368,177 16x23
+ZOMBIE      =  23, 341, 18, 27   # 16,332 32x36
+OGRE        =  22, 390, 20, 26   # 16,380 32x36
 
-# The pack has no monster bigger than a hero, so the boss is one drawn at twice
-# the scale. Whole numbers only: a boss at 1.5x would be a smear.
-BOSS       =  48, 113, 16, 15, 2   # tile 87
+# This pack has a monster built to be a boss, so no scaling trick is needed.
+BOSS        =  21, 434, 23, 30   # 16,428 32x36
 
 # --- the room ----------------------------------------------------------------
-WALL       =  32,  16, 16, 16   # tile 14
-WALL_TOP   =  64,  48, 16, 16   # tile 40
-FLOOR      =   0,  64, 16, 16   # tile 48
-FLOOR_WORN =  16,  64, 16, 16   # tile 49
-TORCH      =  80,  32, 16, 16   # tile 29
-DOOR       = 160,  48, 16, 16   # tile 46
-CHEST      =  80, 114, 16, 14   # tile 89
+WALL        =  32,  16, 16, 16   # 32,16 16x16
+WALL_TOP    =  32,  12, 16,  4   # 32,0 16x16
+FLOOR       =  16,  64, 16, 16   # 16,64 16x16
+FLOOR_WORN  =  32,  64, 16, 16   # 32,64 16x16
+TORCH       =  64,  16, 16, 16   # 64,16 16x16
+DOOR        =  16, 243, 16, 29   # 16,240 16x32
+CHEST       = 304, 418, 16, 14   # 304,416 16x16
 
 # --- what the numbers stand for ----------------------------------------------
-COIN       = 161,  96, 14, 16   # tile 82
-POTION     = 115, 146, 10, 13   # tile 115
-GEM        =  83, 131, 10, 10   # tile 101
-SWORD      = 132, 128,  8, 16   # tile 104
+COIN        = 289, 385,  6,  7   # 289,385 6x7
+POTION      = 292, 355,  8, 11   # 288,352 16x16
+GEM         = 307, 339, 10, 11   # 304,336 16x16
+SWORD       = 323,  10, 10, 21   # 323,10 10x21

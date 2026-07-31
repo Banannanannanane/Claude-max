@@ -32,7 +32,7 @@ object Art {
     const val SWORD = "SWORD"
 
     /** Every monster the bestiary can name, weakest first. */
-    val MONSTERS = listOf("SLIME", "RAT", "SPIDER", "BEETLE", "GHOST", "CRAB", "ORC", "BRUTE")
+    val MONSTERS = listOf("SLIME", "IMP", "SKELETON", "GOBLIN", "WRAITH", "ORC", "ZOMBIE", "OGRE")
 
     val dungeonKeys: List<String> = listOf(
         KNIGHT, RANGER, MAGE, GRAVE, BOSS,

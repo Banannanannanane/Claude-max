@@ -2,10 +2,14 @@ Where the art comes from
 ========================
 
 dungeon.png
-  Pack    : Tiny Dungeon (1.0)
-  Author  : Kenney — https://kenney.nl
-  Licence : CC0 1.0 (public domain) — full text in LICENSE-kenney.txt
-  File    : Tilemap/tilemap_packed.png, unmodified. 12x11 tiles of 16x16.
+  Pack    : 16x16 DungeonTileset II, v1.7
+  Author  : 0x72 — https://0x72.itch.io/dungeontileset-ii
+  Licence : CC0 (public domain), stated on the pack's page
+  File    : the pack's 512x512 atlas, unmodified. The author's own list of every
+            frame is kept beside it as dungeon_tile_list.txt.
+  Why this one and not a tile pack: its sprites are cut out. A character drawn on
+  an opaque backing plate carries that plate onto whatever it is standing in
+  front of, which is exactly what a fighter in front of a wall must not do.
 
 ui.png
   Pack    : UI Pack RPG Expansion
