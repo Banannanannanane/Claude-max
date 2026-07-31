@@ -55,6 +55,12 @@ object Palette {
     const val PARCHMENT_DIM = 0xFF9A9382.toInt()
     const val GOLD = 0xFFF2B233.toInt()
     const val HP = 0xFFC4453A.toInt()
+
+    /** Ours. The one colour a health line uses when the fighter is on our side. */
+    const val ALLY = 0xFF5FA84E.toInt()
+
+    /** What a health line shows where the health is gone. */
+    const val EMPTY = 0xFF2A2733.toInt()
     const val MAGIC = 0xFF4E8FD8.toInt()
     const val SHADOW = 0x55000000
 
