@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- The two colours a layout XML is allowed to know. Everything else is
-         painted by the game, from the palette in the engine. -->
-    <color name="void">#FF12121A</color>
+         painted by the game, from the palette in the engine.
+
+         Not named "void": aapt rejects Java keywords as resource names, and it
+         only says so once the whole app is being assembled. -->
+    <color name="backdrop">#FF12121A</color>
     <color name="parchment">#FFEDE6D2</color>
 </resources>

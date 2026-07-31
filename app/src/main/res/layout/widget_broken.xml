@@ -5,7 +5,7 @@
     android:id="@+id/open"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/void">
+    android:background="@color/backdrop">
 
     <TextView
         android:layout_width="match_parent"
