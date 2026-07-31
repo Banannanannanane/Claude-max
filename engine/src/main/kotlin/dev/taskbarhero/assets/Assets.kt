@@ -19,6 +19,9 @@ object AssetManifest {
         /** A text mapping saying which rectangle of an atlas is which sprite. */
         MAPPING,
 
+        /** A TrueType file, drawn straight rather than baked into an image. */
+        FONT,
+
         /** A licence or attribution file that must travel with the art. */
         LICENCE,
     }
@@ -36,24 +39,28 @@ object AssetManifest {
         val why: String,
     )
 
+    const val DUNGEON = "art/dungeon.png"
+    const val UI = "art/ui.png"
+    const val FONT = "art/m5x7.ttf"
+
     /** Files without which there is no game at all. */
     val required: List<Asset> = listOf(
         Asset(
-            path = "art/fighters.png",
+            path = DUNGEON,
             kind = Kind.ATLAS,
-            why = "The cast: three hero classes, their attack pose, a marker for a " +
-                "fallen hero, at least six monsters and one boss.",
+            why = "The cast and the room: three hero classes, a grave, eight monsters, " +
+                "a boss, wall and floor tiles, and the props the numbers stand for.",
         ),
         Asset(
-            path = "art/fighters.txt",
+            path = "art/dungeon.txt",
             kind = Kind.MAPPING,
-            why = "Which rectangle of fighters.png is which fighter, one line per frame.",
+            why = "Which rectangle of dungeon.png is which sprite, one line each.",
         ),
         Asset(
-            path = "art/ui.png",
+            path = UI,
             kind = Kind.ATLAS,
-            why = "The interface: panel and window frames, buttons in their three " +
-                "states, a bar frame and its fill, one inventory slot.",
+            why = "The interface: panels, buttons in their three states, and the " +
+                "three slices a bar is built from.",
         ),
         Asset(
             path = "art/ui.txt",
@@ -61,15 +68,10 @@ object AssetManifest {
             why = "Which rectangle of ui.png is which piece of interface.",
         ),
         Asset(
-            path = "art/font.png",
-            kind = Kind.ATLAS,
-            why = "A bitmap pixel font: A-Z, 0-9 and + - . % / : x, as an image. " +
-                "Not a TTF — the glyphs have to land on whole pixels.",
-        ),
-        Asset(
-            path = "art/font.txt",
-            kind = Kind.MAPPING,
-            why = "Which rectangle of font.png is which character.",
+            path = FONT,
+            kind = Kind.FONT,
+            why = "Every letter and number on screen. A pixel font, drawn without " +
+                "anti-aliasing at whole multiples of 16px so the glyphs stay square.",
         ),
         Asset(
             path = "art/ATTRIBUTION.txt",
@@ -79,32 +81,7 @@ object AssetManifest {
         ),
     )
 
-    /** Files the game runs without, each costing exactly one feature. */
-    val optional: List<Asset> = listOf(
-        Asset(
-            path = "art/room.png",
-            kind = Kind.ATLAS,
-            why = "Wall and floor tiles, and props: torches, columns, doors, chests. " +
-                "Without it the room is a flat colour.",
-        ),
-        Asset(
-            path = "art/room.txt",
-            kind = Kind.MAPPING,
-            why = "Which rectangle of room.png is which tile.",
-        ),
-        Asset(
-            path = "art/icons.png",
-            kind = Kind.ATLAS,
-            why = "Coin, potion, gem, rune. Without it those numbers stand alone.",
-        ),
-        Asset(
-            path = "art/icons.txt",
-            kind = Kind.MAPPING,
-            why = "Which rectangle of icons.png is which icon.",
-        ),
-    )
-
-    val all: List<Asset> get() = required + optional
+    val all: List<Asset> get() = required
 
     /**
      * Checks a set of file names against the manifest. Takes the names rather than
@@ -113,35 +90,26 @@ object AssetManifest {
      */
     fun check(present: Set<String>): Report = Report(
         missing = required.filterNot { it.path in present },
-        absentOptional = optional.filterNot { it.path in present },
     )
 
     /**
      * What the app found. [isPlayable] is the gate: false means the app shows this
      * report instead of a game, because a game missing its art is not a game.
      */
-    data class Report(
-        val missing: List<Asset>,
-        val absentOptional: List<Asset>,
-    ) {
+    data class Report(val missing: List<Asset>) {
         val isPlayable: Boolean get() = missing.isEmpty()
 
         /** The error screen's text, and the one place its wording lives. */
         fun lines(): List<String> = buildList {
             if (missing.isEmpty()) {
                 add("All required art is present.")
-            } else {
-                add("Missing ${missing.size} required file(s):")
-                missing.forEach {
-                    add("")
-                    add(it.path)
-                    add(it.why)
-                }
+                return@buildList
             }
-            if (absentOptional.isNotEmpty()) {
+            add("Missing ${missing.size} required file(s):")
+            missing.forEach {
                 add("")
-                add("Optional, ${absentOptional.size} not provided:")
-                absentOptional.forEach { add("  ${it.path} — ${it.why}") }
+                add(it.path)
+                add(it.why)
             }
         }
     }

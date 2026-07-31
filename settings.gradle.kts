@@ -26,3 +26,6 @@ rootProject.name = "taskbar-hero"
 // tested without a device. :app is Android, and only ever renders what it is told.
 include(":engine")
 include(":app")
+// Renders the same layouts to PNG on a desktop JVM — design review without an
+// emulator. Not part of the APK.
+include(":preview")

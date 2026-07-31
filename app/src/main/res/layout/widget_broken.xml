@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- No art, no game. Text only: a widget that needed a drawable to say its
+     drawables are missing could not say it. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/open"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/void">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:padding="12dp"
+        android:textColor="@color/parchment"
+        android:textSize="13sp"
+        android:text="@string/no_art" />
+</FrameLayout>

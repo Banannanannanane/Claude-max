@@ -1,0 +1,30 @@
+Where the art comes from
+========================
+
+dungeon.png
+  Pack    : Tiny Dungeon (1.0)
+  Author  : Kenney — https://kenney.nl
+  Licence : CC0 1.0 (public domain) — full text in LICENSE-kenney.txt
+  File    : Tilemap/tilemap_packed.png, unmodified. 12x11 tiles of 16x16.
+
+ui.png
+  Pack    : UI Pack RPG Expansion
+  Author  : Kenney — https://kenney.nl
+  Licence : CC0 1.0 (public domain) — same terms as above
+  File    : Spritesheet/uipack_rpg_sheet.png, unmodified.
+
+m5x7.ttf
+  Font    : m5x7
+  Author  : Daniel Linssen — https://managore.itch.io/m5x7
+  Licence : TO CONFIRM. The pack was supplied without its licence file. The
+            author states on that page that the font is free to use with credit
+            appreciated; that line has not been verified here, and no licence
+            text ships beside the file. Replace this paragraph with the author's
+            own wording — or the font with a CC0 one — before treating this
+            repository as safely redistributable.
+
+dungeon.txt and ui.txt are ours: they name the handful of rectangles the game
+draws, using coordinates read from each pack's own metadata.
+
+Kenney's licence asks for nothing. The credit is here because the work deserves
+it, and because a public repository should say where its pixels came from.

@@ -43,11 +43,11 @@ class AssetManifestTest {
     }
 
     @Test
-    fun `the required set alone is enough to play`() {
+    fun `the required set is enough to play`() {
         val report = AssetManifest.check(present = AssetManifest.required.map { it.path }.toSet())
 
-        assertTrue(report.isPlayable, "optional art must never gate the game")
-        assertEquals(AssetManifest.optional, report.absentOptional)
+        assertTrue(report.isPlayable)
+        assertEquals("All required art is present.", report.lines().single())
     }
 
     @Test

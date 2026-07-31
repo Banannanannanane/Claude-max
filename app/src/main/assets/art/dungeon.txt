@@ -1,0 +1,43 @@
+# The cast, the room and the props, from Kenney "Tiny Dungeon" (CC0).
+#   NAME = x, y, width, height[, scale]
+#
+# Every tile of the pack is 16x16 with the drawing floating somewhere inside it.
+# The rectangles below are those tiles trimmed to their drawn pixels, so a
+# fighter stands on the floor instead of hovering over it, and a party closes
+# ranks instead of spacing itself by the empty cells around each sprite. The
+# tile number in the comment is the pack's own, for swapping one out by hand.
+
+# --- the party ---------------------------------------------------------------
+KNIGHT     =   0, 129, 16, 15   # tile 96
+RANGER     =  64, 144, 16, 16   # tile 112
+MAGE       =   0, 112, 16, 16   # tile 84
+GRAVE      =  65,  81, 14, 14   # tile 64
+
+# --- the bestiary, weakest first ---------------------------------------------
+SLIME      =   1, 146, 14, 12   # tile 108
+RAT        =  64, 160, 16, 16   # tile 124
+SPIDER     =  32, 160, 16, 16   # tile 122
+BEETLE     =   0, 162, 16, 12   # tile 120
+GHOST      =  16, 161, 16, 15   # tile 121
+CRAB       =  32, 144, 16, 16   # tile 110
+ORC        =  32, 113, 16, 15   # tile 86
+BRUTE      =  16, 144, 16, 16   # tile 109
+
+# The pack has no monster bigger than a hero, so the boss is one drawn at twice
+# the scale. Whole numbers only: a boss at 1.5x would be a smear.
+BOSS       =  48, 113, 16, 15, 2   # tile 87
+
+# --- the room ----------------------------------------------------------------
+WALL       =  32,  16, 16, 16   # tile 14
+WALL_TOP   =  64,  48, 16, 16   # tile 40
+FLOOR      =   0,  64, 16, 16   # tile 48
+FLOOR_WORN =  16,  64, 16, 16   # tile 49
+TORCH      =  80,  32, 16, 16   # tile 29
+DOOR       = 160,  48, 16, 16   # tile 46
+CHEST      =  80, 114, 16, 14   # tile 89
+
+# --- what the numbers stand for ----------------------------------------------
+COIN       = 161,  96, 14, 16   # tile 82
+POTION     = 115, 146, 10, 13   # tile 115
+GEM        =  83, 131, 10, 10   # tile 101
+SWORD      = 132, 128,  8, 16   # tile 104

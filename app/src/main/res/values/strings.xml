@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Taskbar Hero</string>
+    <string name="widget_description">A dungeon on the home screen: the party fights on without you.</string>
+    <string name="no_art">NO ART — tap to see what is missing</string>
+</resources>
