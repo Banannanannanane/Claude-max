@@ -1,0 +1,33 @@
+# Pieces of ui.png used by the game.
+#   NAME = x, y, width, height
+#
+# Source: Kenney "UI Pack RPG Expansion" (CC0) — see LICENSE-kenney.txt.
+# Coordinates come from the pack's own uipack_rpg_sheet.xml; the name of each
+# original sprite is kept in the comment so a piece can be swapped by hand.
+#
+# Panels and buttons are stretched as nine-slices, bars as three-slices. The
+# corner size those need is in the code, next to the drawing that uses it.
+
+PANEL        =   0, 376, 100, 100   # panel_brown.png
+PANEL_LIT    = 190, 100, 100, 100   # panel_beige.png
+PANEL_INSET  = 283, 200,  93,  94   # panelInset_brown.png
+
+BUTTON       =   0,  49, 190,  49   # buttonLong_brown.png
+BUTTON_DOWN  =   0,  98, 190,  45   # buttonLong_brown_pressed.png
+BUTTON_OFF   =   0,   0, 190,  49   # buttonLong_grey.png
+
+BAR_BACK_L   = 372, 330,   9,  18   # barBack_horizontalLeft.png
+BAR_BACK_M   = 338, 386,  18,  18   # barBack_horizontalMid.png
+BAR_BACK_R   = 190, 294,   9,  18   # barBack_horizontalRight.png
+BAR_RED_L    = 370,  90,   9,  18   # barRed_horizontalLeft.png
+BAR_RED_M    = 356, 368,  18,  18   # barRed_horizontalMid.png
+BAR_RED_R    = 190, 348,   9,  18   # barRed_horizontalRight.png
+BAR_BLUE_L   = 372, 294,   9,  18   # barBlue_horizontalLeft.png
+BAR_BLUE_M   = 356, 431,  18,  18   # barBlue_horizontalBlue.png
+BAR_BLUE_R   = 372, 312,   9,  18   # barBlue_horizontalRight.png
+BAR_GOLD_L   = 370, 126,   9,  18   # barYellow_horizontalLeft.png
+BAR_GOLD_M   = 338, 449,  18,  18   # barYellow_horizontalMid.png
+BAR_GOLD_R   = 190, 330,   9,  18   # barYellow_horizontalRight.png
+
+CHECK        = 370,  45,  16,  15   # iconCheck_bronze.png
+CROSS        = 370,   0,  16,  15   # iconCross_brown.png

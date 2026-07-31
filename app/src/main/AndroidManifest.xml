@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:theme="@style/Theme.TaskbarHero"
+        android:allowBackup="false"
+        android:supportsRtl="false">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".widget.TaskbarHeroWidget"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="dev.taskbarhero.LEVEL_UP" />
+                <action android:name="dev.taskbarhero.POTION" />
+                <action android:name="dev.taskbarhero.CUBE" />
+                <action android:name="dev.taskbarhero.AUTO" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info" />
+        </receiver>
+
+        <!-- The 30-second heartbeat. Inexact, so it never wakes the phone. -->
+        <receiver
+            android:name=".widget.TickReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="dev.taskbarhero.TICK" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>
