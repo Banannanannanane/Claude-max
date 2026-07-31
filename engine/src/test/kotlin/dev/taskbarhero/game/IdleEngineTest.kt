@@ -86,7 +86,7 @@ class IdleEngineTest {
         val doomed = GameState.newRun(T0, B).copy(
             act = 6, wave = 4, unlocked = 1, gold = 500.0,
             enemyHp = B.enemyMaxHp(6, 4),
-            stash = List(Loot.GRADES.size) { if (it == 2) 3 else 0 },
+            loadout = Loadout(stash = List(3) { Item(Slot.WEAPON, grade = 2, level = 4) }),
         )
         val after = IdleEngine.advance(doomed, T0 + 60_000L, B)
 
@@ -94,7 +94,7 @@ class IdleEngineTest {
         assertEquals(6, after.state.act, "a wipe must not cost the act itself")
         assertEquals(1, after.state.wave, "but it does cost the progress inside it")
         assertEquals(500.0, after.state.gold, "gold survives a wipe")
-        assertEquals(doomed.stash, after.state.stash, "and so does the stash")
+        assertEquals(doomed.loadout, after.state.loadout, "and so does the gear")
         assertTrue(after.events.any { it is GameEvent.Wiped })
     }
 
@@ -145,30 +145,57 @@ class IdleEngineTest {
 
     @Test
     fun `the cube eats nine of the lowest grade that can afford it`() {
-        val stash = MutableList(Loot.GRADES.size) { 0 }
-        stash[0] = 4
-        stash[2] = 9
-        stash[3] = 9
-        val s = GameState.newRun(T0, B).copy(stash = stash)
+        val pile = List(4) { Item(Slot.RING, grade = 0, level = 1) } +
+            List(9) { Item(Slot.HELM, grade = 2, level = 5 + it) } +
+            List(9) { Item(Slot.BOOTS, grade = 3, level = 2) }
+        val s = GameState.newRun(T0, B).copy(loadout = Loadout(stash = pile))
 
         val (after, event) = IdleEngine.cube(s, B)!!
-        assertEquals(0, after.stash[2], "grade 2 should have been consumed")
-        assertEquals(1, after.stash[3] - 9 + 9 - 9, "and grade 3 gained exactly one")
-        assertEquals(10, after.stash[3], "9 kept plus 1 gained")
-        assertEquals(4, after.stash[0], "the grade that could not fuse is untouched")
+        val stash = after.loadout.stash
+        assertEquals(0, stash.count { it.grade == 2 }, "grade 2 should have been eaten")
+        assertEquals(4, stash.count { it.grade == 0 }, "the grade that could not fuse is untouched")
         assertEquals(GameEvent.Cubed(3), event)
+
+        // The piece it made is worn or held, and it is never worse than its input.
+        val made = after.loadout.worn.flatMap { it.values } + stash
+        assertTrue(made.any { it.grade == 3 && it.level == 13 }, "fusing lost the best level it ate")
+    }
+
+    @Test
+    fun `a drop is worn when it beats what is worn, and piled up when it does not`() {
+        val good = Item(Slot.WEAPON, grade = 5, level = 20)
+        val poor = Item(Slot.WEAPON, grade = 0, level = 1)
+
+        val first = Loadout().take(good, unlocked = 1, b = B)
+        assertEquals(good, first.worn[0][Slot.WEAPON], "an empty slot takes anything")
+        assertTrue(first.stash.isEmpty())
+
+        val second = first.take(poor, unlocked = 1, b = B)
+        assertEquals(good, second.worn[0][Slot.WEAPON], "a worse piece must not replace a better one")
+        assertEquals(listOf(poor), second.stash, "but it is kept — the Cube eats from that pile")
     }
 
     @Test
     fun `gear lifts the party, and a grade is worth more than the one below`() {
-        fun stashOf(grade: Int, count: Int) =
-            List(Loot.GRADES.size) { if (it == grade) count else 0 }
+        val bare = Loadout()
+        assertEquals(1.0, bare.power(0, B), "no gear is no bonus at all")
 
-        val low = B.gear(stashOf(1, 9))
-        val high = B.gear(stashOf(2, 1))
-        assertTrue(B.gear(stashOf(0, 0)) == 1.0, "an empty stash is no bonus at all")
-        assertTrue(low > 1.0)
-        assertTrue(B.gear(stashOf(9, 1)) > high, "a cosmic item must beat a rare one")
+        val rare = bare.take(Item(Slot.WEAPON, grade = 2, level = 1), 1, B)
+        val cosmic = bare.take(Item(Slot.WEAPON, grade = 9, level = 1), 1, B)
+        assertTrue(rare.power(0, B) > 1.0)
+        assertTrue(cosmic.power(0, B) > rare.power(0, B), "a cosmic piece must beat a rare one")
+
+        // Grade beats depth: the ladder is the grade, the level is only the rung.
+        val deepCommon = bare.take(Item(Slot.WEAPON, grade = 0, level = 60), 1, B)
+        assertTrue(rare.power(0, B) > deepCommon.power(0, B))
+    }
+
+    @Test
+    fun `gear survives being written down and read back`() {
+        var loadout = Loadout()
+        for (i in 0 until 12) loadout = loadout.take(Item.roll(act = 3 + i, seed = i.toLong()), 3, B)
+        assertEquals(loadout, Loadout.decode(loadout.encode()))
+        assertEquals(Loadout(), Loadout.decode(Loadout().encode()), "an empty run round-trips too")
     }
 }
 
@@ -188,9 +215,8 @@ class HudTest {
 
     @Test
     fun `a full stack turns the cube button on`() {
-        val stash = MutableList(Loot.GRADES.size) { 0 }
-        stash[1] = 9
-        val hud = Hud.of(GameState.newRun(T0, B).copy(stash = stash), B)
+        val pile = List(9) { Item(Slot.RING, grade = 1, level = 3) }
+        val hud = Hud.of(GameState.newRun(T0, B).copy(loadout = Loadout(stash = pile)), B)
         assertTrue(hud.canCube)
         assertEquals("READY", hud.cubeLabel)
         assertEquals(2, hud.cubeGrade, "the button shows the grade it is about to make")

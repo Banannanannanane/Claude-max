@@ -81,7 +81,7 @@ data class Balance(
     fun heroMaxHp(cls: HeroClass, level: Int): Double =
         heroBaseHp * cls.hp * heroGrowth.pow(level - 1)
 
-    /** A hero's damage, gear included — gear is the stash, so it lifts the party as one. */
+    /** A hero's damage, with the multiplier their own gear is worth. */
     fun heroDps(cls: HeroClass, level: Int, gear: Double): Double =
         heroBaseDps * cls.dps * heroGrowth.pow(level - 1) * gear
 
@@ -108,18 +108,6 @@ data class Balance(
     /** A potion heals the whole party, so it is priced off the whole party. */
     fun potionCost(partyLevel: Int): Double = levelCostBase * 2.4 * levelCostGrowth.pow(partyLevel - 1)
 
-    /**
-     * Damage multiplier from the stash. A grade is worth 1.7 of the one below, so
-     * the raw score is exponential — and feeding an exponential straight back into
-     * damage is what turns an idle game into a runaway: more damage, faster acts,
-     * better loot, more damage. The square root is the brake. Gear is then a real
-     * reward that never becomes the whole engine.
-     */
-    fun gear(stash: List<Int>): Double {
-        var score = 0.0
-        for ((grade, count) in stash.withIndex()) score += count * gearPerGrade.pow(grade)
-        return 1.0 + kotlin.math.sqrt(score) * 0.22
-    }
 }
 
 /** Boss drops: a grade, and a name for it. The grade is what the colour shows. */

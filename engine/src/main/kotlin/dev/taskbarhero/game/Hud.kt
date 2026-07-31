@@ -33,14 +33,14 @@ data class Hud(
     val gearBonus: String,
     val deepest: String,
     val kills: String,
-    val stash: List<Int>,
+    val loadout: Loadout,
 ) {
     companion object {
         fun of(state: GameState, b: Balance = Balance(), nowMs: Long = state.lastTickMs): Hud {
             val mob = Bestiary.mob(state.act, state.wave, state.enemyIndex, b)
             val down = state.isDown(nowMs)
             val fusable = state.fusableGrade(b)
-            val fullest = state.fullestGrade(b)
+            val (towards, held) = state.loadout.towardsFusion(b)
             val front = state.roster.getOrNull(state.frontIndex)
 
             return Hud(
@@ -65,14 +65,14 @@ data class Hud(
                 potionCost = Fmt.short(state.potionCost(b)),
                 canDrinkPotion = state.canDrinkPotion(b),
                 // The button explains what it is waiting for rather than sitting mute.
-                cubeLabel = if (fusable != null) "READY" else "${state.stash[fullest]}/${b.cubeInput}",
+                cubeLabel = if (fusable != null) "READY" else "$held/${b.cubeInput}",
                 canCube = fusable != null,
-                cubeGrade = fusable?.plus(1) ?: fullest,
+                cubeGrade = fusable?.plus(1) ?: towards,
                 autoOn = state.autoLevel,
                 gearBonus = "+${((state.gear(b) - 1.0) * 100).toInt()}%",
                 deepest = "${state.deepestAct}-${state.deepestWave.toString().padStart(2, '0')}",
                 kills = Fmt.short(state.kills.toDouble()),
-                stash = state.stash,
+                loadout = state.loadout,
             )
         }
     }

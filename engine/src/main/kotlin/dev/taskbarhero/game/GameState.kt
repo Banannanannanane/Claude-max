@@ -22,8 +22,8 @@ data class GameState(
     val enemyHp: Double = 0.0,
     val enemyIndex: Int = 0,
     val gold: Double = 0.0,
-    /** One count per loot grade. The Hero-dric Cube's raw material. */
-    val stash: List<Int> = List(Loot.GRADES.size) { 0 },
+    /** What the party wears, and the pile the Cube eats from. */
+    val loadout: Loadout = Loadout(),
     val kills: Long = 0,
     val bossKills: Long = 0,
     val wipes: Long = 0,
@@ -46,12 +46,12 @@ data class GameState(
 
     fun isDown(nowMs: Long): Boolean = nowMs < downUntilMs
 
-    fun gear(b: Balance): Double = b.gear(stash)
+    fun gear(b: Balance): Double = loadout.bonus(unlocked, b)
 
-    fun partyDps(b: Balance): Double {
-        val g = gear(b)
-        return roster.filter { it.hp > 0.0 }.sumOf { b.heroDps(it.cls, it.level, g) }
-    }
+    fun partyDps(b: Balance): Double =
+        roster.withIndex().filter { it.value.hp > 0.0 }.sumOf { (i, hero) ->
+            b.heroDps(hero.cls, hero.level, loadout.power(i, b))
+        }
 
     /** The hero a level-up should go to: the cheapest, so the party rises as a block. */
     fun cheapestHeroIndex(): Int =
@@ -66,13 +66,7 @@ data class GameState(
     fun canDrinkPotion(b: Balance): Boolean =
         gold >= potionCost(b) && roster.any { it.hp < it.maxHp(b) }
 
-    /** The lowest grade with enough copies to fuse, so the stash rises from the bottom. */
-    fun fusableGrade(b: Balance): Int? =
-        stash.indices.firstOrNull { it < stash.lastIndex && stash[it] >= b.cubeInput }
-
-    /** The grade closest to fusing, for the button that has to explain itself. */
-    fun fullestGrade(b: Balance): Int =
-        stash.indices.filter { it < stash.lastIndex }.maxByOrNull { stash[it] } ?: 0
+    fun fusableGrade(b: Balance): Int? = loadout.fusableGrade(b)
 
     companion object {
         fun newRun(nowMs: Long, b: Balance = Balance()): GameState {
@@ -99,7 +93,7 @@ sealed interface GameEvent {
         override val tone get() = Tone.MAGIC
     }
 
-    data class BossDown(val act: Int, val drop: Loot.Drop) : GameEvent {
+    data class BossDown(val act: Int, val drop: Item) : GameEvent {
         override val tone get() = Tone.LOOT
         override val grade get() = drop.grade
     }

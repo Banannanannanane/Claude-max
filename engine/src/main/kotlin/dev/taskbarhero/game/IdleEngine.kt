@@ -89,11 +89,9 @@ object IdleEngine {
             bossKills = if (boss) s.bossKills + 1 else s.bossKills,
         )
         if (boss) {
-            val drop = Loot.roll(s.act, s.bossKills)
-            val stash = s.stash.toMutableList()
-            stash[drop.grade] = stash[drop.grade] + 1
-            s = s.copy(stash = stash)
-            events += GameEvent.BossDown(s.act, drop)
+            val item = Item.roll(s.act, s.bossKills)
+            s = s.copy(loadout = s.loadout.take(item, s.unlocked, b))
+            events += GameEvent.BossDown(s.act, item)
             s = advanceAct(s, b, events)
         } else {
             s = s.copy(wave = s.wave + 1, enemyIndex = s.enemyIndex + 1)
@@ -180,10 +178,9 @@ object IdleEngine {
 
     /** Nine of a grade become one of the next. Always the lowest grade that can. */
     fun cube(state: GameState, b: Balance = Balance()): Pair<GameState, GameEvent>? {
-        val grade = state.fusableGrade(b) ?: return null
-        val stash = state.stash.toMutableList()
-        stash[grade] = stash[grade] - b.cubeInput
-        stash[grade + 1] = stash[grade + 1] + 1
-        return state.copy(stash = stash) to GameEvent.Cubed(grade + 1)
+        val (loadout, made) = state.loadout.cube(b) ?: return null
+        // The piece it makes is offered to the party at once: a fusion the player
+        // then has to equip by hand is a fusion they will forget to equip.
+        return state.copy(loadout = loadout.take(made, state.unlocked, b)) to GameEvent.Cubed(made.grade)
     }
 }

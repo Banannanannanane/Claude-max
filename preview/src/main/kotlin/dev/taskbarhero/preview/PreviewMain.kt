@@ -7,7 +7,8 @@ import dev.taskbarhero.game.Balance
 import dev.taskbarhero.game.GameEvent
 import dev.taskbarhero.game.GameState
 import dev.taskbarhero.game.IdleEngine
-import dev.taskbarhero.game.Loot
+import dev.taskbarhero.game.Item
+import dev.taskbarhero.game.Loadout
 import dev.taskbarhero.game.Ticker
 import dev.taskbarhero.game.Tone
 import dev.taskbarhero.game.toTicker
@@ -38,17 +39,23 @@ fun main(args: Array<String>) {
         Shot("bar-4x1", 4, 1, state("fresh"), null),
         Shot("bar-4x1-boss", 4, 1, state("boss"), null),
         Shot("bar-4x2", 4, 2, state("mid"), null),
-        Shot("bar-4x2-loot", 4, 2, state("boss"), GameEvent.BossDown(4, Loot.roll(4, 2)).toTicker()),
+        Shot("bar-4x2-loot", 4, 2, state("boss"), GameEvent.BossDown(4, Item.roll(4, 2)).toTicker()),
         Shot("bar-4x2-down", 4, 2, state("down"), null),
         Shot("bar-5x2", 5, 2, state("deep"), Ticker("LEVEL 240", Tone.GOOD)),
         Shot("bar-4x3", 4, 3, state("deep"), null),
     )
 
     for (shot in shots) ImageIO.write(render(shot, art), "png", File(outDir, "${shot.name}.png"))
+    for (screen in dev.taskbarhero.paint.Screen.entries) {
+        ImageIO.write(
+            renderScreen(screen, state("deep"), art), "png",
+            File(outDir, "screen-${screen.name.lowercase()}.png"),
+        )
+    }
     ImageIO.write(contactSheet(shots, art), "png", File(outDir, "sheet.png"))
     ImageIO.write(flipbook(shots.first { it.name == "bar-4x2" }, art), "png", File(outDir, "anim.png"))
 
-    println("wrote ${shots.size + 2} previews to ${outDir.absolutePath}")
+    println("wrote ${shots.size + 2 + dev.taskbarhero.paint.Screen.entries.size} previews to ${outDir.absolutePath}")
     println("art: ${art.dungeon.size} dungeon frames on a ${art.dungeon.unit}px grid, ${art.ui.size} ui pieces")
     val holes = Art.missingFrom(art.dungeon, Art.dungeonKeys) + Art.missingFrom(art.ui, Art.uiKeys)
     if (holes.isNotEmpty()) println("MISSING: ${holes.joinToString()}")
@@ -100,6 +107,24 @@ private fun render(shot: Shot, art: Art3, nowMs: Long = T0): BufferedImage {
         Painter(surface, art.dungeon, art.ui),
         w.toFloat(), h.toFloat(), DENSITY,
         shot.state, nowMs, shot.event, B,
+    )
+    g.dispose()
+    return image
+}
+
+/** A full screen, at the size of a phone held upright. */
+private fun renderScreen(
+    screen: dev.taskbarhero.paint.Screen,
+    state: GameState,
+    art: Art3,
+): BufferedImage {
+    val w = 1080
+    val h = 2000
+    val image = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
+    val g = image.createGraphics()
+    dev.taskbarhero.paint.ScreenLayout.draw(
+        Painter(AwtSurface(g, art.dungeonImage, art.uiImage, art.font), art.dungeon, art.ui),
+        screen, w.toFloat(), h.toFloat(), DENSITY, state, T0, null, B,
     )
     g.dispose()
     return image
@@ -158,7 +183,7 @@ private fun state(kind: String): GameState {
             act = 4, wave = 10, unlocked = 2, gold = 4_180.0, kills = 806, bossKills = 3,
             deepestAct = 4, deepestWave = 10,
             enemyHp = B.enemyMaxHp(4, 10) * 0.42,
-            stash = grades(3 to 6, 1 to 2),
+            loadout = kitted(4),
         ).levelled(28, 24).hurt(0.34)
 
         "down" -> fresh.copy(
@@ -170,7 +195,7 @@ private fun state(kind: String): GameState {
             act = 12, wave = 9, unlocked = 3, gold = 1.42e12, kills = 986_400,
             bossKills = 71, wipes = 34, deepestAct = 12, deepestWave = 10,
             enemyHp = B.enemyMaxHp(12, 9) * 0.62,
-            stash = grades(9 to 3, 7 to 9, 5 to 4, 2 to 1),
+            loadout = kitted(12),
         ).levelled(240, 236, 231).hurt(0.91)
 
         // A real half-hour of idling, so the numbers are the ones the engine makes.
@@ -189,8 +214,9 @@ private fun GameState.hurt(front: Double): GameState = copy(
     party = party.mapIndexed { i, hero -> if (i == 0) hero.copy(hp = hero.maxHp(B) * front) else hero },
 )
 
-private fun grades(vararg counts: Pair<Int, Int>): List<Int> {
-    val stash = MutableList(Loot.GRADES.size) { 0 }
-    for ((grade, count) in counts) stash[grade] = count
-    return stash
+/** A party that has been playing: every slot filled, and a pile part-way to fusing. */
+private fun kitted(act: Int): Loadout {
+    var loadout = Loadout()
+    for (slot in 0 until 14) loadout = loadout.take(Item.roll(act, slot.toLong()), 3, B)
+    return loadout
 }
