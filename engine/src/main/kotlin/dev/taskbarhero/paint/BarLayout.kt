@@ -280,10 +280,13 @@ object BarLayout {
             p.button(x + 2f, top, bw - 4f, h, enabled[i], corner = 12f * density)
             val centre = x + bw / 2f
             val labelY = top + h / 2f - p.surface.lineHeight(small)
-            p.textCentre(centre, labelY, labels[i], small, if (enabled[i]) Palette.PARCHMENT else Palette.PARCHMENT_DIM)
+            // An unlit button is the pack's pale one, and pale lettering on it is a
+            // label that is drawn and not read.
+            val ink = if (enabled[i]) Palette.PARCHMENT else Palette.ON_LIGHT
+            p.textCentre(centre, labelY, labels[i], small, ink)
             p.textCentre(
                 centre, labelY + p.surface.lineHeight(small), values[i], small,
-                if (enabled[i]) accents[i] else Palette.PARCHMENT_DIM,
+                if (enabled[i]) accents[i] else ink,
             )
             x += bw
         }
@@ -303,10 +306,11 @@ object BarLayout {
         p.button(left, top, right - left, bottom - top, hud.canLevelUp, corner = 12f * density)
         val centre = (left + right) / 2f
         val y = (top + bottom) / 2f - p.surface.lineHeight(text)
-        p.textCentre(centre, y, "LV UP", text, if (hud.canLevelUp) Palette.PARCHMENT else Palette.PARCHMENT_DIM)
+        val ink = if (hud.canLevelUp) Palette.PARCHMENT else Palette.ON_LIGHT
+        p.textCentre(centre, y, "LV UP", text, ink)
         p.textCentre(
             centre, y + p.surface.lineHeight(text), hud.levelCost, text,
-            if (hud.canLevelUp) Palette.GOLD else Palette.PARCHMENT_DIM,
+            if (hud.canLevelUp) Palette.GOLD else ink,
         )
     }
 

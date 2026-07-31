@@ -61,6 +61,16 @@ object Palette {
 
     /** What a health line shows where the health is gone. */
     const val EMPTY = 0xFF2A2733.toInt()
+
+    /**
+     * Text on the pack's *pale* button.
+     *
+     * The UI pack ships a brown button and a light grey one, and parchment lettering
+     * is legible on exactly one of them. Every unlit button in the game is the pale
+     * one, so anything written on it uses this instead — the alternative is a label
+     * that is technically drawn and practically invisible.
+     */
+    const val ON_LIGHT = 0xFF4A4038.toInt()
     const val MAGIC = 0xFF4E8FD8.toInt()
     const val SHADOW = 0x55000000
 

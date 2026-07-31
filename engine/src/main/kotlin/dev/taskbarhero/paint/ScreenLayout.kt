@@ -190,9 +190,9 @@ object ScreenLayout {
             p.icon(rune.icon, margin + 6f * density, y + 4f * density, icon - 8f * density)
 
             val textX = margin + icon + 6f * density
-            val colour = if (affordable || maxed) Palette.PARCHMENT else Palette.PARCHMENT_DIM
+            val colour = if (affordable) Palette.PARCHMENT else Palette.ON_LIGHT
             p.text(textX, y + 4f * density, rune.label, text, colour)
-            p.text(textX, y + 4f * density + line * 0.85f, rune.note, text * 0.7f, Palette.PARCHMENT_DIM)
+            p.text(textX, y + 4f * density + line * 0.85f, rune.note, text * 0.7f, colour)
 
             // Rank as pips rather than "3/6": you can count five dots at a glance
             // and you cannot read a fraction at a glance.
@@ -261,7 +261,7 @@ object ScreenLayout {
             p.button(x + 2f, topY + 2f, cell - 4f, cell - 4f, here, corner = 8f * density)
             p.textCentre(
                 x + cell / 2f, topY + cell / 2f - line / 2f, act.toString(), text,
-                if (here) Palette.GOLD else Palette.PARCHMENT,
+                if (here) Palette.GOLD else Palette.ON_LIGHT,
             )
         }
     }
@@ -307,7 +307,7 @@ object ScreenLayout {
             p.textCentre(
                 x + share / 2f, bottom - p.surface.lineHeight(text * 0.6f) - 2f * density,
                 screen.title, text * 0.6f,
-                if (here) Palette.PARCHMENT else Palette.PARCHMENT_DIM,
+                if (here) Palette.PARCHMENT else Palette.ON_LIGHT,
             )
         }
     }
