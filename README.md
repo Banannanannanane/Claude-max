@@ -14,12 +14,14 @@ Deux modes complémentaires dans la même application :
 
 ### Discussion
 - Réponses **en streaming** (SSE) ; le bouton « Stop » coupe réellement la requête réseau.
-- **Sélecteur de modèle** alimenté par `GET /v1/models` (GPT, Claude, Gemini, Grok, DeepSeek, Mistral, Kimi…), avec repli hors ligne.
+- **Sélecteur de modèle** alimenté par `GET /v1/models` (GPT, Claude, Gemini, Grok, DeepSeek, Mistral, Kimi…), avec **recherche et favoris**.
+- **Comparaison multi-modèles** : la même question envoyée à 2 à 4 modèles, réponses empilées et étiquetées.
 - **Recherche web** : une puce bascule la discussion vers un modèle sourcé (Perplexity/`sonar-pro` par défaut, configurable).
-- Actions sur chaque message : **copier, partager, régénérer, modifier & renvoyer, supprimer, lecture à voix haute** (TTS).
+- Actions sur chaque message : **copier, partager, régénérer, régénérer avec un autre modèle, continuer une réponse tronquée, modifier & renvoyer, supprimer, lecture à voix haute** (TTS).
 - **Dictée vocale** pour composer un message.
-- Rendu Markdown : blocs de code avec bouton copier, titres, listes, citations, **liens cliquables**, **images affichées**.
-- Compteur de **jetons consommés** sous chaque réponse.
+- Rendu Markdown : blocs de code avec bouton copier, titres, listes, citations, **liens cliquables**, **images affichées**, **texte sélectionnable**.
+- **Titre de discussion généré automatiquement** par le modèle après le premier échange.
+- Compteur de **jetons consommés** par réponse et par discussion.
 
 ### Pièces jointes
 - **Images** de la galerie → envoyées en vision aux modèles multimodaux.
@@ -30,23 +32,28 @@ Deux modes complémentaires dans la même application :
 - Instructions permanentes, modèle dédié et **documents de référence** rattachés à un projet.
 - Une discussion peut être lancée directement « avec ce projet ».
 
-### Atelier d'images
+### Atelier visuel
 - Génération via `POST /v1/images/generations`, avec **repli automatique** sur `chat/completions` si l'endpoint n'est pas exposé.
-- Choix du modèle, du format et du nombre d'images ; **enregistrement en galerie** et partage.
+- **Édition d'image (image-to-image)** via `POST /v1/images/edits`, avec repli en vision ; un résultat peut être repris comme source.
+- **Vidéos** détectées et ouvrables dans le lecteur du téléphone.
+- Choix du modèle, du format et du nombre d'images ; **historique persistant**, enregistrement en galerie, partage.
 
 ### Bibliothèque de prompts
 - 8 prompts fournis (résumé, correction, traduction, code, tests, email, brainstorming, vision).
 - Prompts personnels : création, édition, catégories, insertion en un tap.
 
 ### Historique et confort
-- **Recherche** dans les titres et le contenu, **épinglage**, **renommage**, suppression.
-- **Export / partage** d'une discussion en Markdown.
-- **Partager vers Mammouth** depuis n'importe quelle app Android (`SEND`) et traitement d'une sélection de texte (`PROCESS_TEXT`).
+- **Recherche** dans les titres et le contenu, **épinglage**, **archivage**, **renommage**, suppression.
+- **Export / partage** d'une discussion en Markdown et **sauvegarde JSON complète** (discussions + projets + prompts) exportable et restaurable.
+- **Partager vers Mammouth** depuis n'importe quelle app Android : texte, **images** et **PDF** (`SEND`, `SEND_MULTIPLE`), plus traitement d'une sélection de texte (`PROCESS_TEXT`).
+- **Raccourcis d'application** (appui long sur l'icône) : discussion, atelier d'images, projets.
+- Bouton **retour en bas** et auto-défilement qui se désactive quand vous remontez.
 - Thème clair / sombre / système, couleurs dynamiques (Android 12+), **taille du texte réglable**.
 - Réglages avancés : instruction système globale, température, top-p, jetons max, streaming, URL de base.
 
 ### Confidentialité
 - **Clé API chiffrée** par l'AndroidKeyStore (AES-256/GCM) ; jamais stockée en clair.
+- **Verrouillage de l'app** par le code ou la biométrie de l'appareil (optionnel).
 - Aucun analytics, aucun backend tiers : le trafic va uniquement vers `api.mammouth.ai`.
 - Conversations, projets et prompts stockés dans le **stockage privé de l'app** (JSON).
 
