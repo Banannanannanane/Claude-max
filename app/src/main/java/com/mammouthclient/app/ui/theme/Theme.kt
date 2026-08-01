@@ -3,6 +3,7 @@ package com.mammouthclient.app.ui.theme
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -10,6 +11,8 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import com.mammouthclient.app.data.ThemeMode
 
 private val MammouthGreen = Color(0xFF2F5D50)
 private val MammouthGreenLight = Color(0xFF8FD3BE)
@@ -39,11 +42,38 @@ private val DarkColors = darkColorScheme(
     surfaceVariant = Color(0xFF3F4A44)
 )
 
+private fun TextStyle.scaled(factor: Float): TextStyle =
+    if (factor == 1f) this else copy(fontSize = fontSize * factor)
+
+private fun scaledTypography(factor: Float): Typography {
+    val base = Typography()
+    if (factor == 1f) return base
+    return base.copy(
+        displayMedium = base.displayMedium.scaled(factor),
+        headlineSmall = base.headlineSmall.scaled(factor),
+        titleLarge = base.titleLarge.scaled(factor),
+        titleMedium = base.titleMedium.scaled(factor),
+        titleSmall = base.titleSmall.scaled(factor),
+        bodyLarge = base.bodyLarge.scaled(factor),
+        bodyMedium = base.bodyMedium.scaled(factor),
+        bodySmall = base.bodySmall.scaled(factor),
+        labelLarge = base.labelLarge.scaled(factor),
+        labelMedium = base.labelMedium.scaled(factor),
+        labelSmall = base.labelSmall.scaled(factor)
+    )
+}
+
 @Composable
 fun MammouthTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    fontScale: Float = 1f,
     content: @Composable () -> Unit
 ) {
+    val darkTheme = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
     val context = LocalContext.current
     val colors = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
@@ -55,6 +85,7 @@ fun MammouthTheme(
 
     MaterialTheme(
         colorScheme = colors,
+        typography = scaledTypography(fontScale),
         content = content
     )
 }
