@@ -1,0 +1,150 @@
+package com.mammouthclient.app.net
+
+import com.mammouthclient.app.data.AppSettings
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import okhttp3.Call
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.IOException
+import java.util.concurrent.TimeUnit
+
+/** Erreur applicative portant un message lisible par l'utilisateur. */
+class MammouthException(message: String, val httpCode: Int? = null) : IOException(message)
+
+/**
+ * Client de l'API Mammouth (compatible OpenAI) : `POST /chat/completions` et `GET /models`.
+ */
+class MammouthApi {
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        encodeDefaults = true
+        explicitNulls = false
+    }
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.MINUTES)   // les réponses en streaming sont longues
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
+        .build()
+
+    private fun requestBuilder(settings: AppSettings, path: String): Request.Builder {
+        val base = settings.baseUrl.trim().trimEnd('/').ifBlank { AppSettings.DEFAULT_BASE_URL }
+        return Request.Builder()
+            .url("$base/$path")
+            .header("Authorization", "Bearer ${settings.apiKey.trim()}")
+            .header("Accept", "application/json")
+    }
+
+    /** Liste les modèles disponibles pour la clé fournie. */
+    suspend fun listModels(settings: AppSettings): List<String> = withContext(Dispatchers.IO) {
+        val request = requestBuilder(settings, "models").get().build()
+        client.newCall(request).execute().use { response ->
+            val body = response.body?.string().orEmpty()
+            if (!response.isSuccessful) throw errorFrom(response.code, body)
+            json.decodeFromString(ModelList.serializer(), body)
+                .data
+                .map { it.id }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .sorted()
+        }
+    }
+
+    /**
+     * Envoie une conversation et émet les fragments de réponse au fur et à mesure.
+     * Si [AppSettings.streaming] est désactivé, un unique fragment contenant toute la
+     * réponse est émis.
+     */
+    fun streamChat(
+        settings: AppSettings,
+        messages: List<ApiMessage>
+    ): Flow<String> = flow {
+        val payload = ChatRequest(
+            model = settings.model,
+            messages = messages,
+            stream = settings.streaming,
+            temperature = settings.temperature
+        )
+        val request = requestBuilder(settings, "chat/completions")
+            .post(
+                json.encodeToString(ChatRequest.serializer(), payload)
+                    .toRequestBody("application/json; charset=utf-8".toMediaType())
+            )
+            .build()
+
+        val call: Call = client.newCall(request)
+        try {
+            call.execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw errorFrom(response.code, response.body?.string().orEmpty())
+                }
+                val body = response.body ?: throw MammouthException("Réponse vide du serveur.")
+
+                if (!settings.streaming) {
+                    val text = json.decodeFromString(ChatResponse.serializer(), body.string())
+                        .choices.firstOrNull()?.message?.content.orEmpty()
+                    if (text.isNotEmpty()) emit(text)
+                    return@use
+                }
+
+                val source = body.source()
+                while (currentCoroutineContext().isActive) {
+                    val line = source.readUtf8Line() ?: break
+                    if (line.isEmpty() || line.startsWith(":")) continue
+                    if (!line.startsWith("data:")) continue
+
+                    val data = line.removePrefix("data:").trim()
+                    if (data == "[DONE]") break
+
+                    val delta = runCatching {
+                        json.decodeFromString(StreamChunk.serializer(), data)
+                            .choices.firstOrNull()?.delta?.content
+                    }.getOrNull()
+
+                    if (!delta.isNullOrEmpty()) emit(delta)
+                }
+            }
+        } finally {
+            // Interrompt immédiatement la requête réseau si la collecte est annulée (bouton "Stop").
+            if (!call.isCanceled()) call.cancel()
+        }
+    }.flowOn(Dispatchers.IO)
+
+    private fun errorFrom(code: Int, body: String): MammouthException {
+        val parsed = runCatching {
+            json.decodeFromString(ApiErrorBody.serializer(), body)
+        }.getOrNull()
+        val detail = parsed?.error?.message ?: parsed?.message ?: body.take(300).ifBlank { null }
+
+        val friendly = when (code) {
+            401, 403 -> "Clé API refusée (HTTP $code). Vérifiez la clé dans les réglages."
+            404 -> "Endpoint introuvable (HTTP 404). Vérifiez l'URL de base et le modèle."
+            429 -> "Quota atteint ou trop de requêtes (HTTP 429)."
+            in 500..599 -> "Erreur côté serveur Mammouth (HTTP $code)."
+            else -> "Erreur HTTP $code."
+        }
+        return MammouthException(if (detail.isNullOrBlank()) friendly else "$friendly\n$detail", code)
+    }
+
+    companion object {
+        /** Repli utilisé tant que `GET /models` n'a pas répondu. */
+        val FALLBACK_MODELS = listOf(
+            "mammouth-recommended",
+            "gpt-4.1",
+            "claude-sonnet-4-6",
+            "kimi-k2.5"
+        )
+    }
+}
