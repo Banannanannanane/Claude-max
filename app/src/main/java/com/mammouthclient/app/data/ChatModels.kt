@@ -61,7 +61,9 @@ data class Conversation(
     val assistantId: String? = null,
     /** Active un modèle de recherche web pour cette discussion. */
     val webSearch: Boolean = false,
-    val archived: Boolean = false
+    val archived: Boolean = false,
+    /** Persona appliqué à cette discussion. */
+    val personaId: String? = null
 ) {
     /** Jetons cumulés sur la discussion. */
     val totalTokens: Int get() = messages.sumOf { it.usage?.totalTokens ?: 0 }

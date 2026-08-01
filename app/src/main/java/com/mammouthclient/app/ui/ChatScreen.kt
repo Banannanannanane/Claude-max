@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -57,6 +58,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.TheaterComedy
 import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material.icons.filled.VolumeUp
@@ -119,7 +121,9 @@ fun ChatScreen(
     onOpenWeb: () -> Unit,
     onOpenAssistants: () -> Unit,
     onOpenPrompts: () -> Unit,
-    onOpenImages: () -> Unit
+    onOpenImages: () -> Unit,
+    onOpenPersonas: () -> Unit,
+    onOpenProfile: () -> Unit
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
@@ -245,6 +249,14 @@ fun ChatScreen(
                     onOpenImages = {
                         scope.launch { drawerState.close() }
                         onOpenImages()
+                    },
+                    onOpenPersonas = {
+                        scope.launch { drawerState.close() }
+                        onOpenPersonas()
+                    },
+                    onOpenProfile = {
+                        scope.launch { drawerState.close() }
+                        onOpenProfile()
                     },
                     onOpenWeb = {
                         scope.launch { drawerState.close() }
@@ -387,9 +399,14 @@ fun ChatScreen(
                 ContextChips(
                     webSearch = state.current?.webSearch == true,
                     assistantLabel = state.assistantOf(state.current)?.let { "${it.emoji} ${it.name}" },
+                    personaLabel = state.personaOf(state.current)?.let { "${it.emoji} ${it.name}" },
+                    profileActive = state.profile.enabled && !state.profile.isEmpty,
                     onToggleWeb = viewModel::toggleWebSearch,
                     onClearAssistant = { viewModel.applyAssistant(null) },
                     onOpenAssistants = onOpenAssistants,
+                    onClearPersona = { viewModel.applyPersona(null) },
+                    onOpenPersonas = onOpenPersonas,
+                    onOpenProfile = onOpenProfile,
                     onCompare = { compareOpen = true }
                 )
 
@@ -783,6 +800,8 @@ private fun ConversationDrawer(
     onOpenAssistants: () -> Unit,
     onOpenPrompts: () -> Unit,
     onOpenImages: () -> Unit,
+    onOpenPersonas: () -> Unit,
+    onOpenProfile: () -> Unit,
     onOpenWeb: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
@@ -885,6 +904,8 @@ private fun ConversationDrawer(
         }
 
         HorizontalDivider()
+        DrawerLink(Icons.Default.Person, "Mon profil", onOpenProfile)
+        DrawerLink(Icons.Default.TheaterComedy, "Personas", onOpenPersonas)
         DrawerLink(Icons.Default.Folder, "Projets", onOpenAssistants)
         DrawerLink(Icons.Default.Description, "Prompts", onOpenPrompts)
         DrawerLink(Icons.Default.Image, "Atelier d'images", onOpenImages)
@@ -917,9 +938,14 @@ private fun DrawerLink(
 private fun ContextChips(
     webSearch: Boolean,
     assistantLabel: String?,
+    personaLabel: String?,
+    profileActive: Boolean,
     onToggleWeb: () -> Unit,
     onClearAssistant: () -> Unit,
     onOpenAssistants: () -> Unit,
+    onClearPersona: () -> Unit,
+    onOpenPersonas: () -> Unit,
+    onOpenProfile: () -> Unit,
     onCompare: () -> Unit
 ) {
     LazyRow(
@@ -957,6 +983,34 @@ private fun ContextChips(
                     }
                 )
             }
+        }
+        item {
+            if (personaLabel != null) {
+                AssistChip(
+                    onClick = onClearPersona,
+                    label = { Text(personaLabel, maxLines = 1) },
+                    trailingIcon = {
+                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(14.dp))
+                    }
+                )
+            } else {
+                AssistChip(
+                    onClick = onOpenPersonas,
+                    label = { Text("Persona") },
+                    leadingIcon = {
+                        Icon(Icons.Default.TheaterComedy, contentDescription = null, modifier = Modifier.size(16.dp))
+                    }
+                )
+            }
+        }
+        item {
+            AssistChip(
+                onClick = onOpenProfile,
+                label = { Text(if (profileActive) "Profil actif" else "Profil") },
+                leadingIcon = {
+                    Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp))
+                }
+            )
         }
         item {
             AssistChip(

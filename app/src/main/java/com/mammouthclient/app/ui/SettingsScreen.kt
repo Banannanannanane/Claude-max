@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -58,7 +60,8 @@ import kotlin.math.roundToInt
 fun SettingsScreen(
     viewModel: ChatViewModel,
     onBack: () -> Unit,
-    onExport: (String) -> Unit
+    onExport: (String) -> Unit,
+    onOpenProfile: () -> Unit
 ) {
     val context = LocalContext.current
     val repository = remember { AppContainer.settings(context) }
@@ -81,6 +84,7 @@ fun SettingsScreen(
     var appLock by remember { mutableStateOf(settings.appLock) }
     var revealKey by remember { mutableStateOf(false) }
     var confirmWipe by remember { mutableStateOf(false) }
+    var creatingWorkspace by remember { mutableStateOf(false) }
 
     val backupWriter = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -155,6 +159,15 @@ fun SettingsScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            OutlinedButton(
+                onClick = {
+                    persist()
+                    onOpenProfile()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Mon profil (ce que l'IA sait de vous)") }
+
+            HorizontalDivider()
             Text("Connexion à l'API", style = MaterialTheme.typography.titleMedium)
 
             OutlinedTextField(
@@ -321,6 +334,59 @@ fun SettingsScreen(
             }
 
             HorizontalDivider()
+            Text("Espaces", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Un espace mémorise une clé API, une URL et un modèle par défaut : pratique pour " +
+                    "séparer un usage personnel d'un usage professionnel.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            settings.workspaces.forEach { workspace ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(workspace.emoji, style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.size(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            workspace.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (workspace.id == settings.activeWorkspaceId) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            }
+                        )
+                        Text(
+                            workspace.model,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (workspace.id != settings.activeWorkspaceId) {
+                        TextButton(onClick = {
+                            persist()
+                            repository.switchWorkspace(workspace.id)
+                            apiKey = repository.settings.value.apiKey
+                            baseUrl = repository.settings.value.baseUrl
+                            viewModel.notify("Espace « ${workspace.name} » activé.")
+                            viewModel.refreshModels()
+                        }) { Text("Activer") }
+                    }
+                    IconButton(onClick = { repository.deleteWorkspace(workspace.id) }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Supprimer l'espace")
+                    }
+                }
+            }
+
+            OutlinedButton(
+                onClick = { creatingWorkspace = true },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Enregistrer les réglages actuels comme espace") }
+
+            HorizontalDivider()
             Text("Sécurité", style = MaterialTheme.typography.titleMedium)
 
             SwitchRow(
@@ -363,6 +429,47 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+
+    if (creatingWorkspace) {
+        var name by remember { mutableStateOf("") }
+        var emoji by remember { mutableStateOf("🐘") }
+        AlertDialog(
+            onDismissRequest = { creatingWorkspace = false },
+            title = { Text("Nouvel espace") },
+            text = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = emoji,
+                        onValueChange = { emoji = it.take(2) },
+                        label = { Text("Icône") },
+                        singleLine = true,
+                        modifier = Modifier.width(90.dp)
+                    )
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Nom (perso, pro…)") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        persist()
+                        repository.saveWorkspace(name, emoji)
+                        creatingWorkspace = false
+                        viewModel.notify("Espace enregistré.")
+                    },
+                    enabled = name.isNotBlank()
+                ) { Text("Enregistrer") }
+            },
+            dismissButton = {
+                TextButton(onClick = { creatingWorkspace = false }) { Text("Annuler") }
+            }
+        )
     }
 
     if (confirmWipe) {

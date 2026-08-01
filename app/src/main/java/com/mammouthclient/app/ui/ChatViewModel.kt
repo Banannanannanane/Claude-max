@@ -13,10 +13,15 @@ import com.mammouthclient.app.data.AttachmentKind
 import com.mammouthclient.app.data.ChatStore
 import com.mammouthclient.app.data.Conversation
 import com.mammouthclient.app.data.DefaultPrompts
+import com.mammouthclient.app.data.DefaultPersonas
 import com.mammouthclient.app.data.Message
+import com.mammouthclient.app.data.Persona
+import com.mammouthclient.app.data.PersonaStore
+import com.mammouthclient.app.data.ProfileStore
 import com.mammouthclient.app.data.PromptStore
 import com.mammouthclient.app.data.PromptTemplate
 import com.mammouthclient.app.data.TokenUsage
+import com.mammouthclient.app.data.UserProfile
 import com.mammouthclient.app.net.ApiMessage
 import com.mammouthclient.app.net.ChatEvent
 import com.mammouthclient.app.net.MammouthApi
@@ -52,6 +57,8 @@ data class ChatUiState(
     val info: String? = null,
     val assistants: List<Assistant> = emptyList(),
     val prompts: List<PromptTemplate> = emptyList(),
+    val personas: List<Persona> = emptyList(),
+    val profile: UserProfile = UserProfile(),
     val pendingAttachments: List<Attachment> = emptyList(),
     val importing: Boolean = false,
     val search: String = "",
@@ -77,6 +84,9 @@ data class ChatUiState(
 
     fun assistantOf(conversation: Conversation?): Assistant? =
         assistants.firstOrNull { it.id == conversation?.assistantId }
+
+    fun personaOf(conversation: Conversation?): Persona? =
+        personas.firstOrNull { it.id == conversation?.personaId }
 }
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
@@ -87,6 +97,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val store = ChatStore(application)
     private val assistantStore = AssistantStore(application)
     private val promptStore = PromptStore(application)
+    private val personaStore = PersonaStore(application)
+    private val profileStore = ProfileStore(application)
 
     private val _state = MutableStateFlow(ChatUiState())
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
@@ -102,11 +114,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             val conversations = store.load()
             val assistants = assistantStore.load()
             val saved = promptStore.load()
+            val customPersonas = personaStore.load()
+            val profile = profileStore.load()
             _state.value = _state.value.copy(
                 conversations = conversations,
                 currentId = conversations.firstOrNull()?.id,
                 assistants = assistants,
-                prompts = DefaultPrompts.ALL + saved
+                prompts = DefaultPrompts.ALL + saved,
+                personas = DefaultPersonas.ALL + customPersonas,
+                profile = profile
             )
             if (conversations.isEmpty()) newConversation()
             if (settings.value.hasApiKey) refreshModels()
@@ -115,11 +131,19 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     /* ---------------- Discussions ---------------- */
 
-    fun newConversation(assistantId: String? = null, initialText: String = "") {
+    fun newConversation(
+        assistantId: String? = null,
+        personaId: String? = null,
+        initialText: String = ""
+    ) {
         val assistant = _state.value.assistants.firstOrNull { it.id == assistantId }
+        val persona = _state.value.personas.firstOrNull { it.id == personaId }
         val conversation = Conversation(
-            model = assistant?.model?.ifBlank { null } ?: settings.value.model,
-            assistantId = assistantId
+            model = assistant?.model?.ifBlank { null }
+                ?: persona?.model?.ifBlank { null }
+                ?: settings.value.model,
+            assistantId = assistantId,
+            personaId = personaId
         )
         _state.value = _state.value.copy(
             conversations = listOf(conversation) + _state.value.conversations,
@@ -208,6 +232,48 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             conversation.copy(
                 assistantId = assistantId,
                 model = assistant?.model?.ifBlank { null } ?: conversation.model
+            )
+        }
+        persist()
+    }
+
+    /* ---------------- Profil et personas ---------------- */
+
+    fun saveProfile(profile: UserProfile) {
+        _state.value = _state.value.copy(profile = profile, info = "Profil enregistré.")
+        viewModelScope.launch { profileStore.save(profile) }
+    }
+
+    fun savePersona(persona: Persona) {
+        val custom = _state.value.personas.filterNot { it.builtIn }
+        val updated = if (custom.any { it.id == persona.id }) {
+            custom.map { if (it.id == persona.id) persona else it }
+        } else {
+            custom + persona
+        }
+        _state.value = _state.value.copy(personas = DefaultPersonas.ALL + updated)
+        viewModelScope.launch { personaStore.save(updated) }
+    }
+
+    fun deletePersona(id: String) {
+        val custom = _state.value.personas.filterNot { it.builtIn }.filterNot { it.id == id }
+        _state.value = _state.value.copy(
+            personas = DefaultPersonas.ALL + custom,
+            conversations = _state.value.conversations.map {
+                if (it.personaId == id) it.copy(personaId = null) else it
+            }
+        )
+        viewModelScope.launch { personaStore.save(custom) }
+        persist()
+    }
+
+    /** Applique (ou retire) un persona à la discussion courante. */
+    fun applyPersona(personaId: String?) {
+        val persona = _state.value.personas.firstOrNull { it.id == personaId }
+        updateCurrent { conversation ->
+            conversation.copy(
+                personaId = personaId,
+                model = persona?.model?.ifBlank { null } ?: conversation.model
             )
         }
         persist()
@@ -651,7 +717,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun buildHistory(snapshot: AppSettings, conversation: Conversation): List<ApiMessage> {
         val assistant = _state.value.assistantOf(conversation)
+        val persona = _state.value.personaOf(conversation)
         val systemParts = mutableListOf<String>()
+
+        // Profil utilisateur d'abord : il conditionne toutes les réponses.
+        _state.value.profile.toSystemPrompt().takeIf { it.isNotBlank() }?.let { systemParts += it }
+        persona?.systemPrompt?.takeIf { it.isNotBlank() }?.let { systemParts += it }
         if (snapshot.systemPrompt.isNotBlank()) systemParts += snapshot.systemPrompt
         assistant?.instructions?.takeIf { it.isNotBlank() }?.let { systemParts += it }
         assistant?.documents?.filter { it.kind == AttachmentKind.TEXT }?.forEach { document ->

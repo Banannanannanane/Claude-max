@@ -4,6 +4,8 @@ import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
@@ -29,7 +31,10 @@ data class AppSettings(
     /** Demande le code/empreinte de l'appareil au lancement. */
     val appLock: Boolean = false,
     /** Fait nommer la discussion par le modèle après le premier échange. */
-    val autoTitle: Boolean = true
+    val autoTitle: Boolean = true,
+    /** Espaces de connexion (perso, pro…). */
+    val workspaces: List<Workspace> = emptyList(),
+    val activeWorkspaceId: String = ""
 ) {
     val hasApiKey: Boolean get() = apiKey.isNotBlank()
 
@@ -45,6 +50,8 @@ class SettingsRepository(context: Context) {
 
     private val prefs = context.applicationContext
         .getSharedPreferences("mammouth_settings", Context.MODE_PRIVATE)
+
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     private val _settings = MutableStateFlow(read())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
@@ -72,7 +79,14 @@ class SettingsRepository(context: Context) {
         sendOnEnter = prefs.getBoolean(KEY_SEND_ON_ENTER, false),
         favoriteModels = prefs.getStringSet(KEY_FAVORITES, emptySet()).orEmpty().toSet(),
         appLock = prefs.getBoolean(KEY_APP_LOCK, false),
-        autoTitle = prefs.getBoolean(KEY_AUTO_TITLE, true)
+        autoTitle = prefs.getBoolean(KEY_AUTO_TITLE, true),
+        workspaces = runCatching {
+            json.decodeFromString(
+                ListSerializer(Workspace.serializer()),
+                prefs.getString(KEY_WORKSPACES, "[]").orEmpty().ifBlank { "[]" }
+            )
+        }.getOrDefault(emptyList()),
+        activeWorkspaceId = prefs.getString(KEY_ACTIVE_WORKSPACE, "").orEmpty()
     )
 
     fun update(transform: (AppSettings) -> AppSettings) {
@@ -97,8 +111,70 @@ class SettingsRepository(context: Context) {
             .putStringSet(KEY_FAVORITES, updated.favoriteModels)
             .putBoolean(KEY_APP_LOCK, updated.appLock)
             .putBoolean(KEY_AUTO_TITLE, updated.autoTitle)
+            .putString(
+                KEY_WORKSPACES,
+                runCatching {
+                    json.encodeToString(ListSerializer(Workspace.serializer()), updated.workspaces)
+                }.getOrDefault("[]")
+            )
+            .putString(KEY_ACTIVE_WORKSPACE, updated.activeWorkspaceId)
             .apply()
         _settings.value = updated
+    }
+
+    /* ---------------- Espaces ---------------- */
+
+    /** Crée ou met à jour un espace à partir des réglages de connexion courants. */
+    fun saveWorkspace(name: String, emoji: String, id: String? = null) {
+        update { current ->
+            val workspace = Workspace(
+                id = id ?: java.util.UUID.randomUUID().toString(),
+                name = name.trim(),
+                emoji = emoji.ifBlank { "🐘" },
+                apiKeyEncrypted = Crypto.encrypt(current.apiKey),
+                baseUrl = current.baseUrl,
+                model = current.model
+            )
+            val others = current.workspaces.filterNot { it.id == workspace.id }
+            current.copy(
+                workspaces = others + workspace,
+                activeWorkspaceId = workspace.id
+            )
+        }
+    }
+
+    /** Bascule vers un espace : sauvegarde l'état courant puis applique le sien. */
+    fun switchWorkspace(id: String) {
+        update { current ->
+            val target = current.workspaces.firstOrNull { it.id == id } ?: return@update current
+            val saved = current.workspaces.map { workspace ->
+                if (workspace.id == current.activeWorkspaceId) {
+                    workspace.copy(
+                        apiKeyEncrypted = Crypto.encrypt(current.apiKey),
+                        baseUrl = current.baseUrl,
+                        model = current.model
+                    )
+                } else {
+                    workspace
+                }
+            }
+            current.copy(
+                workspaces = saved,
+                activeWorkspaceId = target.id,
+                apiKey = Crypto.decrypt(target.apiKeyEncrypted),
+                baseUrl = target.baseUrl,
+                model = target.model
+            )
+        }
+    }
+
+    fun deleteWorkspace(id: String) {
+        update { current ->
+            current.copy(
+                workspaces = current.workspaces.filterNot { it.id == id },
+                activeWorkspaceId = if (current.activeWorkspaceId == id) "" else current.activeWorkspaceId
+            )
+        }
     }
 
     fun clearAll() {
@@ -124,5 +200,7 @@ class SettingsRepository(context: Context) {
         const val KEY_FAVORITES = "favorite_models"
         const val KEY_APP_LOCK = "app_lock"
         const val KEY_AUTO_TITLE = "auto_title"
+        const val KEY_WORKSPACES = "workspaces"
+        const val KEY_ACTIVE_WORKSPACE = "active_workspace"
     }
 }

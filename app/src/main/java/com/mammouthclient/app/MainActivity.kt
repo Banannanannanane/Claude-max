@@ -38,13 +38,15 @@ import com.mammouthclient.app.ui.ChatScreen
 import com.mammouthclient.app.ui.ChatViewModel
 import com.mammouthclient.app.ui.ImageScreen
 import com.mammouthclient.app.ui.ImageViewModel
+import com.mammouthclient.app.ui.PersonasScreen
+import com.mammouthclient.app.ui.ProfileScreen
 import com.mammouthclient.app.ui.PromptsScreen
 import com.mammouthclient.app.ui.SettingsScreen
 import com.mammouthclient.app.ui.WebAppScreen
 import com.mammouthclient.app.ui.theme.MammouthTheme
 import java.io.File
 
-private enum class Screen { Chat, Settings, Web, Assistants, Prompts, Images }
+private enum class Screen { Chat, Settings, Web, Assistants, Prompts, Images, Personas, Profile }
 
 /** Contenu reçu depuis une autre application (partage entrant). */
 private data class SharedPayload(
@@ -195,7 +197,9 @@ private fun MammouthApp(payload: SharedPayload, startScreen: Screen) {
                 onOpenWeb = { screen = Screen.Web },
                 onOpenAssistants = { screen = Screen.Assistants },
                 onOpenPrompts = { screen = Screen.Prompts },
-                onOpenImages = { screen = Screen.Images }
+                onOpenImages = { screen = Screen.Images },
+                onOpenPersonas = { screen = Screen.Personas },
+                onOpenProfile = { screen = Screen.Profile }
             )
 
             Screen.Settings -> {
@@ -203,7 +207,8 @@ private fun MammouthApp(payload: SharedPayload, startScreen: Screen) {
                 SettingsScreen(
                     viewModel = chatViewModel,
                     onBack = { screen = Screen.Chat },
-                    onExport = { shareText(it) }
+                    onExport = { shareText(it) },
+                    onOpenProfile = { screen = Screen.Profile }
                 )
             }
 
@@ -239,6 +244,26 @@ private fun MammouthApp(payload: SharedPayload, startScreen: Screen) {
                     onBack = { screen = Screen.Chat },
                     onShareFile = { shareFile(it) },
                     onOpenUrl = { openUrl(it) }
+                )
+            }
+
+            Screen.Personas -> {
+                BackHandler { screen = Screen.Chat }
+                PersonasScreen(
+                    viewModel = chatViewModel,
+                    onBack = { screen = Screen.Chat },
+                    onStartChat = { personaId ->
+                        chatViewModel.newConversation(personaId = personaId)
+                        screen = Screen.Chat
+                    }
+                )
+            }
+
+            Screen.Profile -> {
+                BackHandler { screen = Screen.Chat }
+                ProfileScreen(
+                    viewModel = chatViewModel,
+                    onBack = { screen = Screen.Chat }
                 )
             }
 

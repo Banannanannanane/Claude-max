@@ -42,3 +42,24 @@ class PromptStore(context: Context) :
 
 class MediaStore(context: Context) :
     JsonListStore<GeneratedMedia>(context, "media.json", GeneratedMedia.serializer())
+
+class PersonaStore(context: Context) :
+    JsonListStore<Persona>(context, "personas.json", Persona.serializer())
+
+/** Persistance du profil utilisateur (objet unique). */
+class ProfileStore(context: Context) {
+
+    private val file = File(context.applicationContext.filesDir, "profile.json")
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+
+    suspend fun load(): UserProfile = withContext(Dispatchers.IO) {
+        if (!file.exists()) return@withContext UserProfile()
+        runCatching { json.decodeFromString(UserProfile.serializer(), file.readText()) }
+            .getOrDefault(UserProfile())
+    }
+
+    suspend fun save(profile: UserProfile) = withContext(Dispatchers.IO) {
+        runCatching { file.writeText(json.encodeToString(UserProfile.serializer(), profile)) }
+        Unit
+    }
+}
