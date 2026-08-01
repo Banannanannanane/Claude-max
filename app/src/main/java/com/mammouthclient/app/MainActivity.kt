@@ -106,7 +106,9 @@ private fun MammouthApp(payload: SharedPayload, startScreen: Screen) {
     val chatViewModel: ChatViewModel = viewModel()
     val imageViewModel: ImageViewModel = viewModel()
     val settings by chatViewModel.settings.collectAsState()
-    var screen by remember { mutableStateOf(startScreen) }
+    var screen by remember {
+        mutableStateOf(if (settings.startOnWeb && startScreen == Screen.Chat) Screen.Web else startScreen)
+    }
 
     var unlocked by remember { mutableStateOf(!settings.appLock) }
     var lockFailed by remember { mutableStateOf(false) }

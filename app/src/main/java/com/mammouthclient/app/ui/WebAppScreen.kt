@@ -30,6 +30,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -61,6 +62,11 @@ fun WebAppScreen(onBack: () -> Unit) {
         pendingFileCallback = null
         val uri = result.data?.data
         callback?.onReceiveValue(if (result.resultCode == android.app.Activity.RESULT_OK && uri != null) arrayOf(uri) else null)
+    }
+
+    // Les cookies de session sont écrits sur disque pour rester connecté d'un lancement à l'autre.
+    DisposableEffect(Unit) {
+        onDispose { runCatching { CookieManager.getInstance().flush() } }
     }
 
     BackHandler(enabled = true) {
@@ -166,6 +172,13 @@ fun WebAppScreen(onBack: () -> Unit) {
 
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 canGoBack = view?.canGoBack() == true
+                            }
+                        }
+
+                        // Téléchargements (exports, images générées) confiés au navigateur.
+                        setDownloadListener { url, _, _, _, _ ->
+                            runCatching {
+                                ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                             }
                         }
 

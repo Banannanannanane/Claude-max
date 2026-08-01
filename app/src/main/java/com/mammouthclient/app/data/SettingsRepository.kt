@@ -32,6 +32,8 @@ data class AppSettings(
     val appLock: Boolean = false,
     /** Fait nommer la discussion par le modèle après le premier échange. */
     val autoTitle: Boolean = true,
+    /** Ouvre directement l'app web au lancement (usage sur abonnement, sans clé API). */
+    val startOnWeb: Boolean = false,
     /** Espaces de connexion (perso, pro…). */
     val workspaces: List<Workspace> = emptyList(),
     val activeWorkspaceId: String = ""
@@ -80,6 +82,7 @@ class SettingsRepository(context: Context) {
         favoriteModels = prefs.getStringSet(KEY_FAVORITES, emptySet()).orEmpty().toSet(),
         appLock = prefs.getBoolean(KEY_APP_LOCK, false),
         autoTitle = prefs.getBoolean(KEY_AUTO_TITLE, true),
+        startOnWeb = prefs.getBoolean(KEY_START_ON_WEB, false),
         workspaces = runCatching {
             json.decodeFromString(
                 ListSerializer(Workspace.serializer()),
@@ -111,6 +114,7 @@ class SettingsRepository(context: Context) {
             .putStringSet(KEY_FAVORITES, updated.favoriteModels)
             .putBoolean(KEY_APP_LOCK, updated.appLock)
             .putBoolean(KEY_AUTO_TITLE, updated.autoTitle)
+            .putBoolean(KEY_START_ON_WEB, updated.startOnWeb)
             .putString(
                 KEY_WORKSPACES,
                 runCatching {
@@ -200,6 +204,7 @@ class SettingsRepository(context: Context) {
         const val KEY_FAVORITES = "favorite_models"
         const val KEY_APP_LOCK = "app_lock"
         const val KEY_AUTO_TITLE = "auto_title"
+        const val KEY_START_ON_WEB = "start_on_web"
         const val KEY_WORKSPACES = "workspaces"
         const val KEY_ACTIVE_WORKSPACE = "active_workspace"
     }

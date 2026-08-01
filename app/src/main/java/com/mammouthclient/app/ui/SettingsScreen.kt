@@ -82,6 +82,7 @@ fun SettingsScreen(
     var showUsage by remember { mutableStateOf(settings.showUsage) }
     var autoTitle by remember { mutableStateOf(settings.autoTitle) }
     var appLock by remember { mutableStateOf(settings.appLock) }
+    var startOnWeb by remember { mutableStateOf(settings.startOnWeb) }
     var revealKey by remember { mutableStateOf(false) }
     var confirmWipe by remember { mutableStateOf(false) }
     var creatingWorkspace by remember { mutableStateOf(false) }
@@ -127,7 +128,8 @@ fun SettingsScreen(
                 fontScale = fontScale,
                 showUsage = showUsage,
                 autoTitle = autoTitle,
-                appLock = appLock
+                appLock = appLock,
+                startOnWeb = startOnWeb
             )
         }
     }
@@ -166,6 +168,17 @@ fun SettingsScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Mon profil (ce que l'IA sait de vous)") }
+
+            HorizontalDivider()
+            Text("Mode d'accès", style = MaterialTheme.typography.titleMedium)
+
+            SwitchRow(
+                title = "Démarrer sur l'app web",
+                subtitle = "Utilise votre compte et votre abonnement Mammouth, sans consommer " +
+                    "de crédits API. Le chat natif reste accessible par le menu.",
+                checked = startOnWeb,
+                onCheckedChange = { startOnWeb = it }
+            )
 
             HorizontalDivider()
             Text("Connexion à l'API", style = MaterialTheme.typography.titleMedium)
