@@ -18,8 +18,8 @@ compatible OpenAI. Projet non officiel, sans lien avec Mammouth AI.
 
 Chaque build de la branche publie l'APK :
 
-- **Release `dev-apk`** → onglet *Releases* du dépôt, téléchargement direct du `.apk`
-  (le plus simple depuis un téléphone)
+- **Release [`dev-apk`](https://github.com/Banannanannanane/Claude-max/releases/tag/dev-apk)**
+  → téléchargement direct du `.apk`, le plus simple depuis un téléphone
 - **Artefact `mammouth-chat-apk`** → onglet *Actions*, dans le run « Build APK »
 
 L'APK est un build **debug**, signé avec la clé de debug : installable directement,
