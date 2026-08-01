@@ -28,6 +28,13 @@ Deux modes complémentaires dans la même application :
 - **PDF** → chaque page est rendue en image et jointe (analyse de documents sans OCR externe).
 - **Fichiers texte / code / CSV / JSON** → contenu injecté dans le prompt.
 
+### Profil, personas et espaces
+- **Mon profil** : prénom, métier, niveau, langue, ton et consignes permanentes, injectés en tête de chaque discussion, avec **aperçu du texte exact envoyé au modèle** et interrupteur pour s'en passer.
+- **Personas** : 8 personnalités fournies (assistant, code, rédacteur, traducteur, professeur, analyste, créatif, coach) plus les vôtres — applicables à une discussion ou en point de départ d'une nouvelle.
+- **Espaces** : plusieurs jeux clé API / URL / modèle (perso, pro…), bascule en un tap, chaque clé chiffrée séparément par l'AndroidKeyStore.
+
+L'ordre d'injection est : profil → persona → instruction système globale → instructions du projet → documents. Les couches se cumulent.
+
 ### Projets (assistants)
 - Instructions permanentes, modèle dédié et **documents de référence** rattachés à un projet.
 - Une discussion peut être lancée directement « avec ce projet ».
