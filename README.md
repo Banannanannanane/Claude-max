@@ -66,16 +66,21 @@ L'ordre d'injection est : profil → persona → instruction système globale �
 
 ## Récupérer l'APK
 
-L'APK est compilée par GitHub Actions (`.github/workflows/android-build.yml`).
+**Lien de téléchargement direct, sans compte GitHub :**
 
-1. Onglet **Actions** du dépôt → dernier run **Build APK** ;
-2. Section **Artifacts** → télécharger `mammouth-apk` ;
-3. Dézipper et installer `mammouth-debug.apk` (autoriser « sources inconnues »).
+👉 https://github.com/Banannanannanane/Claude-max/releases/download/apk-latest/mammouth.apk
 
-`mammouth-release.apk` est minifié mais **non signé** : pour une installation directe,
-utilisez la version debug, ou signez la release (voir plus bas).
+Ouvrez le fichier téléchargé et autorisez l'installation depuis cette source.
+Ce lien pointe toujours vers la dernière version : la CI republie l'APK dans la
+release [`apk-latest`](https://github.com/Banannanannanane/Claude-max/releases/tag/apk-latest)
+à chaque build.
 
-Publier une release GitHub avec l'APK attachée :
+> Les **artefacts** de GitHub Actions ne sont téléchargeables qu'en étant connecté à un
+> compte GitHub — d'où la release, qui est publique. L'artefact `mammouth-apk` reste
+> disponible dans chaque run pour qui préfère (il contient aussi la variante release
+> minifiée mais **non signée**, donc non installable telle quelle).
+
+Pour publier une release versionnée :
 
 ```bash
 git tag v1.0.0 && git push origin v1.0.0
