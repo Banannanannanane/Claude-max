@@ -1,0 +1,64 @@
+name: Build APK
+
+on:
+  push:
+    branches:
+      - main
+      - claude/mammouth-ia-apk-app-bendzv
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests
+        run: ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Assemble debug APK
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Rename APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk \
+             "dist/mammouth-chat-${GITHUB_RUN_NUMBER}.apk"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mammouth-chat-apk
+          path: dist/*.apk
+          if-no-files-found: error
+
+      # A release asset is a direct .apk download, which is what a phone needs;
+      # workflow artifacts only download as a zip for signed-in users.
+      - name: Publish to the dev-apk release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! gh release view dev-apk >/dev/null 2>&1; then
+            gh release create dev-apk \
+              --title "Mammouth Chat — APK de développement" \
+              --notes "APK de debug construit automatiquement depuis la branche ${GITHUB_REF_NAME}. Autorisez l'installation depuis des sources inconnues sur votre téléphone." \
+              --prerelease \
+              --target "${GITHUB_SHA}"
+          fi
+          gh release upload dev-apk dist/*.apk --clobber

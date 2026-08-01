@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mammouth Chat</string>
+
+    <!-- Chat -->
+    <string name="new_chat">Nouvelle discussion</string>
+    <string name="conversations">Discussions</string>
+    <string name="message_hint">Écrivez votre message…</string>
+    <string name="send">Envoyer</string>
+    <string name="stop">Arrêter</string>
+    <string name="copy">Copier</string>
+    <string name="copied">Copié dans le presse-papiers</string>
+    <string name="regenerate">Régénérer</string>
+    <string name="delete">Supprimer</string>
+    <string name="rename">Renommer</string>
+    <string name="cancel">Annuler</string>
+    <string name="save">Enregistrer</string>
+    <string name="close">Fermer</string>
+    <string name="retry">Réessayer</string>
+    <string name="empty_chat_title">Discutez avec Mammouth</string>
+    <string name="empty_chat_subtitle">Posez une question pour démarrer la conversation.</string>
+
+    <!-- Settings -->
+    <string name="settings">Paramètres</string>
+    <string name="api_key">Clé API Mammouth</string>
+    <string name="api_key_hint">mam-…</string>
+    <string name="api_key_help">Générez une clé depuis les paramètres API de votre compte Mammouth. Elle est chiffrée par le Keystore Android et ne quitte l\'appareil que vers l\'API Mammouth.</string>
+    <string name="base_url">URL de base de l\'API</string>
+    <string name="model">Modèle</string>
+    <string name="choose_model">Choisir un modèle</string>
+    <string name="search_model">Rechercher un modèle…</string>
+    <string name="system_prompt">Instructions système</string>
+    <string name="system_prompt_hint">Ex. : Réponds toujours en français, de façon concise.</string>
+    <string name="temperature">Température</string>
+    <string name="streaming">Réponse en streaming</string>
+    <string name="streaming_help">Affiche la réponse au fur et à mesure de sa génération.</string>
+    <string name="test_connection">Tester la connexion</string>
+    <string name="testing">Test en cours…</string>
+    <string name="connection_ok">Connexion réussie</string>
+    <string name="about">À propos</string>
+    <string name="about_body">Client Android non officiel pour l\'API Mammouth. Vos échanges sont stockés uniquement sur cet appareil.</string>
+
+    <!-- Errors -->
+    <string name="error_no_api_key">Aucune clé API configurée. Ouvrez les paramètres pour en ajouter une.</string>
+    <string name="error_unauthorized">Clé API refusée (401). Vérifiez votre clé dans les paramètres.</string>
+    <string name="error_rate_limited">Trop de requêtes (429). Réessayez dans un instant.</string>
+    <string name="error_network">Réseau indisponible. Vérifiez votre connexion.</string>
+    <string name="error_models">Impossible de récupérer la liste des modèles.</string>
+</resources>
