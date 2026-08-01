@@ -3,35 +3,65 @@
 Client Android qui reprend l'expérience de l'app web **Mammouth AI** dans une APK, en
 s'appuyant sur son **API compatible OpenAI** (`https://api.mammouth.ai/v1`).
 
-Deux modes dans la même application :
+Deux modes complémentaires dans la même application :
 
 | Mode | Ce que ça fait |
 | --- | --- |
-| **Chat natif (API)** | Discussion native (Jetpack Compose) branchée sur votre clé API Mammouth : réponses en streaming, choix du modèle, historique local. |
-| **App web** | Ouvre `mammouth.ai` dans une WebView intégrée (connexion par compte, sans clé API) — pratique pour les fonctions non exposées par l'API. |
+| **Chat natif (API)** | Interface Jetpack Compose branchée sur votre clé API : streaming, vision, projets, images, recherche web, historique local. |
+| **App web** | `mammouth.ai` dans une WebView intégrée (connexion par compte, sans clé API) — couvre tout ce que l'API n'expose pas. |
 
 ## Fonctionnalités
 
-- Réponses **en streaming** (SSE), avec bouton « Stop » qui coupe réellement la requête réseau.
-- **Sélecteur de modèle** alimenté par `GET /v1/models` (la liste suit votre abonnement : GPT, Claude, Gemini, Grok, DeepSeek…), avec repli hors ligne.
-- **Historique de conversations** persistant en local (JSON dans le stockage privé de l'app).
-- **Clé API chiffrée** par l'AndroidKeyStore (AES-256/GCM) ; elle n'est jamais stockée en clair et ne transite que vers l'API Mammouth.
-- **Instruction système**, **température** et **URL de base** configurables.
-- Rendu Markdown léger : blocs de code, titres, gras/italique, code en ligne, copie d'un message en un tap.
-- Thème Material 3 clair/sombre + couleurs dynamiques (Android 12+).
+### Discussion
+- Réponses **en streaming** (SSE) ; le bouton « Stop » coupe réellement la requête réseau.
+- **Sélecteur de modèle** alimenté par `GET /v1/models` (GPT, Claude, Gemini, Grok, DeepSeek, Mistral, Kimi…), avec repli hors ligne.
+- **Recherche web** : une puce bascule la discussion vers un modèle sourcé (Perplexity/`sonar-pro` par défaut, configurable).
+- Actions sur chaque message : **copier, partager, régénérer, modifier & renvoyer, supprimer, lecture à voix haute** (TTS).
+- **Dictée vocale** pour composer un message.
+- Rendu Markdown : blocs de code avec bouton copier, titres, listes, citations, **liens cliquables**, **images affichées**.
+- Compteur de **jetons consommés** sous chaque réponse.
+
+### Pièces jointes
+- **Images** de la galerie → envoyées en vision aux modèles multimodaux.
+- **PDF** → chaque page est rendue en image et jointe (analyse de documents sans OCR externe).
+- **Fichiers texte / code / CSV / JSON** → contenu injecté dans le prompt.
+
+### Projets (assistants)
+- Instructions permanentes, modèle dédié et **documents de référence** rattachés à un projet.
+- Une discussion peut être lancée directement « avec ce projet ».
+
+### Atelier d'images
+- Génération via `POST /v1/images/generations`, avec **repli automatique** sur `chat/completions` si l'endpoint n'est pas exposé.
+- Choix du modèle, du format et du nombre d'images ; **enregistrement en galerie** et partage.
+
+### Bibliothèque de prompts
+- 8 prompts fournis (résumé, correction, traduction, code, tests, email, brainstorming, vision).
+- Prompts personnels : création, édition, catégories, insertion en un tap.
+
+### Historique et confort
+- **Recherche** dans les titres et le contenu, **épinglage**, **renommage**, suppression.
+- **Export / partage** d'une discussion en Markdown.
+- **Partager vers Mammouth** depuis n'importe quelle app Android (`SEND`) et traitement d'une sélection de texte (`PROCESS_TEXT`).
+- Thème clair / sombre / système, couleurs dynamiques (Android 12+), **taille du texte réglable**.
+- Réglages avancés : instruction système globale, température, top-p, jetons max, streaming, URL de base.
+
+### Confidentialité
+- **Clé API chiffrée** par l'AndroidKeyStore (AES-256/GCM) ; jamais stockée en clair.
+- Aucun analytics, aucun backend tiers : le trafic va uniquement vers `api.mammouth.ai`.
+- Conversations, projets et prompts stockés dans le **stockage privé de l'app** (JSON).
 
 ## Récupérer l'APK
 
-L'APK est compilée par GitHub Actions (workflow `.github/workflows/android-build.yml`).
+L'APK est compilée par GitHub Actions (`.github/workflows/android-build.yml`).
 
 1. Onglet **Actions** du dépôt → dernier run **Build APK** ;
 2. Section **Artifacts** → télécharger `mammouth-apk` ;
-3. Installer `mammouth-debug.apk` sur le téléphone (autoriser « sources inconnues »).
+3. Dézipper et installer `mammouth-debug.apk` (autoriser « sources inconnues »).
 
-`mammouth-release.apk` est **non signé** : utilisez la version debug pour une installation
-directe, ou signez la release (voir plus bas).
+`mammouth-release.apk` est minifié mais **non signé** : pour une installation directe,
+utilisez la version debug, ou signez la release (voir plus bas).
 
-Pour publier une release GitHub avec l'APK attachée :
+Publier une release GitHub avec l'APK attachée :
 
 ```bash
 git tag v1.0.0 && git push origin v1.0.0
@@ -39,19 +69,14 @@ git tag v1.0.0 && git push origin v1.0.0
 
 ## Compiler en local
 
-Prérequis : JDK 17 et le SDK Android (API 35). Aucun `local.properties` n'est nécessaire si
-`ANDROID_HOME` est défini.
+Prérequis : JDK 17 et le SDK Android (API 35).
 
 ```bash
 ./gradlew assembleDebug
-# APK : app/build/outputs/apk/debug/app-debug.apk
-
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ### Signer une release
-
-Créez un keystore puis exportez les variables avant de compiler :
 
 ```bash
 keytool -genkey -v -keystore mammouth.jks -keyalg RSA -keysize 2048 -validity 10000 -alias mammouth
@@ -64,43 +89,54 @@ export RELEASE_KEY_PASSWORD=...
 ./gradlew assembleRelease
 ```
 
-Sans ces variables, la release est simplement produite non signée (le build ne casse pas).
+Sans ces variables, la release est produite non signée (le build ne casse pas).
 
 ## Premier lancement
 
 1. Créez une clé API depuis votre compte Mammouth (section API) ;
-2. Dans l'app : menu ⚙️ → **Réglages** → collez la clé → **Tester et charger les modèles** ;
-3. Revenez au chat, choisissez un modèle dans la barre du haut, et discutez.
+2. Dans l'app : ⚙️ **Réglages** → collez la clé → **Tester et charger les modèles** ;
+3. Revenez au chat, choisissez un modèle et discutez.
 
-Le modèle `mammouth-recommended` laisse Mammouth choisir le meilleur modèle du moment.
+`mammouth-recommended` laisse Mammouth choisir le meilleur modèle du moment.
 
 ## Architecture
 
 ```
 app/src/main/java/com/mammouthclient/app/
-├── MainActivity.kt              # hôte Compose + navigation (chat / réglages / web)
+├── MainActivity.kt              # hôte Compose, navigation, partage entrant
 ├── data/
-│   ├── AppContainer.kt          # dépôt de réglages partagé
-│   ├── ChatModels.kt            # Conversation / Message (kotlinx.serialization)
+│   ├── AppContainer.kt          # instances partagées (réglages, client API)
+│   ├── ChatModels.kt            # Conversation / Message / Attachment / Assistant / Prompt
 │   ├── ChatStore.kt             # persistance JSON des conversations
+│   ├── LibraryStore.kt          # persistance des projets et prompts
 │   ├── Crypto.kt                # chiffrement AndroidKeyStore de la clé API
 │   └── SettingsRepository.kt    # préférences exposées en StateFlow
 ├── net/
-│   ├── Dto.kt                   # DTO du format OpenAI
-│   └── MammouthApi.kt           # /chat/completions (SSE) + /models
+│   ├── Dto.kt                   # DTO OpenAI (dont contenu multimodal)
+│   └── MammouthApi.kt           # chat SSE, vision, images, modèles
+├── util/FileUtils.kt            # import images/PDF/texte, galerie, base64
 └── ui/
-    ├── ChatScreen.kt            # écran de discussion
-    ├── ChatViewModel.kt         # état, streaming, historique
-    ├── MarkdownText.kt          # rendu Markdown minimal
-    ├── SettingsScreen.kt        # réglages
+    ├── ChatScreen.kt / ChatViewModel.kt
+    ├── ImageScreen.kt / ImageViewModel.kt
+    ├── AssistantsScreen.kt      # projets
+    ├── PromptsScreen.kt         # bibliothèque de prompts
+    ├── SettingsScreen.kt
     ├── WebAppScreen.kt          # WebView de l'app web
+    ├── MarkdownText.kt          # rendu Markdown + images
     └── theme/Theme.kt
 ```
 
 - `minSdk 24` (Android 7.0) · `targetSdk 35` · Kotlin 2.0 · Compose BOM 2024.12 · OkHttp 4.
-- Aucune dépendance analytics ni backend tiers : le trafic va uniquement vers `api.mammouth.ai`.
+- Aucune dépendance de rendu d'image tierce : décodage et cache faits maison.
+
+## Limites connues
+
+- La disponibilité de la **génération d'images par l'API** dépend de votre offre Mammouth ;
+  si l'endpoint n'est pas exposé, l'app bascule sur le chat et signale l'absence d'image.
+- Les modèles acceptant la **vision** varient : joindre une image à un modèle texte renvoie une erreur de l'API.
+- La **dictée vocale** et la **lecture à voix haute** dépendent des moteurs installés sur l'appareil.
 
 ## Avertissement
 
 Projet **non officiel**, sans lien avec l'éditeur de Mammouth AI. L'usage de l'API reste
-soumis aux conditions d'utilisation et au quota de votre abonnement Mammouth.
+soumis aux conditions d'utilisation et au quota de votre abonnement.
