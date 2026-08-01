@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Mammouth</string>
+
+    <string name="shortcut_chat_short">Discussion</string>
+    <string name="shortcut_chat_long">Nouvelle discussion</string>
+    <string name="shortcut_images_short">Images</string>
+    <string name="shortcut_images_long">Atelier d\'images</string>
+    <string name="shortcut_projects_short">Projets</string>
+    <string name="shortcut_projects_long">Mes projets</string>
 </resources>

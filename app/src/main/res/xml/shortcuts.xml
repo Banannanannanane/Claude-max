@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <shortcut
+        android:shortcutId="new_chat"
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:shortcutShortLabel="@string/shortcut_chat_short"
+        android:shortcutLongLabel="@string/shortcut_chat_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.mammouthclient.app"
+            android:targetClass="com.mammouthclient.app.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="images"
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:shortcutShortLabel="@string/shortcut_images_short"
+        android:shortcutLongLabel="@string/shortcut_images_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.mammouthclient.app"
+            android:targetClass="com.mammouthclient.app.MainActivity">
+            <extra
+                android:name="shortcut"
+                android:value="images" />
+        </intent>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="projects"
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:shortcutShortLabel="@string/shortcut_projects_short"
+        android:shortcutLongLabel="@string/shortcut_projects_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.mammouthclient.app"
+            android:targetClass="com.mammouthclient.app.MainActivity">
+            <extra
+                android:name="shortcut"
+                android:value="projects" />
+        </intent>
+    </shortcut>
+
+</shortcuts>

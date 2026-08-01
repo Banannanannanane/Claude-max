@@ -60,8 +60,12 @@ data class Conversation(
     /** Projet / assistant appliqué à cette discussion. */
     val assistantId: String? = null,
     /** Active un modèle de recherche web pour cette discussion. */
-    val webSearch: Boolean = false
+    val webSearch: Boolean = false,
+    val archived: Boolean = false
 ) {
+    /** Jetons cumulés sur la discussion. */
+    val totalTokens: Int get() = messages.sumOf { it.usage?.totalTokens ?: 0 }
+
     fun withDerivedTitle(): Conversation {
         if (title != DEFAULT_TITLE) return this
         val first = messages.firstOrNull { it.role == Message.ROLE_USER }?.content?.trim().orEmpty()
@@ -74,6 +78,18 @@ data class Conversation(
         const val DEFAULT_TITLE = "Nouvelle discussion"
     }
 }
+
+/** Média produit par l'atelier (image locale ou vidéo distante). */
+@Serializable
+data class GeneratedMedia(
+    val id: String = UUID.randomUUID().toString(),
+    val path: String = "",
+    val url: String = "",
+    val prompt: String = "",
+    val model: String = "",
+    val isVideo: Boolean = false,
+    val createdAt: Long = System.currentTimeMillis()
+)
 
 /** « Projet » Mammouth : instructions personnalisées + documents de référence. */
 @Serializable

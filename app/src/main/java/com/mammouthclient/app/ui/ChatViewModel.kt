@@ -28,9 +28,19 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+/** Contenu d'une sauvegarde exportable. */
+@Serializable
+data class BackupPayload(
+    val conversations: List<Conversation> = emptyList(),
+    val assistants: List<Assistant> = emptyList(),
+    val prompts: List<PromptTemplate> = emptyList()
+)
 
 data class ChatUiState(
     val conversations: List<Conversation> = emptyList(),
@@ -46,7 +56,8 @@ data class ChatUiState(
     val importing: Boolean = false,
     val search: String = "",
     /** Texte poussé vers la zone de saisie depuis un autre écran (prompt, partage Android). */
-    val stagedInput: String? = null
+    val stagedInput: String? = null,
+    val showArchived: Boolean = false
 ) {
     val current: Conversation? get() = conversations.firstOrNull { it.id == currentId }
     val messages: List<Message> get() = current?.messages.orEmpty()
@@ -54,12 +65,15 @@ data class ChatUiState(
     /** Discussions filtrées par la recherche, épinglées d'abord. */
     val visibleConversations: List<Conversation>
         get() = conversations
+            .filter { it.archived == showArchived }
             .filter { conversation ->
                 search.isBlank() ||
                     conversation.title.contains(search, true) ||
                     conversation.messages.any { it.content.contains(search, true) }
             }
             .sortedWith(compareByDescending<Conversation> { it.pinned }.thenByDescending { it.updatedAt })
+
+    val archivedCount: Int get() = conversations.count { it.archived }
 
     fun assistantOf(conversation: Conversation?): Assistant? =
         assistants.firstOrNull { it.id == conversation?.assistantId }
@@ -80,6 +94,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     val settings: StateFlow<AppSettings> = settingsRepository.settings
 
     private var streamJob: Job? = null
+
+    private val backupJson = Json { ignoreUnknownKeys = true; encodeDefaults = true; prettyPrint = true }
 
     init {
         viewModelScope.launch {
@@ -147,6 +163,25 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             }
         )
         persist()
+    }
+
+    fun toggleArchive(id: String) {
+        _state.value = _state.value.copy(
+            conversations = _state.value.conversations.map {
+                if (it.id == id) it.copy(archived = !it.archived) else it
+            }
+        )
+        val stillVisible = _state.value.visibleConversations.any { it.id == _state.value.currentId }
+        if (!stillVisible) {
+            _state.value = _state.value.copy(
+                currentId = _state.value.visibleConversations.firstOrNull()?.id
+            )
+        }
+        persist()
+    }
+
+    fun toggleShowArchived() {
+        _state.value = _state.value.copy(showArchived = !_state.value.showArchived)
     }
 
     fun deleteAllConversations() {
@@ -222,6 +257,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         persist()
     }
 
+    fun toggleFavoriteModel(model: String) {
+        settingsRepository.update { current ->
+            val favorites = current.favoriteModels.toMutableSet()
+            if (!favorites.add(model)) favorites.remove(model)
+            current.copy(favoriteModels = favorites)
+        }
+    }
+
     /* ---------------- Pièces jointes ---------------- */
 
     fun attach(uris: List<Uri>) {
@@ -284,6 +327,88 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         messages += Message(role = Message.ROLE_ASSISTANT, content = "")
         updateCurrent { it.copy(messages = messages) }
         launchGeneration(settings.value)
+    }
+
+    /** Régénère la dernière réponse avec un autre modèle. */
+    fun regenerateWith(model: String) {
+        if (_state.value.isStreaming) return
+        updateCurrent { it.copy(model = model, webSearch = false) }
+        regenerate()
+    }
+
+    /** Demande au modèle de poursuivre une réponse tronquée. */
+    fun continueResponse() {
+        if (_state.value.isStreaming) return
+        val conversation = _state.value.current ?: return
+        if (conversation.messages.lastOrNull()?.role != Message.ROLE_ASSISTANT) return
+        updateCurrent {
+            it.copy(
+                messages = it.messages +
+                    Message(role = Message.ROLE_USER, content = "Continue exactement là où tu t'es arrêté, sans répéter.") +
+                    Message(role = Message.ROLE_ASSISTANT, content = "")
+            )
+        }
+        launchGeneration(settings.value)
+    }
+
+    /**
+     * Envoie la même question à plusieurs modèles et empile les réponses dans la
+     * discussion, chacune identifiée par son modèle.
+     */
+    fun compareModels(prompt: String, models: List<String>) {
+        val text = prompt.trim()
+        if (text.isEmpty() || models.isEmpty() || _state.value.isStreaming) return
+        val snapshot = settings.value
+        if (!snapshot.hasApiKey) {
+            _state.value = _state.value.copy(error = "Ajoutez d'abord votre clé API Mammouth.")
+            return
+        }
+        if (_state.value.current == null) newConversation()
+
+        updateCurrent { conversation ->
+            conversation.copy(
+                messages = conversation.messages + Message(role = Message.ROLE_USER, content = text)
+            ).withDerivedTitle()
+        }
+
+        val history = buildHistory(snapshot, _state.value.current ?: return)
+        _state.value = _state.value.copy(isStreaming = true, error = null)
+
+        streamJob = viewModelScope.launch {
+            models.forEach { model ->
+                updateCurrent {
+                    it.copy(messages = it.messages + Message(role = Message.ROLE_ASSISTANT, content = "", model = model))
+                }
+                val builder = StringBuilder()
+                api.streamChat(snapshot, history, model)
+                    .catch { throwable ->
+                        if (throwable is CancellationException) throw throwable
+                        replaceLastAssistant(
+                            "⚠️ ${throwable.message ?: "échec"}",
+                            model = model,
+                            isError = true
+                        )
+                    }
+                    .collect { event ->
+                        when (event) {
+                            is ChatEvent.Delta -> {
+                                builder.append(event.text)
+                                replaceLastAssistant(builder.toString(), model = model)
+                            }
+
+                            is ChatEvent.Completed -> replaceLastAssistant(
+                                builder.toString(),
+                                model = model,
+                                usage = event.usage?.let {
+                                    TokenUsage(it.promptTokens, it.completionTokens, it.totalTokens)
+                                }
+                            )
+                        }
+                    }
+            }
+            _state.value = _state.value.copy(isStreaming = false)
+            persist()
+        }
     }
 
     /** Modifie un message utilisateur et relance la conversation à partir de là. */
@@ -351,6 +476,42 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             }
             _state.value = _state.value.copy(isStreaming = false)
             persist()
+            if (!failed) maybeAutoTitle(snapshot)
+        }
+    }
+
+    /** Fait nommer la discussion par le modèle après le premier échange. */
+    private fun maybeAutoTitle(snapshot: AppSettings) {
+        if (!snapshot.autoTitle || !snapshot.hasApiKey) return
+        val conversation = _state.value.current ?: return
+        if (conversation.messages.size != 2) return
+
+        viewModelScope.launch {
+            val question = conversation.messages.firstOrNull()?.content.orEmpty().take(600)
+            val answer = conversation.messages.lastOrNull()?.content.orEmpty().take(600)
+            val title = runCatching {
+                api.completeOnce(
+                    settings = snapshot,
+                    messages = listOf(
+                        ApiMessage.text(
+                            Message.ROLE_USER,
+                            "Donne un titre court (5 mots maximum), sans guillemets ni ponctuation " +
+                                "finale, résumant cet échange :\n\nQ: $question\nR: $answer"
+                        )
+                    ),
+                    model = snapshot.model,
+                    maxTokens = 24
+                )
+            }.getOrNull()
+                ?.trim()
+                ?.trim('"', '«', '»', '.', ' ')
+                ?.lineSequence()
+                ?.firstOrNull()
+                .orEmpty()
+
+            if (title.isNotBlank() && title.length <= 60) {
+                renameConversation(conversation.id, title)
+            }
         }
     }
 
@@ -430,6 +591,53 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 appendLine("---")
                 appendLine()
             }
+        }
+    }
+
+    /** Sauvegarde complète (discussions, projets, prompts) au format JSON. */
+    fun exportBackup(): String = runCatching {
+        backupJson.encodeToString(
+            BackupPayload.serializer(),
+            BackupPayload(
+                conversations = _state.value.conversations,
+                assistants = _state.value.assistants,
+                prompts = _state.value.prompts.filterNot { it.builtIn }
+            )
+        )
+    }.getOrDefault("")
+
+    /** Restaure une sauvegarde ; les éléments existants sont conservés. */
+    fun importBackup(raw: String) {
+        val payload = runCatching {
+            backupJson.decodeFromString(BackupPayload.serializer(), raw)
+        }.getOrNull()
+
+        if (payload == null) {
+            _state.value = _state.value.copy(error = "Fichier de sauvegarde illisible.")
+            return
+        }
+
+        val existingIds = _state.value.conversations.map { it.id }.toSet()
+        val mergedConversations = _state.value.conversations +
+            payload.conversations.filterNot { it.id in existingIds }
+        val assistantIds = _state.value.assistants.map { it.id }.toSet()
+        val mergedAssistants = _state.value.assistants +
+            payload.assistants.filterNot { it.id in assistantIds }
+        val customPrompts = _state.value.prompts.filterNot { it.builtIn }
+        val promptIds = customPrompts.map { it.id }.toSet()
+        val mergedPrompts = customPrompts + payload.prompts.filterNot { it.id in promptIds }
+
+        _state.value = _state.value.copy(
+            conversations = mergedConversations,
+            assistants = mergedAssistants,
+            prompts = DefaultPrompts.ALL + mergedPrompts,
+            currentId = _state.value.currentId ?: mergedConversations.firstOrNull()?.id,
+            info = "Sauvegarde restaurée : ${payload.conversations.size} discussion(s)."
+        )
+        persist()
+        viewModelScope.launch {
+            assistantStore.save(mergedAssistants)
+            promptStore.save(mergedPrompts)
         }
     }
 

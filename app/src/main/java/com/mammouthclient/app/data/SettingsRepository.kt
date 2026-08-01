@@ -23,7 +23,13 @@ data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val fontScale: Float = 1f,
     val showUsage: Boolean = true,
-    val sendOnEnter: Boolean = false
+    val sendOnEnter: Boolean = false,
+    /** Modèles épinglés en haut du sélecteur. */
+    val favoriteModels: Set<String> = emptySet(),
+    /** Demande le code/empreinte de l'appareil au lancement. */
+    val appLock: Boolean = false,
+    /** Fait nommer la discussion par le modèle après le premier échange. */
+    val autoTitle: Boolean = true
 ) {
     val hasApiKey: Boolean get() = apiKey.isNotBlank()
 
@@ -63,7 +69,10 @@ class SettingsRepository(context: Context) {
         }.getOrDefault(ThemeMode.SYSTEM),
         fontScale = prefs.getFloat(KEY_FONT_SCALE, 1f),
         showUsage = prefs.getBoolean(KEY_SHOW_USAGE, true),
-        sendOnEnter = prefs.getBoolean(KEY_SEND_ON_ENTER, false)
+        sendOnEnter = prefs.getBoolean(KEY_SEND_ON_ENTER, false),
+        favoriteModels = prefs.getStringSet(KEY_FAVORITES, emptySet()).orEmpty().toSet(),
+        appLock = prefs.getBoolean(KEY_APP_LOCK, false),
+        autoTitle = prefs.getBoolean(KEY_AUTO_TITLE, true)
     )
 
     fun update(transform: (AppSettings) -> AppSettings) {
@@ -85,6 +94,9 @@ class SettingsRepository(context: Context) {
             .putFloat(KEY_FONT_SCALE, updated.fontScale)
             .putBoolean(KEY_SHOW_USAGE, updated.showUsage)
             .putBoolean(KEY_SEND_ON_ENTER, updated.sendOnEnter)
+            .putStringSet(KEY_FAVORITES, updated.favoriteModels)
+            .putBoolean(KEY_APP_LOCK, updated.appLock)
+            .putBoolean(KEY_AUTO_TITLE, updated.autoTitle)
             .apply()
         _settings.value = updated
     }
@@ -109,5 +121,8 @@ class SettingsRepository(context: Context) {
         const val KEY_FONT_SCALE = "font_scale"
         const val KEY_SHOW_USAGE = "show_usage"
         const val KEY_SEND_ON_ENTER = "send_on_enter"
+        const val KEY_FAVORITES = "favorite_models"
+        const val KEY_APP_LOCK = "app_lock"
+        const val KEY_AUTO_TITLE = "auto_title"
     }
 }

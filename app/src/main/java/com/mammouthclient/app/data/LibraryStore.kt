@@ -39,3 +39,6 @@ class AssistantStore(context: Context) :
 
 class PromptStore(context: Context) :
     JsonListStore<PromptTemplate>(context, "prompts.json", PromptTemplate.serializer())
+
+class MediaStore(context: Context) :
+    JsonListStore<GeneratedMedia>(context, "media.json", GeneratedMedia.serializer())

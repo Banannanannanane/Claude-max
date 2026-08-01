@@ -6,7 +6,6 @@ import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,18 +27,23 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CompareArrows
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
@@ -50,8 +54,11 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.TravelExplore
+import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -62,6 +69,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -84,6 +92,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -122,15 +131,23 @@ fun ChatScreen(
     val clipboard = LocalClipboardManager.current
 
     var input by remember { mutableStateOf("") }
-    var modelMenuOpen by remember { mutableStateOf(false) }
     var overflowOpen by remember { mutableStateOf(false) }
     var attachMenuOpen by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf<Conversation?>(null) }
     var editing by remember { mutableStateOf<Message?>(null) }
     var promptSheetOpen by remember { mutableStateOf(false) }
+    var modelPicker by remember { mutableStateOf<ModelPickerMode?>(null) }
+    var compareOpen by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
-    // Synthèse vocale (lecture des réponses).
+    // L'auto-défilement s'arrête dès que l'utilisateur remonte dans l'historique.
+    val atBottom by remember {
+        derivedStateOf {
+            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            last == null || last.index >= listState.layoutInfo.totalItemsCount - 2
+        }
+    }
+
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     DisposableEffect(Unit) {
         val engine = TextToSpeech(context) { }
@@ -163,7 +180,9 @@ fun ChatScreen(
     }
 
     LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.content) {
-        if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.lastIndex)
+        if (state.messages.isNotEmpty() && atBottom) {
+            listState.animateScrollToItem(state.messages.lastIndex)
+        }
     }
 
     LaunchedEffect(state.stagedInput) {
@@ -211,6 +230,8 @@ fun ChatScreen(
                     },
                     onSearch = viewModel::setSearch,
                     onPin = viewModel::togglePin,
+                    onArchive = viewModel::toggleArchive,
+                    onToggleArchived = viewModel::toggleShowArchived,
                     onRename = { renaming = it },
                     onDelete = viewModel::deleteConversation,
                     onOpenAssistants = {
@@ -239,10 +260,23 @@ fun ChatScreen(
     ) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
+            floatingActionButton = {
+                if (!atBottom && state.messages.isNotEmpty()) {
+                    FloatingActionButton(
+                        onClick = { scope.launch { listState.animateScrollToItem(state.messages.lastIndex) } }
+                    ) {
+                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Aller en bas")
+                    }
+                }
+            },
             topBar = {
                 TopAppBar(
                     title = {
-                        Column(modifier = Modifier.clickable { modelMenuOpen = true }) {
+                        Column(
+                            modifier = Modifier.clickable {
+                                modelPicker = ModelPickerMode.Select
+                            }
+                        ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = state.current?.title?.take(22) ?: "Mammouth",
@@ -258,41 +292,12 @@ fun ChatScreen(
                                         else state.current?.model ?: settings.model
                                     )
                                     state.assistantOf(state.current)?.let { append(" · ${it.emoji} ${it.name}") }
+                                    val tokens = state.current?.totalTokens ?: 0
+                                    if (settings.showUsage && tokens > 0) append(" · $tokens jetons")
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 maxLines = 1
                             )
-
-                            DropdownMenu(
-                                expanded = modelMenuOpen,
-                                onDismissRequest = { modelMenuOpen = false }
-                            ) {
-                                if (state.modelsLoading) {
-                                    DropdownMenuItem(
-                                        text = { Text("Chargement des modèles…") },
-                                        onClick = {},
-                                        enabled = false
-                                    )
-                                }
-                                state.availableModels.forEach { model ->
-                                    DropdownMenuItem(
-                                        text = { Text(model) },
-                                        onClick = {
-                                            viewModel.selectModel(model)
-                                            modelMenuOpen = false
-                                        }
-                                    )
-                                }
-                                HorizontalDivider()
-                                DropdownMenuItem(
-                                    text = { Text("Actualiser la liste") },
-                                    leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) },
-                                    onClick = {
-                                        viewModel.refreshModels()
-                                        modelMenuOpen = false
-                                    }
-                                )
-                            }
                         }
                     },
                     navigationIcon = {
@@ -328,19 +333,27 @@ fun ChatScreen(
                                 }
                             )
                             DropdownMenuItem(
+                                text = { Text(if (state.current?.archived == true) "Désarchiver" else "Archiver") },
+                                leadingIcon = { Icon(Icons.Default.Archive, contentDescription = null) },
+                                onClick = {
+                                    overflowOpen = false
+                                    state.current?.let { viewModel.toggleArchive(it.id) }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Comparer des modèles") },
+                                leadingIcon = { Icon(Icons.Default.CompareArrows, contentDescription = null) },
+                                onClick = {
+                                    overflowOpen = false
+                                    compareOpen = true
+                                }
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Partager la discussion") },
                                 leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) },
                                 onClick = {
                                     overflowOpen = false
                                     share(viewModel.exportCurrentAsMarkdown())
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Projets") },
-                                leadingIcon = { Icon(Icons.Default.Folder, contentDescription = null) },
-                                onClick = {
-                                    overflowOpen = false
-                                    onOpenAssistants()
                                 }
                             )
                             DropdownMenuItem(
@@ -376,7 +389,8 @@ fun ChatScreen(
                     assistantLabel = state.assistantOf(state.current)?.let { "${it.emoji} ${it.name}" },
                     onToggleWeb = viewModel::toggleWebSearch,
                     onClearAssistant = { viewModel.applyAssistant(null) },
-                    onOpenAssistants = onOpenAssistants
+                    onOpenAssistants = onOpenAssistants,
+                    onCompare = { compareOpen = true }
                 )
 
                 if (state.messages.isEmpty()) {
@@ -400,6 +414,7 @@ fun ChatScreen(
                             MessageBubble(
                                 message = message,
                                 isStreamingLast = state.isStreaming && isLast,
+                                isLastAssistant = isLast && message.role == Message.ROLE_ASSISTANT,
                                 showUsage = settings.showUsage,
                                 onCopy = {
                                     clipboard.setText(AnnotatedString(message.content))
@@ -407,9 +422,16 @@ fun ChatScreen(
                                 },
                                 onShare = { share(message.content) },
                                 onSpeak = {
-                                    tts?.speak(message.content.take(3500), TextToSpeech.QUEUE_FLUSH, null, message.id)
+                                    tts?.speak(
+                                        message.content.take(3500),
+                                        TextToSpeech.QUEUE_FLUSH,
+                                        null,
+                                        message.id
+                                    )
                                 },
                                 onRegenerate = viewModel::regenerate,
+                                onRegenerateWith = { modelPicker = ModelPickerMode.Regenerate },
+                                onContinue = viewModel::continueResponse,
                                 onEdit = { editing = message },
                                 onDelete = { viewModel.deleteMessage(message.id) }
                             )
@@ -506,6 +528,39 @@ fun ChatScreen(
         }
     }
 
+    modelPicker?.let { mode ->
+        ModelPickerDialog(
+            models = state.availableModels,
+            favorites = settings.favoriteModels,
+            current = state.current?.model ?: settings.model,
+            loading = state.modelsLoading,
+            onToggleFavorite = viewModel::toggleFavoriteModel,
+            onRefresh = viewModel::refreshModels,
+            onPick = { model ->
+                when (mode) {
+                    ModelPickerMode.Select -> viewModel.selectModel(model)
+                    ModelPickerMode.Regenerate -> viewModel.regenerateWith(model)
+                }
+                modelPicker = null
+            },
+            onDismiss = { modelPicker = null }
+        )
+    }
+
+    if (compareOpen) {
+        CompareDialog(
+            models = state.availableModels,
+            favorites = settings.favoriteModels,
+            initialPrompt = input,
+            onDismiss = { compareOpen = false },
+            onLaunch = { prompt, models ->
+                viewModel.compareModels(prompt, models)
+                input = ""
+                compareOpen = false
+            }
+        )
+    }
+
     renaming?.let { conversation ->
         var title by remember(conversation.id) { mutableStateOf(conversation.title) }
         AlertDialog(
@@ -557,6 +612,163 @@ fun ChatScreen(
     }
 }
 
+private enum class ModelPickerMode { Select, Regenerate }
+
+@Composable
+private fun ModelPickerDialog(
+    models: List<String>,
+    favorites: Set<String>,
+    current: String,
+    loading: Boolean,
+    onToggleFavorite: (String) -> Unit,
+    onRefresh: () -> Unit,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var query by remember { mutableStateOf("") }
+    val ordered = remember(models, favorites, query) {
+        models
+            .filter { query.isBlank() || it.contains(query, true) }
+            .sortedWith(compareByDescending<String> { it in favorites }.thenBy { it })
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Choisir un modèle") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text("Filtrer…") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (loading) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 8.dp)
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Chargement…", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+                LazyColumn(modifier = Modifier.heightIn(max = 380.dp)) {
+                    items(ordered, key = { it }) { model ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onPick(model) }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            IconButton(onClick = { onToggleFavorite(model) }, modifier = Modifier.size(34.dp)) {
+                                Icon(
+                                    imageVector = if (model in favorites) Icons.Default.Star else Icons.Default.StarBorder,
+                                    contentDescription = "Favori",
+                                    modifier = Modifier.size(17.dp)
+                                )
+                            }
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = model,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (model == current) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onRefresh) { Text("Actualiser") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Fermer") }
+        }
+    )
+}
+
+@Composable
+private fun CompareDialog(
+    models: List<String>,
+    favorites: Set<String>,
+    initialPrompt: String,
+    onDismiss: () -> Unit,
+    onLaunch: (String, List<String>) -> Unit
+) {
+    var prompt by remember { mutableStateOf(initialPrompt) }
+    var selected by remember { mutableStateOf(favorites.take(2).toSet()) }
+    val ordered = remember(models, favorites) {
+        models.sortedWith(compareByDescending<String> { it in favorites }.thenBy { it })
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Comparer des modèles") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = prompt,
+                    onValueChange = { prompt = it },
+                    label = { Text("Question") },
+                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    "Sélectionnez 2 à 4 modèles ; les réponses arrivent l'une après l'autre.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 6.dp)
+                )
+                LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                    items(ordered, key = { it }) { model ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selected = if (model in selected) {
+                                        selected - model
+                                    } else if (selected.size < 4) {
+                                        selected + model
+                                    } else {
+                                        selected
+                                    }
+                                }
+                                .padding(vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (model in selected) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(model, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onLaunch(prompt, selected.toList()) },
+                enabled = prompt.isNotBlank() && selected.size >= 2
+            ) { Text("Lancer") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Annuler") }
+        }
+    )
+}
+
 @Composable
 private fun ConversationDrawer(
     state: ChatUiState,
@@ -564,6 +776,8 @@ private fun ConversationDrawer(
     onSelect: (String) -> Unit,
     onSearch: (String) -> Unit,
     onPin: (String) -> Unit,
+    onArchive: (String) -> Unit,
+    onToggleArchived: () -> Unit,
     onRename: (Conversation) -> Unit,
     onDelete: (String) -> Unit,
     onOpenAssistants: () -> Unit,
@@ -574,7 +788,7 @@ private fun ConversationDrawer(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            text = "Mammouth",
+            text = if (state.showArchived) "Archivées" else "Mammouth",
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(start = 20.dp, top = 20.dp, end = 20.dp)
         )
@@ -590,10 +804,21 @@ private fun ConversationDrawer(
                 .padding(horizontal = 16.dp, vertical = 10.dp)
         )
 
-        TextButton(onClick = onNew, modifier = Modifier.padding(horizontal = 12.dp)) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Nouvelle discussion")
+        Row(modifier = Modifier.padding(horizontal = 12.dp)) {
+            TextButton(onClick = onNew) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Nouvelle")
+            }
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onToggleArchived) {
+                Icon(
+                    imageVector = if (state.showArchived) Icons.Default.Unarchive else Icons.Default.Archive,
+                    contentDescription = null
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(if (state.showArchived) "Actives" else "Archives (${state.archivedCount})")
+            }
         }
 
         HorizontalDivider(Modifier.padding(vertical = 4.dp))
@@ -628,6 +853,13 @@ private fun ConversationDrawer(
                                     onClick = {
                                         menuOpen = false
                                         onPin(conversation.id)
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (conversation.archived) "Désarchiver" else "Archiver") },
+                                    onClick = {
+                                        menuOpen = false
+                                        onArchive(conversation.id)
                                     }
                                 )
                                 DropdownMenuItem(
@@ -687,32 +919,52 @@ private fun ContextChips(
     assistantLabel: String?,
     onToggleWeb: () -> Unit,
     onClearAssistant: () -> Unit,
-    onOpenAssistants: () -> Unit
+    onOpenAssistants: () -> Unit,
+    onCompare: () -> Unit
 ) {
-    Row(
+    LazyRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        FilterChip(
-            selected = webSearch,
-            onClick = onToggleWeb,
-            label = { Text("Recherche web") },
-            leadingIcon = { Icon(Icons.Default.TravelExplore, contentDescription = null, modifier = Modifier.size(16.dp)) }
-        )
-        if (assistantLabel != null) {
-            AssistChip(
-                onClick = onClearAssistant,
-                label = { Text(assistantLabel, maxLines = 1) },
-                trailingIcon = { Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(14.dp)) }
+        item {
+            FilterChip(
+                selected = webSearch,
+                onClick = onToggleWeb,
+                label = { Text("Recherche web") },
+                leadingIcon = {
+                    Icon(Icons.Default.TravelExplore, contentDescription = null, modifier = Modifier.size(16.dp))
+                }
             )
-        } else {
+        }
+        item {
+            if (assistantLabel != null) {
+                AssistChip(
+                    onClick = onClearAssistant,
+                    label = { Text(assistantLabel, maxLines = 1) },
+                    trailingIcon = {
+                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(14.dp))
+                    }
+                )
+            } else {
+                AssistChip(
+                    onClick = onOpenAssistants,
+                    label = { Text("Projet") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(16.dp))
+                    }
+                )
+            }
+        }
+        item {
             AssistChip(
-                onClick = onOpenAssistants,
-                label = { Text("Projet") },
-                leadingIcon = { Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                onClick = onCompare,
+                label = { Text("Comparer") },
+                leadingIcon = {
+                    Icon(Icons.Default.CompareArrows, contentDescription = null, modifier = Modifier.size(16.dp))
+                }
             )
         }
     }
@@ -739,7 +991,7 @@ private fun EmptyState(
             Spacer(Modifier.size(8.dp))
             Text(
                 text = if (hasApiKey) {
-                    "Choisissez un modèle en haut, joignez des images ou des PDF, activez la recherche web…"
+                    "Joignez des images ou des PDF, activez la recherche web, comparez plusieurs modèles…"
                 } else {
                     "Ajoutez votre clé API Mammouth pour commencer."
                 },
@@ -784,27 +1036,33 @@ private fun AttachmentStrip(
         }
         items(attachments, key = { it.id }) { attachment ->
             Card {
-                Row(
-                    modifier = Modifier.padding(start = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = if (attachment.kind == AttachmentKind.IMAGE) {
-                            Icons.Default.Image
-                        } else {
-                            Icons.Default.Description
-                        },
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = attachment.name.take(22),
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1
-                    )
-                    IconButton(onClick = { onRemove(attachment.id) }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Retirer", modifier = Modifier.size(14.dp))
+                Column(modifier = Modifier.width(120.dp)) {
+                    if (attachment.kind == AttachmentKind.IMAGE && attachment.path.isNotBlank()) {
+                        MarkdownImage(attachment.path)
+                    }
+                    Row(
+                        modifier = Modifier.padding(start = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (attachment.kind == AttachmentKind.IMAGE) {
+                                Icons.Default.Image
+                            } else {
+                                Icons.Default.Description
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = attachment.name.take(12),
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = { onRemove(attachment.id) }, modifier = Modifier.size(30.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "Retirer", modifier = Modifier.size(13.dp))
+                        }
                     }
                 }
             }
@@ -816,15 +1074,20 @@ private fun AttachmentStrip(
 private fun MessageBubble(
     message: Message,
     isStreamingLast: Boolean,
+    isLastAssistant: Boolean,
     showUsage: Boolean,
     onCopy: () -> Unit,
     onShare: () -> Unit,
     onSpeak: () -> Unit,
     onRegenerate: () -> Unit,
+    onRegenerateWith: () -> Unit,
+    onContinue: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     val isUser = message.role == Message.ROLE_USER
+    var moreOpen by remember(message.id) { mutableStateOf(false) }
+
     val background = when {
         message.isError -> MaterialTheme.colorScheme.errorContainer
         isUser -> MaterialTheme.colorScheme.primaryContainer
@@ -877,7 +1140,10 @@ private fun MessageBubble(
                         Text("Rédaction…", style = MaterialTheme.typography.bodyMedium)
                     }
                 } else if (message.content.isNotBlank()) {
-                    MarkdownText(text = message.content, color = foreground)
+                    // Texte sélectionnable (copie partielle).
+                    SelectionContainer {
+                        MarkdownText(text = message.content, color = foreground)
+                    }
                 }
 
                 message.images.forEach { path ->
@@ -890,18 +1156,19 @@ private fun MessageBubble(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.End
                     ) {
-                        if (!isUser && showUsage && message.usage?.isEmpty == false) {
+                        val label = when {
+                            !isUser && showUsage && message.usage?.isEmpty == false ->
+                                "${message.model.take(14)} · ${message.usage.totalTokens} j."
+
+                            !isUser && message.model.isNotBlank() -> message.model.take(20)
+                            else -> ""
+                        }
+                        if (label.isNotBlank()) {
                             Text(
-                                text = "${message.usage.totalTokens} jetons",
+                                text = label,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = foreground,
-                                modifier = Modifier.weight(1f)
-                            )
-                        } else if (!isUser && message.model.isNotBlank()) {
-                            Text(
-                                text = message.model,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = foreground,
+                                maxLines = 1,
                                 modifier = Modifier.weight(1f)
                             )
                         } else {
@@ -915,8 +1182,55 @@ private fun MessageBubble(
                             BubbleAction(Icons.Default.VolumeUp, "Lire", onSpeak)
                             BubbleAction(Icons.Default.Refresh, "Régénérer", onRegenerate)
                         }
-                        BubbleAction(Icons.Default.Share, "Partager", onShare)
-                        BubbleAction(Icons.Default.Delete, "Supprimer", onDelete)
+
+                        Box {
+                            BubbleAction(Icons.Default.MoreVert, "Plus") { moreOpen = true }
+                            DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
+                                if (!isUser) {
+                                    DropdownMenuItem(
+                                        text = { Text("Régénérer avec un autre modèle") },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.CompareArrows, contentDescription = null)
+                                        },
+                                        onClick = {
+                                            moreOpen = false
+                                            onRegenerateWith()
+                                        }
+                                    )
+                                    if (isLastAssistant) {
+                                        DropdownMenuItem(
+                                            text = { Text("Continuer la réponse") },
+                                            leadingIcon = {
+                                                Icon(
+                                                    Icons.AutoMirrored.Filled.ArrowForward,
+                                                    contentDescription = null
+                                                )
+                                            },
+                                            onClick = {
+                                                moreOpen = false
+                                                onContinue()
+                                            }
+                                        )
+                                    }
+                                }
+                                DropdownMenuItem(
+                                    text = { Text("Partager") },
+                                    leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) },
+                                    onClick = {
+                                        moreOpen = false
+                                        onShare()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Supprimer") },
+                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                                    onClick = {
+                                        moreOpen = false
+                                        onDelete()
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }

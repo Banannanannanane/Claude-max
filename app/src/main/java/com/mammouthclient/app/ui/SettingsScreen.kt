@@ -1,5 +1,7 @@
 package com.mammouthclient.app.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -75,8 +77,35 @@ fun SettingsScreen(
     var themeMode by remember { mutableStateOf(settings.themeMode) }
     var fontScale by remember { mutableStateOf(settings.fontScale) }
     var showUsage by remember { mutableStateOf(settings.showUsage) }
+    var autoTitle by remember { mutableStateOf(settings.autoTitle) }
+    var appLock by remember { mutableStateOf(settings.appLock) }
     var revealKey by remember { mutableStateOf(false) }
     var confirmWipe by remember { mutableStateOf(false) }
+
+    val backupWriter = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            val payload = viewModel.exportBackup()
+            val ok = runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    output.write(payload.toByteArray())
+                }
+            }.isSuccess
+            viewModel.notify(if (ok) "Sauvegarde enregistrée." else "Échec de l'enregistrement.")
+        }
+    }
+
+    val backupReader = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            val raw = runCatching {
+                context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+            }.getOrNull()
+            if (raw.isNullOrBlank()) viewModel.notify("Fichier illisible.") else viewModel.importBackup(raw)
+        }
+    }
 
     fun persist() {
         repository.update {
@@ -92,7 +121,9 @@ fun SettingsScreen(
                 imageModel = imageModel.trim().ifBlank { AppSettings.DEFAULT_IMAGE_MODEL },
                 themeMode = themeMode,
                 fontScale = fontScale,
-                showUsage = showUsage
+                showUsage = showUsage,
+                autoTitle = autoTitle,
+                appLock = appLock
             )
         }
     }
@@ -251,6 +282,13 @@ fun SettingsScreen(
                 onCheckedChange = { showUsage = it }
             )
 
+            SwitchRow(
+                title = "Titre automatique",
+                subtitle = "Le modèle nomme la discussion après le premier échange.",
+                checked = autoTitle,
+                onCheckedChange = { autoTitle = it }
+            )
+
             HorizontalDivider()
             Text("Apparence", style = MaterialTheme.typography.titleMedium)
 
@@ -283,12 +321,35 @@ fun SettingsScreen(
             }
 
             HorizontalDivider()
+            Text("Sécurité", style = MaterialTheme.typography.titleMedium)
+
+            SwitchRow(
+                title = "Verrouiller l'application",
+                subtitle = "Demande le code ou la biométrie de l'appareil au lancement.",
+                checked = appLock,
+                onCheckedChange = { appLock = it }
+            )
+
+            HorizontalDivider()
             Text("Données locales", style = MaterialTheme.typography.titleMedium)
 
             OutlinedButton(
                 onClick = { onExport(viewModel.exportCurrentAsMarkdown()) },
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Exporter la discussion courante") }
+            ) { Text("Partager la discussion courante") }
+
+            OutlinedButton(
+                onClick = {
+                    persist()
+                    backupWriter.launch("mammouth-sauvegarde.json")
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Exporter une sauvegarde complète") }
+
+            OutlinedButton(
+                onClick = { backupReader.launch(arrayOf("application/json", "text/plain")) },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Restaurer une sauvegarde") }
 
             OutlinedButton(
                 onClick = { confirmWipe = true },

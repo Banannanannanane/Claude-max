@@ -13,6 +13,7 @@ import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -201,10 +202,104 @@ class MammouthApi {
             val text = json.decodeFromString(ChatResponse.serializer(), body)
                 .choices.firstOrNull()?.message?.content.orEmpty()
             ImageGenerationResult(
-                urls = IMAGE_URL_PATTERN.findAll(text).map { it.value }.distinct().toList(),
+                urls = MEDIA_URL_PATTERN.findAll(text).map { it.value }.distinct().toList(),
                 base64 = BASE64_IMAGE_PATTERN.findAll(text).map { it.value }.toList(),
                 note = text
             )
+        }
+    }
+
+    /**
+     * Édition d'image (image-to-image) : `POST /images/edits` en multipart ; si l'endpoint
+     * n'existe pas, la demande repart en vision via `chat/completions`.
+     */
+    suspend fun editImage(
+        settings: AppSettings,
+        prompt: String,
+        model: String,
+        imagePath: String,
+        size: String?
+    ): ImageGenerationResult = withContext(Dispatchers.IO) {
+        val file = java.io.File(imagePath)
+        val multipart = okhttp3.MultipartBody.Builder()
+            .setType(okhttp3.MultipartBody.FORM)
+            .addFormDataPart("model", model)
+            .addFormDataPart("prompt", prompt)
+            .apply { if (!size.isNullOrBlank()) addFormDataPart("size", size) }
+            .addFormDataPart(
+                "image",
+                file.name,
+                file.asRequestBody("image/jpeg".toMediaType())
+            )
+            .build()
+
+        val request = requestBuilder(settings, "images/edits").post(multipart).build()
+        val direct = runCatching {
+            client.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) throw errorFrom(response.code, body)
+                json.decodeFromString(ImageResponse.serializer(), body).data
+            }
+        }
+
+        direct.fold(
+            onSuccess = { data ->
+                ImageGenerationResult(
+                    urls = data.mapNotNull { it.url },
+                    base64 = data.mapNotNull { it.b64Json },
+                    note = data.firstOrNull()?.revisedPrompt.orEmpty()
+                )
+            },
+            onFailure = { error ->
+                val code = (error as? MammouthException)?.httpCode
+                if (code != null && code !in listOf(400, 404, 405, 501)) throw error
+                val dataUrl = com.mammouthclient.app.util.FileUtils.toBase64DataUrl(imagePath)
+                    ?: throw MammouthException("Image source illisible.")
+                val payload = ChatRequest(
+                    model = model,
+                    messages = listOf(ApiMessage.multimodal("user", prompt, listOf(dataUrl))),
+                    stream = false
+                )
+                val chatRequest = requestBuilder(settings, "chat/completions")
+                    .post(jsonBody(json.encodeToString(ChatRequest.serializer(), payload)))
+                    .build()
+                client.newCall(chatRequest).execute().use { response ->
+                    val body = response.body?.string().orEmpty()
+                    if (!response.isSuccessful) throw errorFrom(response.code, body)
+                    val text = json.decodeFromString(ChatResponse.serializer(), body)
+                        .choices.firstOrNull()?.message?.content.orEmpty()
+                    ImageGenerationResult(
+                        urls = MEDIA_URL_PATTERN.findAll(text).map { it.value }.distinct().toList(),
+                        base64 = BASE64_IMAGE_PATTERN.findAll(text).map { it.value }.toList(),
+                        note = text
+                    )
+                }
+            }
+        )
+    }
+
+    /** Appel unique sans streaming (titres automatiques, utilitaires). */
+    suspend fun completeOnce(
+        settings: AppSettings,
+        messages: List<ApiMessage>,
+        model: String,
+        maxTokens: Int? = null
+    ): String = withContext(Dispatchers.IO) {
+        val payload = ChatRequest(
+            model = model,
+            messages = messages,
+            stream = false,
+            temperature = settings.temperature,
+            maxTokens = maxTokens
+        )
+        val request = requestBuilder(settings, "chat/completions")
+            .post(jsonBody(json.encodeToString(ChatRequest.serializer(), payload)))
+            .build()
+        client.newCall(request).execute().use { response ->
+            val body = response.body?.string().orEmpty()
+            if (!response.isSuccessful) throw errorFrom(response.code, body)
+            json.decodeFromString(ChatResponse.serializer(), body)
+                .choices.firstOrNull()?.message?.content.orEmpty()
         }
     }
 
@@ -232,8 +327,15 @@ class MammouthApi {
     }
 
     companion object {
-        private val IMAGE_URL_PATTERN =
-            Regex("""https?://[^\s)"']+\.(?:png|jpe?g|webp|gif)(?:\?[^\s)"']*)?""", RegexOption.IGNORE_CASE)
+        private val MEDIA_URL_PATTERN =
+            Regex(
+                """https?://[^\s)"']+\.(?:png|jpe?g|webp|gif|mp4|webm|mov)(?:\?[^\s)"']*)?""",
+                RegexOption.IGNORE_CASE
+            )
+
+        /** Vrai si l'URL pointe vers une vidéo (génération vidéo Mammouth). */
+        fun isVideoUrl(url: String): Boolean =
+            Regex("""\.(?:mp4|webm|mov)(?:\?|$)""", RegexOption.IGNORE_CASE).containsMatchIn(url)
         private val BASE64_IMAGE_PATTERN =
             Regex("""data:image/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+""")
 
