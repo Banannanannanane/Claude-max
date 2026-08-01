@@ -17,16 +17,14 @@ android {
         versionName = "1.0.0"
     }
 
-    signingConfigs {
-        create("release") {
-            // Renseigné uniquement si les secrets de signature sont présents (CI ou local).
-            val storePath = System.getenv("RELEASE_KEYSTORE_PATH")
-            if (!storePath.isNullOrBlank() && file(storePath).exists()) {
-                storeFile = file(storePath)
-                storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
-                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
-            }
+    // Signature de release activée uniquement si les variables d'environnement sont présentes.
+    val keystorePath = System.getenv("RELEASE_KEYSTORE_PATH")
+    val releaseSigning = signingConfigs.create("release") {
+        if (!keystorePath.isNullOrBlank() && file(keystorePath).exists()) {
+            storeFile = file(keystorePath)
+            storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+            keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
         }
     }
 
@@ -38,7 +36,6 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            val releaseSigning = signingConfigs.getByName("release")
             if (releaseSigning.storeFile != null) {
                 signingConfig = releaseSigning
             }
