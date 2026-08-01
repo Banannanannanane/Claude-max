@@ -17,7 +17,21 @@ android {
         versionName = "1.0.0"
     }
 
-    // Signature de release activée uniquement si les variables d'environnement sont présentes.
+    // Clé de signature partagée, versionnée dans le dépôt : elle garantit que toutes les
+    // APK produites (localement ou par la CI) portent la même signature, condition pour
+    // qu'une nouvelle version s'installe par-dessus la précédente. Ce n'est pas une clé
+    // de publication : pour le Play Store, utilisez les variables RELEASE_KEYSTORE_*.
+    val sharedKeystore = rootProject.file("keystore/mammouth.jks")
+    val sharedSigning = signingConfigs.getByName("debug") {
+        if (sharedKeystore.exists()) {
+            storeFile = sharedKeystore
+            storePassword = "mammouth"
+            keyAlias = "mammouth"
+            keyPassword = "mammouth"
+        }
+    }
+
+    // Signature de release dédiée si les variables d'environnement sont fournies.
     val keystorePath = System.getenv("RELEASE_KEYSTORE_PATH")
     val releaseSigning = signingConfigs.create("release") {
         if (!keystorePath.isNullOrBlank() && file(keystorePath).exists()) {
@@ -31,14 +45,14 @@ android {
     buildTypes {
         debug {
             isMinifyEnabled = false
+            signingConfig = sharedSigning
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            if (releaseSigning.storeFile != null) {
-                signingConfig = releaseSigning
-            }
+            // Clé de publication si fournie, sinon la clé partagée pour rester installable.
+            signingConfig = if (releaseSigning.storeFile != null) releaseSigning else sharedSigning
         }
     }
 

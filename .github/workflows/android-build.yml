@@ -43,7 +43,7 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk dist/mammouth.apk
           RELEASE_APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
           if [ -n "$RELEASE_APK" ]; then
-            cp "$RELEASE_APK" dist/mammouth-release-non-signe.apk
+            cp "$RELEASE_APK" dist/mammouth-release-minifiee.apk
           fi
           ls -lh dist
 

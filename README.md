@@ -86,6 +86,23 @@ Pour publier une release versionnée :
 git tag v1.0.0 && git push origin v1.0.0
 ```
 
+### Signature et mises à jour
+
+Toutes les APK sont signées avec la clé partagée `keystore/mammouth.jks` (mot de passe
+et alias : `mammouth`), volontairement versionnée dans le dépôt. Sans elle, chaque build
+de CI signerait avec une clé différente et Android refuserait l'installation d'une
+nouvelle version par-dessus l'ancienne (« le package est en conflit avec un package déjà
+présent »).
+
+Cette clé n'est pas une clé de publication : n'importe qui peut signer une APK avec.
+C'est acceptable pour une app personnelle installée à la main, mais pour une diffusion
+publique (Play Store), passez par une vraie clé via `RELEASE_KEYSTORE_*` (voir plus bas)
+et gardez-la secrète.
+
+> Si vous aviez installé une APK antérieure à ce changement, **désinstallez-la une fois**
+> avant d'installer la nouvelle : elle portait une signature différente. Les versions
+> suivantes s'installeront ensuite normalement, sans perte de données.
+
 ## Compiler en local
 
 Prérequis : JDK 17 et le SDK Android (API 35).

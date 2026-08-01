@@ -11,3 +11,5 @@ dist/
 *.apk
 *.keystore
 *.jks
+# Clé de signature partagée : volontairement versionnée (voir README).
+!keystore/mammouth.jks
