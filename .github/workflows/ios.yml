@@ -1,0 +1,39 @@
+name: iOS build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Dependencies
+        working-directory: app
+        run: flutter pub get
+
+      # Unsigned build: validates that the iOS target compiles.
+      # Publishing to the App Store needs an Apple Developer account, a
+      # distribution certificate and a provisioning profile — see docs/STORE.md.
+      - name: Build iOS (no codesign)
+        working-directory: app
+        run: flutter build ios --release --no-codesign
+
+      - name: Package .app
+        working-directory: app/build/ios/iphoneos
+        run: |
+          mkdir -p Payload
+          cp -R Runner.app Payload/
+          zip -qry ca-part-unsigned.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ca-part-ios-unsigned
+          path: app/build/ios/iphoneos/ca-part-unsigned.ipa
+          if-no-files-found: error
