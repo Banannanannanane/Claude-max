@@ -1,11 +1,11 @@
 {
-  "name": "Ça part !",
-  "short_name": "Ça part !",
+  "name": "Ça Part",
+  "short_name": "Ça Part",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#0E0B1A",
-  "theme_color": "#0E0B1A",
-  "description": "Jeux de soirée à passer de main en main.",
+  "background_color": "#F4EDE3",
+  "theme_color": "#F4EDE3",
+  "description": "La carte qui fait partir la soirée.",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": [
