@@ -43,17 +43,20 @@ android {
     // Gradle interdit un flavor nommé « test » (le nom est réservé aux
     // source sets de test), d'où « dev » côté build — le nom affiché sous
     // l'icône, lui, est bien « Ça Part test ».
+    // Le nom passe par un placeholder de manifeste plutôt que par resValue :
+    // AGP livre la génération de ressources désactivée par défaut, et
+    // l'activer pour une seule chaîne de caractères n'en vaut pas la peine.
     flavorDimensions += "app"
     productFlavors {
         create("prod") {
             dimension = "app"
-            resValue("string", "app_name", "Ça Part")
+            manifestPlaceholders["appName"] = "Ça Part"
         }
         create("dev") {
             dimension = "app"
             applicationIdSuffix = ".test"
             versionNameSuffix = "-test"
-            resValue("string", "app_name", "Ça Part test")
+            manifestPlaceholders["appName"] = "Ça Part test"
         }
     }
 
