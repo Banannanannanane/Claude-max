@@ -1,7 +1,6 @@
 import 'package:ca_part/app.dart';
 import 'package:ca_part/data/concepts_repository.dart';
 import 'package:ca_part/models/concept.dart';
-import 'package:ca_part/services/purchase_service.dart';
 import 'package:ca_part/services/settings_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,7 +11,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// `testWidgets`.
 late final List<Concept> concepts;
 late final SettingsService settings;
-late final PurchaseService purchases;
 
 void main() {
   setUpAll(() async {
@@ -20,7 +18,6 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     concepts = await ConceptsRepository().load();
     settings = await SettingsService.load();
-    purchases = PurchaseService(settings);
   });
 
   testWidgets('le catalogue livré est celui du site', (tester) async {
@@ -35,14 +32,16 @@ void main() {
     );
 
     final dilemme = concepts.firstWhere((c) => c.id == 'dilemme');
-    expect(dilemme.free, isTrue, reason: 'Dilemme est gratuit sur le site');
-    expect(dilemme.metaLabel,
-        '120 cartes gratuites · 12 tirées par partie');
+    expect(dilemme.metaLabel, '120 cartes · 12 tirées par partie');
 
     final rapido = concepts.firstWhere((c) => c.id == 'rapido');
     expect(rapido.timerSeconds, 15);
-    expect(rapido.metaLabel,
-        '37 cartes gratuites · 67 de plus · 12 tirées par partie');
+    expect(rapido.metaLabel, '104 cartes · 12 tirées par partie');
+
+    // Chaque concept livre autant d'emplacements que le paquet annoncé.
+    for (final concept in concepts) {
+      expect(concept.cards, hasLength(concept.cardCount));
+    }
 
     final sauveMoi = concepts.firstWhere((c) => c.id == 'sauve-moi-si-tu-peux');
     expect(sauveMoi.readerCount, 2,
@@ -51,11 +50,9 @@ void main() {
   });
 
   testWidgets('l\'accueil mène à la grille des concepts', (tester) async {
-    await tester.pumpWidget(CaPartApp(
-      settings: settings,
-      purchases: purchases,
-      concepts: concepts,
-    ));
+    await tester.pumpWidget(
+      CaPartApp(settings: settings, concepts: concepts),
+    );
     await tester.pumpAndSettle();
 
     // Le logo est un Text.rich (le point est rouge) : on vise la ligne
@@ -73,13 +70,11 @@ void main() {
     }
   });
 
-  testWidgets('la fiche d\'un concept payant propose le déblocage',
+  testWidgets('la fiche d\'un concept ne propose que de lancer',
       (tester) async {
-    await tester.pumpWidget(CaPartApp(
-      settings: settings,
-      purchases: purchases,
-      concepts: concepts,
-    ));
+    await tester.pumpWidget(
+      CaPartApp(settings: settings, concepts: concepts),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Lancer une partie'));
@@ -88,22 +83,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Lancer'), findsOneWidget);
-    expect(find.text('Débloquer Rapido · 3,99 €'), findsOneWidget);
-    expect(find.text('J\'ai déjà acheté'), findsOneWidget);
+    expect(find.textContaining('Débloquer'), findsNothing);
+    expect(find.textContaining('acheté'), findsNothing);
     expect(find.text('Changer les prénoms'), findsOneWidget);
-    expect(
-      find.text('37 cartes gratuites · 67 de plus · 12 tirées par partie'),
-      findsOneWidget,
-    );
+    expect(find.text('104 cartes · 12 tirées par partie'), findsOneWidget);
   });
 
-  testWidgets('un concept gratuit se lance sans passer par l\'achat',
+  testWidgets('une partie démarre sur les emplacements de cartes',
       (tester) async {
-    await tester.pumpWidget(CaPartApp(
-      settings: settings,
-      purchases: purchases,
-      concepts: concepts,
-    ));
+    await tester.pumpWidget(
+      CaPartApp(settings: settings, concepts: concepts),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Lancer une partie'));
@@ -111,12 +101,12 @@ void main() {
     await tester.tap(find.text('Dilemme').last);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Débloquer'), findsNothing);
-
     await tester.tap(find.text('Lancer'));
     await tester.pumpAndSettle();
 
     expect(find.text('Carte suivante'), findsOneWidget);
     expect(find.text('1 / 12'), findsOneWidget);
+    // Les cartes livrées sont des emplacements, pas du contenu.
+    expect(find.text('(à définir)'), findsOneWidget);
   });
 }

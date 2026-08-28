@@ -1,16 +1,20 @@
 # Paquets de cartes
 
-`index.json` décrit les quatre concepts de Ça Part : leur consigne, leur
-couleur, leur code de carte, leur modèle d'accès et les compteurs affichés sur
-la fiche (« 36 cartes gratuites · 62 de plus · 10 tirées par partie »). Ces
-métadonnées sont celles du site.
+`index.json` décrit les quatre concepts de Ça Part : consigne, couleur, code de
+carte, taille du paquet et nombre de cartes tirées par partie. Ces métadonnées
+sont celles du site (les paquets gratuits et payants y sont réunis, cette
+version n'ayant pas de paiement).
 
-**Les textes de cartes, eux, sont des cartes d'amorce écrites pour l'app.**
-Seules deux cartes proviennent du site (RAP 626 et l'exemple de Confession) ;
-le reste est là pour que l'application soit jouable avant l'import. Les vrais
-paquets — 37+67 pour Rapido, 120 pour Dilemme, 36+130 pour Confession,
-36+62 pour Sauve-moi si tu peux — doivent remplacer le tableau `cards` de
-chaque concept.
+**Les 488 cartes livrées sont des emplacements vides**, tous marqués
+« (à définir) ». Les positions et les codes sont en place, les textes restent à
+écrire : il suffit de remplacer le champ `text` de chaque entrée.
+
+| Concept | Emplacements |
+| --- | --- |
+| Rapido | 104 |
+| Dilemme | 120 |
+| Confession | 166 |
+| Sauve-moi si tu peux | 98 |
 
 ## Format d'une carte
 
@@ -18,8 +22,7 @@ chaque concept.
 {
   "n": 626,                 // numéro imprimé en bas de carte
   "text": "…",              // texte affiché en grand
-  "hint": "…",              // ligne grise sous le texte (optionnelle)
-  "free": true              // false = carte du paquet payant
+  "hint": "…"               // ligne grise sous le texte (optionnelle)
 }
 ```
 

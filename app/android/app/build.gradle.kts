@@ -36,6 +36,27 @@ android {
         resourceConfigurations += listOf("fr", "en")
     }
 
+    // Deux applications à partir du même code. Les identifiants diffèrent,
+    // donc elles s'installent côte à côte : on garde celle qui tourne pendant
+    // qu'on essaie l'autre.
+    //
+    // Gradle interdit un flavor nommé « test » (le nom est réservé aux
+    // source sets de test), d'où « dev » côté build — le nom affiché sous
+    // l'icône, lui, est bien « Ça Part test ».
+    flavorDimensions += "app"
+    productFlavors {
+        create("prod") {
+            dimension = "app"
+            resValue("string", "app_name", "Ça Part")
+        }
+        create("dev") {
+            dimension = "app"
+            applicationIdSuffix = ".test"
+            versionNameSuffix = "-test"
+            resValue("string", "app_name", "Ça Part test")
+        }
+    }
+
     signingConfigs {
         if (hasUploadKeystore) {
             create("release") {

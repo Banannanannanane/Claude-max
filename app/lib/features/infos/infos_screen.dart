@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app.dart';
+import '../../build_flavor.dart';
 import '../../design/components/cap_button.dart';
 import '../../design/components/cap_card.dart';
 import '../../design/components/cap_scaffold.dart';
@@ -26,11 +27,8 @@ class InfosScreen extends StatefulWidget {
     ),
     (
       'C\'est payant ?',
-      'Dilemme et Entre vous sont gratuits, les autres concepts se testent '
-          'avant d\'acheter. Ensuite c\'est un achat unique, pas '
-          'd\'abonnement : 3,99 € le concept complet, 7,99 € les trois. '
-          'L\'achat est lié à votre compte du magasin d\'applications et se '
-          'restaure sur vos autres appareils.',
+      'Non. Dans cette version de l\'application, tous les concepts et toutes '
+          'leurs cartes sont ouverts, sans achat ni compte.',
     ),
     (
       'Faut-il télécharger un truc ?',
@@ -61,9 +59,7 @@ class _InfosScreenState extends State<InfosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scope = AppScope.of(context);
-    final settings = scope.settings;
-    final purchases = scope.purchases;
+    final settings = AppScope.of(context).settings;
 
     return CapScaffold(
       title: 'Infos',
@@ -80,24 +76,6 @@ class _InfosScreenState extends State<InfosScreen> {
               answer: InfosScreen.faq[i].$2,
               open: _openIndex == i,
               onTap: () => setState(() => _openIndex = _openIndex == i ? null : i),
-            ),
-
-          const SizedBox(height: CapSpacing.xl),
-          const CapEyebrow('Vos achats'),
-          const SizedBox(height: CapSpacing.md),
-          CapButton(
-            label: 'J\'ai déjà acheté',
-            variant: CapButtonVariant.outline,
-            busy: purchases.busy,
-            onPressed: purchases.storeAvailable ? purchases.restore : null,
-          ),
-          if (!purchases.storeAvailable)
-            Padding(
-              padding: const EdgeInsets.only(top: CapSpacing.sm),
-              child: Text(
-                'Le magasin n\'est pas joignable sur cet appareil.',
-                style: CapType.meta.copyWith(color: CapColors.textMuted),
-              ),
             ),
 
           const SizedBox(height: CapSpacing.xl),
@@ -148,7 +126,8 @@ class _InfosScreenState extends State<InfosScreen> {
           ),
           if (_version.isNotEmpty)
             Text(
-              'Version $_version',
+              'Version $_version'
+              '${BuildFlavor.isTest ? ' · ${BuildFlavor.appName}' : ''}',
               style: CapType.meta.copyWith(color: CapColors.textMuted),
             ),
         ],

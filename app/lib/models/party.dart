@@ -39,11 +39,10 @@ class Party extends ChangeNotifier {
   Party({
     required List<Concept> concepts,
     required List<String> players,
-    required Set<String> unlockedConceptIds,
     int? seed,
   })  : players = List.unmodifiable(players),
         _random = Random(seed ?? DateTime.now().millisecondsSinceEpoch) {
-    _deck = _draw(concepts, unlockedConceptIds);
+    _deck = _draw(concepts);
   }
 
   final List<String> players;
@@ -73,13 +72,11 @@ class Party extends ChangeNotifier {
   /// Tire les cartes de chaque concept demandé, dans la limite de son
   /// `drawPerGame`, puis mélange l'ensemble : en mode « Mélange les concepts »
   /// les formats s'alternent au lieu de se suivre par paquets.
-  List<DrawnCard> _draw(List<Concept> concepts, Set<String> unlocked) {
+  List<DrawnCard> _draw(List<Concept> concepts) {
     final drawn = <DrawnCard>[];
 
     for (final concept in concepts) {
-      final available = concept.cards
-          .where((c) => c.free || concept.free || unlocked.contains(concept.id))
-          .toList()
+      final available = List<ConceptCard>.from(concept.cards)
         ..shuffle(_random);
 
       for (final card in available.take(concept.drawPerGame)) {

@@ -12,14 +12,12 @@ void main() {
         'color': '#7B4FCB',
         'instruction': 'Joueur 1, lis ta carte. Joueur 2, sauve-le : 20 secondes.',
         'example': {'body': 'Joueur 1 : « … »'},
-        'freeCardCount': 36,
-        'extraCardCount': 62,
+        'cardCount': 98,
         'drawPerGame': 10,
         'timerSeconds': 20,
         'readerCount': 2,
         'cards': [
-          {'n': 840, 'text': 'J\'ai rendu la mauvaise urne.', 'hint': '20 s.'},
-          {'n': 841, 'text': 'Carte payante', 'free': false},
+          {'n': 1, 'text': '(à définir)', 'hint': 'Carte n° 1'},
         ],
       });
 
@@ -27,37 +25,40 @@ void main() {
       expect(concept.isTimed, isTrue);
       expect(concept.readerCount, 2);
       expect(concept.example?.body, 'Joueur 1 : « … »');
-      expect(concept.cards.first.hint, '20 s.');
-      expect(concept.cards.last.free, isFalse);
-      expect(concept.cardCode(concept.cards.first), 'PUN · 840');
+      expect(concept.cards.first.hint, 'Carte n° 1');
+      expect(concept.cardCode(concept.cards.first), 'PUN · 1');
     });
 
-    test('compose la ligne de méta comme le site', () {
-      final paid = Concept.fromJson({
+    test('cardCount annonce la taille du paquet, pas ce qui est livré', () {
+      final declared = Concept.fromJson({
         'id': 'x',
         'name': 'X',
         'code': 'XXX',
         'color': '#000000',
         'instruction': '…',
-        'freeCardCount': 36,
-        'extraCardCount': 62,
-        'drawPerGame': 10,
-      });
-      expect(paid.metaLabel, '36 cartes gratuites · 62 de plus · 10 tirées par partie');
-
-      final free = Concept.fromJson({
-        'id': 'dilemme',
-        'name': 'Dilemme',
-        'code': 'DIL',
-        'color': '#D79A22',
-        'instruction': '…',
-        'freeCardCount': 120,
+        'cardCount': 104,
         'drawPerGame': 12,
-        'free': true,
+        'cards': [
+          {'n': 1, 'text': '(à définir)'},
+        ],
       });
-      expect(free.metaLabel, '120 cartes gratuites · 12 tirées par partie');
-      expect(free.hasExtraCards, isFalse);
-      expect(free.isTimed, isFalse);
+      expect(declared.cardCount, 104);
+      expect(declared.metaLabel, '104 cartes · 12 tirées par partie');
+
+      final implicit = Concept.fromJson({
+        'id': 'y',
+        'name': 'Y',
+        'code': 'YYY',
+        'color': '#000000',
+        'instruction': '…',
+        'drawPerGame': 12,
+        'cards': [
+          {'n': 1, 'text': 'a'},
+          {'n': 2, 'text': 'b'},
+        ],
+      });
+      expect(implicit.cardCount, 2);
+      expect(implicit.isTimed, isFalse);
     });
 
     test('rejette une couleur invalide', () {

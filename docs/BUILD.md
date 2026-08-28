@@ -26,21 +26,44 @@ flutter test
 
 ## Android
 
-### APK de test (installable directement sur un téléphone)
+### Deux applications
+
+Le projet produit deux applications à partir du même code :
+
+| Variante | `--flavor` | Identifiant | Nom sous l'icône |
+| --- | --- | --- | --- |
+| Production | `prod` | `fr.capart.ca_part` | Ça Part |
+| Test | `dev` | `fr.capart.ca_part.test` | Ça Part test |
+
+Les identifiants diffèrent, donc les deux s'installent côte à côte : on garde
+celle qui tourne pendant qu'on essaie l'autre. La variante test affiche en plus
+une pastille « test » à côté du logo.
+
+Le nom de flavor est `dev` et non `test` parce que Gradle réserve « test » aux
+source sets de test ; seul le nom affiché dit « Ça Part test ».
+
+### APK installable directement sur un téléphone
 
 ```bash
-flutter build apk --release
-# -> build/app/outputs/flutter-apk/app-release.apk
+flutter build apk --release --flavor prod --dart-define=FLAVOR=prod
+# -> build/app/outputs/flutter-apk/app-prod-release.apk
+
+flutter build apk --release --flavor dev --dart-define=FLAVOR=dev
+# -> build/app/outputs/flutter-apk/app-dev-release.apk
 ```
 
-Sans `android/key.properties`, ce build est signé avec la clé de debug : il
-s'installe sur un appareil (`adb install -r <apk>`) mais le Play Store le
-refuse.
+`--flavor` choisit l'identifiant et le nom Android ; `--dart-define` dit à
+l'app elle-même quelle variante elle est. **Les deux vont ensemble** : sans le
+`--dart-define`, l'APK test s'appellerait « Ça Part » à l'intérieur.
+
+Sans `android/key.properties`, ces builds sont signés avec la clé de debug :
+ils s'installent sur un appareil (`adb install -r <apk>`) mais le Play Store
+les refuse.
 
 ### APK découpés par architecture (fichiers plus légers)
 
 ```bash
-flutter build apk --release --split-per-abi
+flutter build apk --release --flavor prod --dart-define=FLAVOR=prod --split-per-abi
 ```
 
 ### App Bundle pour le Play Store
@@ -49,8 +72,8 @@ Le Play Store n'accepte plus les APK pour les nouvelles applications : il faut
 un `.aab`.
 
 ```bash
-flutter build appbundle --release
-# -> build/app/outputs/bundle/release/app-release.aab
+flutter build appbundle --release --flavor prod --dart-define=FLAVOR=prod
+# -> build/app/outputs/bundle/prodRelease/app-prod-release.aab
 ```
 
 ### Signature de publication
@@ -84,10 +107,14 @@ incrémenté à chaque dépôt sur le Play Store**, sinon l'envoi est rejeté.
 ## iOS
 
 ```bash
-flutter build ios --release              # nécessite une identité de signature
-flutter build ipa --release              # produit build/ios/ipa/*.ipa
-open ios/Runner.xcworkspace              # pour régler l'équipe et le bundle id
+flutter build ios --release --dart-define=FLAVOR=prod   # identité de signature requise
+flutter build ipa --release --dart-define=FLAVOR=prod   # produit build/ios/ipa/*.ipa
+open ios/Runner.xcworkspace                             # équipe et bundle id
 ```
+
+Les variantes prod/test ne sont déclarées que côté Android. Les dédoubler sur
+iOS demande deux schémas Xcode et deux bundle identifiers, à faire le jour où
+l'app y va.
 
 Le bundle identifier par défaut est `fr.capart.caPart` — à remplacer par celui
 créé sur le portail Apple Developer.
@@ -101,8 +128,9 @@ flutter build web --release
 
 ## Intégration continue
 
-`.github/workflows/android.yml` rejoue `analyze` + `test`, puis produit l'APK et
-l'AAB à chaque push, en artefacts téléchargeables depuis l'onglet Actions.
+`.github/workflows/android.yml` rejoue `analyze` + `test`, puis produit à
+chaque push trois artefacts téléchargeables depuis l'onglet Actions :
+`ca-part-apk`, `ca-part-test-apk` et `ca-part-aab`.
 
 Pour que la CI signe les builds, ajouter ces secrets au dépôt :
 

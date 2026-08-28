@@ -14,7 +14,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # Empty when the repository has no signing secrets configured.
+      # Vide quand le dépôt n'a pas de secrets de signature.
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
     steps:
       - uses: actions/checkout@v4
@@ -41,9 +41,9 @@ jobs:
         working-directory: app
         run: flutter test
 
-      # Signing is optional: without the secrets the release build falls back to
-      # the debug signing config (see app/android/app/build.gradle.kts), which is
-      # enough to install the APK on a device but NOT enough to publish.
+      # Signature optionnelle : sans les secrets, le build release retombe sur
+      # la clé de debug (voir app/android/app/build.gradle.kts), suffisante pour
+      # installer l'APK sur un téléphone mais pas pour publier.
       - name: Restore upload keystore
         if: env.ANDROID_KEYSTORE_BASE64 != ''
         working-directory: app/android
@@ -60,22 +60,33 @@ jobs:
             echo "keyPassword=$ANDROID_KEY_PASSWORD"
           } > key.properties
 
-      - name: Build APK (release)
+      # Deux applications, deux identifiants : elles s'installent côte à côte.
+      - name: Build Ça Part (APK)
         working-directory: app
-        run: flutter build apk --release
+        run: flutter build apk --release --flavor prod --dart-define=FLAVOR=prod
 
-      - name: Build App Bundle (release)
+      - name: Build Ça Part test (APK)
         working-directory: app
-        run: flutter build appbundle --release
+        run: flutter build apk --release --flavor dev --dart-define=FLAVOR=dev
+
+      - name: Build Ça Part (App Bundle)
+        working-directory: app
+        run: flutter build appbundle --release --flavor prod --dart-define=FLAVOR=prod
 
       - uses: actions/upload-artifact@v4
         with:
           name: ca-part-apk
-          path: app/build/app/outputs/flutter-apk/app-release.apk
+          path: app/build/app/outputs/flutter-apk/app-prod-release.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ca-part-test-apk
+          path: app/build/app/outputs/flutter-apk/app-dev-release.apk
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
           name: ca-part-aab
-          path: app/build/app/outputs/bundle/release/app-release.aab
+          path: app/build/app/outputs/bundle/prodRelease/app-prod-release.aab
           if-no-files-found: error

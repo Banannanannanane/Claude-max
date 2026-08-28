@@ -7,7 +7,6 @@ class ConceptCard {
     required this.number,
     required this.text,
     this.hint,
-    this.free = true,
   });
 
   /// Numéro imprimé en bas de carte, à côté du code du concept (« RAP · 626 »).
@@ -20,14 +19,10 @@ class ConceptCard {
   /// Ligne d'exemple ou de relance affichée sous le texte, en gris.
   final String? hint;
 
-  /// `false` pour les cartes du paquet étendu, réservées aux acheteurs.
-  final bool free;
-
   factory ConceptCard.fromJson(Map<String, dynamic> json) => ConceptCard(
         number: json['n'] as int,
         text: json['text'] as String,
         hint: json['hint'] as String?,
-        free: json['free'] as bool? ?? true,
       );
 }
 
@@ -43,8 +38,10 @@ class ConceptExample {
       ConceptExample(body: json['body'] as String);
 }
 
-/// Un concept de Ça Part : un format de jeu, son paquet, sa consigne et son
-/// modèle d'accès (gratuit ou débloquable).
+/// Un concept de Ça Part : un format de jeu, son paquet et sa consigne.
+///
+/// Cette version n'a pas de paiement : tous les concepts et toutes leurs
+/// cartes sont accessibles.
 @immutable
 class Concept {
   const Concept({
@@ -53,16 +50,13 @@ class Concept {
     required this.code,
     required this.color,
     required this.instruction,
-    required this.freeCardCount,
-    required this.extraCardCount,
     required this.drawPerGame,
     required this.cards,
     this.example,
-    this.free = false,
-    this.priceLabel = '3,99 €',
     this.timerSeconds = 0,
     this.readerCount = 1,
-  });
+    int? cardCount,
+  }) : _declaredCardCount = cardCount;
 
   /// Identifiant stable, repris dans les URLs (`/concepts/<id>`).
   final String id;
@@ -80,20 +74,8 @@ class Concept {
 
   final ConceptExample? example;
 
-  /// Nombre de cartes gratuites annoncé sur la fiche.
-  final int freeCardCount;
-
-  /// Nombre de cartes supplémentaires débloquées à l'achat. 0 si le concept
-  /// est intégralement gratuit.
-  final int extraCardCount;
-
   /// Nombre de cartes tirées pour une partie.
   final int drawPerGame;
-
-  /// Concept accessible sans achat (Dilemme).
-  final bool free;
-
-  final String priceLabel;
 
   /// Durée d'un tour en secondes. 0 quand le concept n'est pas chronométré.
   final int timerSeconds;
@@ -105,19 +87,18 @@ class Concept {
 
   final List<ConceptCard> cards;
 
-  bool get isTimed => timerSeconds > 0;
-  bool get hasExtraCards => extraCardCount > 0;
+  /// Taille annoncée du paquet. Utile tant que les cartes livrées sont des
+  /// emplacements : elle dit ce que le paquet contiendra.
+  final int? _declaredCardCount;
 
-  /// « 36 cartes gratuites · 62 de plus · 10 tirées par partie »
-  String get metaLabel {
-    final parts = <String>[
-      '$freeCardCount carte${freeCardCount > 1 ? 's' : ''} gratuite'
-          '${freeCardCount > 1 ? 's' : ''}',
-      if (hasExtraCards) '$extraCardCount de plus',
-      '$drawPerGame tirée${drawPerGame > 1 ? 's' : ''} par partie',
-    ];
-    return parts.join(' · ');
-  }
+  int get cardCount => _declaredCardCount ?? cards.length;
+
+  bool get isTimed => timerSeconds > 0;
+
+  /// « 104 cartes · 12 tirées par partie »
+  String get metaLabel =>
+      '$cardCount carte${cardCount > 1 ? 's' : ''} · '
+      '$drawPerGame tirée${drawPerGame > 1 ? 's' : ''} par partie';
 
   String cardCode(ConceptCard card) => '$code · ${card.number}';
 
@@ -130,13 +111,10 @@ class Concept {
         example: json['example'] == null
             ? null
             : ConceptExample.fromJson(json['example'] as Map<String, dynamic>),
-        freeCardCount: json['freeCardCount'] as int,
-        extraCardCount: json['extraCardCount'] as int? ?? 0,
         drawPerGame: json['drawPerGame'] as int,
-        free: json['free'] as bool? ?? false,
-        priceLabel: json['priceLabel'] as String? ?? '3,99 €',
         timerSeconds: json['timerSeconds'] as int? ?? 0,
         readerCount: json['readerCount'] as int? ?? 1,
+        cardCount: json['cardCount'] as int?,
         cards: (json['cards'] as List? ?? const [])
             .cast<Map<String, dynamic>>()
             .map(ConceptCard.fromJson)

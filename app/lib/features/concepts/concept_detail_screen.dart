@@ -17,47 +17,12 @@ class ConceptDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scope = AppScope.of(context);
-    final purchases = scope.purchases;
-    final unlocked = concept.free || scope.settings.isUnlocked(concept.id);
-    final price = purchases.priceFor(concept.id) ?? concept.priceLabel;
-
     return CapScaffold(
       title: concept.name,
       onBack: () => context.pop(),
-      bottomBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CapButton(
-            label: 'Lancer',
-            onPressed: () => _start(context),
-          ),
-          if (!unlocked) ...[
-            const SizedBox(height: CapSpacing.sm + 2),
-            CapButton(
-              label: 'Débloquer ${concept.name} · $price',
-              variant: CapButtonVariant.outline,
-              busy: purchases.busy,
-              onPressed: purchases.storeAvailable
-                  ? () => purchases.buy(concept.id)
-                  : null,
-            ),
-            CapLink(
-              label: 'J\'ai déjà acheté',
-              align: TextAlign.center,
-              onPressed: purchases.storeAvailable ? purchases.restore : null,
-            ),
-            if (!purchases.storeAvailable)
-              Padding(
-                padding: const EdgeInsets.only(bottom: CapSpacing.sm),
-                child: Text(
-                  'Le magasin n\'est pas joignable sur cet appareil.',
-                  textAlign: TextAlign.center,
-                  style: CapType.meta.copyWith(color: CapColors.textMuted),
-                ),
-              ),
-          ],
-        ],
+      bottomBar: CapButton(
+        label: 'Lancer',
+        onPressed: () => _start(context),
       ),
       child: ListView(
         padding: const EdgeInsets.only(bottom: CapSpacing.lg),
@@ -102,13 +67,6 @@ class ConceptDetailScreen extends StatelessWidget {
             label: 'Changer les prénoms',
             onPressed: () => context.pushNamed('prenoms'),
           ),
-          if (purchases.error != null) ...[
-            const SizedBox(height: CapSpacing.md),
-            Text(
-              purchases.error!,
-              style: CapType.meta.copyWith(color: CapColors.red),
-            ),
-          ],
         ],
       ),
     );
@@ -127,20 +85,18 @@ class MixDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scope = AppScope.of(context);
-    final playable = scope.playableConcepts;
-    final locked = scope.concepts.where((c) => !playable.contains(c)).toList();
+    final concepts = AppScope.of(context).concepts;
 
     return CapScaffold(
       title: 'Mélange',
       onBack: () => context.pop(),
       bottomBar: CapButton(
         label: 'Lancer',
-        onPressed: playable.isEmpty
+        onPressed: concepts.isEmpty
             ? null
             : () => context.pushNamed(
                   'partie',
-                  extra: playable.map((c) => c.id).toList(),
+                  extra: concepts.map((c) => c.id).toList(),
                 ),
       ),
       child: ListView(
@@ -166,17 +122,8 @@ class MixDetailScreen extends StatelessWidget {
           const SizedBox(height: CapSpacing.md),
           const CapEyebrow('Dans le paquet'),
           const SizedBox(height: CapSpacing.sm),
-          for (final concept in playable)
-            _MixRow(name: concept.name, color: concept.color, included: true),
-          for (final concept in locked)
-            _MixRow(name: concept.name, color: concept.color, included: false),
-          if (locked.isNotEmpty) ...[
-            const SizedBox(height: CapSpacing.md),
-            Text(
-              'Les concepts non débloqués restent en dehors du mélange.',
-              style: CapType.meta.copyWith(color: CapColors.textMuted),
-            ),
-          ],
+          for (final concept in concepts)
+            _MixRow(name: concept.name, color: concept.color),
         ],
       ),
     );
@@ -184,15 +131,10 @@ class MixDetailScreen extends StatelessWidget {
 }
 
 class _MixRow extends StatelessWidget {
-  const _MixRow({
-    required this.name,
-    required this.color,
-    required this.included,
-  });
+  const _MixRow({required this.name, required this.color});
 
   final String name;
   final Color color;
-  final bool included;
 
   @override
   Widget build(BuildContext context) {
@@ -203,25 +145,11 @@ class _MixRow extends StatelessWidget {
           Container(
             width: 9,
             height: 9,
-            decoration: BoxDecoration(
-              color: included ? color : CapColors.border,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: CapSpacing.sm + 2),
-          Expanded(
-            child: Text(
-              name,
-              style: CapType.body.copyWith(
-                color: included ? CapColors.textPrimary : CapColors.textMuted,
-              ),
-            ),
-          ),
-          Icon(
-            included ? Icons.check_rounded : Icons.lock_outline_rounded,
-            size: 18,
-            color: included ? color : CapColors.textMuted,
-          ),
+          Expanded(child: Text(name, style: CapType.body)),
+          Icon(Icons.check_rounded, size: 18, color: color),
         ],
       ),
     );

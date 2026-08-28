@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../build_flavor.dart';
 import '../theme.dart';
 import '../tokens.dart';
 import 'cap_card.dart';
@@ -82,7 +83,26 @@ class _Wordmark extends StatelessWidget {
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: CapColors.divider)),
       ),
-      child: const CapWordmark(),
+      child: Row(
+        children: [
+          const CapWordmark(),
+          if (BuildFlavor.isTest) ...[
+            const SizedBox(width: CapSpacing.sm),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: CapSpacing.sm,
+                vertical: 2,
+              ),
+              decoration: BoxDecoration(
+                color: CapColors.surfaceSunken,
+                borderRadius: CapRadius.chipAll,
+                border: Border.all(color: CapColors.border),
+              ),
+              child: const CapEyebrow('test'),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

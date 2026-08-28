@@ -5,30 +5,531 @@
     "code": "RAP",
     "color": "#1E7F4B",
     "instruction": "Joueur 1, prends le téléphone : réponds en 15 secondes ; le groupe valide.",
-    "freeCardCount": 37,
-    "extraCardCount": 67,
+    "cardCount": 104,
     "drawPerGame": 12,
     "timerSeconds": 15,
     "readerCount": 1,
-    "free": false,
-    "priceLabel": "3,99 €",
     "cards": [
-      { "n": 626, "text": "Balance 3 raisons de pas répondre à un appel de ta daronne." },
-      { "n": 104, "text": "3 excuses pour partir d'une soirée avant minuit." },
-      { "n": 118, "text": "3 trucs que {j1} a clairement déjà cherchés en navigation privée." },
-      { "n": 132, "text": "3 métiers pour lesquels {j1} serait viré en une semaine." },
-      { "n": 147, "text": "3 raisons de ne jamais prêter ta voiture à {autre}." },
-      { "n": 165, "text": "3 choses que tu dirais à ton toi de 15 ans, en une phrase chacune." },
-      { "n": 178, "text": "3 applications que tu supprimerais si on te payait 100 €." },
-      { "n": 190, "text": "3 mensonges que tout le monde raconte à son médecin." },
-      { "n": 203, "text": "3 raisons pour lesquelles {autre} serait le pire coloc." },
-      { "n": 221, "text": "3 trucs qu'on ne devrait jamais dire à un mariage." },
-      { "n": 236, "text": "3 façons de rater un premier rendez-vous en moins d'une minute." },
-      { "n": 248, "text": "3 choses que {j1} ferait avec 10 000 € demain matin." },
-      { "n": 259, "text": "3 raisons de ne pas répondre à un message vocal de 4 minutes." },
-      { "n": 271, "text": "3 talents totalement inutiles que tu possèdes." },
-      { "n": 284, "text": "3 trucs que tu regardes en boucle et que tu n'assumes pas." },
-      { "n": 296, "text": "3 raisons pour lesquelles cette soirée va mal finir." }
+      {
+        "n": 1,
+        "text": "(à définir)",
+        "hint": "Carte n° 1 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 2,
+        "text": "(à définir)",
+        "hint": "Carte n° 2 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 3,
+        "text": "(à définir)",
+        "hint": "Carte n° 3 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 4,
+        "text": "(à définir)",
+        "hint": "Carte n° 4 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 5,
+        "text": "(à définir)",
+        "hint": "Carte n° 5 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 6,
+        "text": "(à définir)",
+        "hint": "Carte n° 6 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 7,
+        "text": "(à définir)",
+        "hint": "Carte n° 7 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 8,
+        "text": "(à définir)",
+        "hint": "Carte n° 8 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 9,
+        "text": "(à définir)",
+        "hint": "Carte n° 9 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 10,
+        "text": "(à définir)",
+        "hint": "Carte n° 10 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 11,
+        "text": "(à définir)",
+        "hint": "Carte n° 11 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 12,
+        "text": "(à définir)",
+        "hint": "Carte n° 12 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 13,
+        "text": "(à définir)",
+        "hint": "Carte n° 13 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 14,
+        "text": "(à définir)",
+        "hint": "Carte n° 14 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 15,
+        "text": "(à définir)",
+        "hint": "Carte n° 15 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 16,
+        "text": "(à définir)",
+        "hint": "Carte n° 16 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 17,
+        "text": "(à définir)",
+        "hint": "Carte n° 17 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 18,
+        "text": "(à définir)",
+        "hint": "Carte n° 18 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 19,
+        "text": "(à définir)",
+        "hint": "Carte n° 19 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 20,
+        "text": "(à définir)",
+        "hint": "Carte n° 20 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 21,
+        "text": "(à définir)",
+        "hint": "Carte n° 21 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 22,
+        "text": "(à définir)",
+        "hint": "Carte n° 22 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 23,
+        "text": "(à définir)",
+        "hint": "Carte n° 23 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 24,
+        "text": "(à définir)",
+        "hint": "Carte n° 24 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 25,
+        "text": "(à définir)",
+        "hint": "Carte n° 25 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 26,
+        "text": "(à définir)",
+        "hint": "Carte n° 26 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 27,
+        "text": "(à définir)",
+        "hint": "Carte n° 27 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 28,
+        "text": "(à définir)",
+        "hint": "Carte n° 28 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 29,
+        "text": "(à définir)",
+        "hint": "Carte n° 29 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 30,
+        "text": "(à définir)",
+        "hint": "Carte n° 30 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 31,
+        "text": "(à définir)",
+        "hint": "Carte n° 31 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 32,
+        "text": "(à définir)",
+        "hint": "Carte n° 32 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 33,
+        "text": "(à définir)",
+        "hint": "Carte n° 33 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 34,
+        "text": "(à définir)",
+        "hint": "Carte n° 34 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 35,
+        "text": "(à définir)",
+        "hint": "Carte n° 35 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 36,
+        "text": "(à définir)",
+        "hint": "Carte n° 36 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 37,
+        "text": "(à définir)",
+        "hint": "Carte n° 37 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 38,
+        "text": "(à définir)",
+        "hint": "Carte n° 38 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 39,
+        "text": "(à définir)",
+        "hint": "Carte n° 39 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 40,
+        "text": "(à définir)",
+        "hint": "Carte n° 40 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 41,
+        "text": "(à définir)",
+        "hint": "Carte n° 41 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 42,
+        "text": "(à définir)",
+        "hint": "Carte n° 42 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 43,
+        "text": "(à définir)",
+        "hint": "Carte n° 43 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 44,
+        "text": "(à définir)",
+        "hint": "Carte n° 44 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 45,
+        "text": "(à définir)",
+        "hint": "Carte n° 45 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 46,
+        "text": "(à définir)",
+        "hint": "Carte n° 46 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 47,
+        "text": "(à définir)",
+        "hint": "Carte n° 47 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 48,
+        "text": "(à définir)",
+        "hint": "Carte n° 48 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 49,
+        "text": "(à définir)",
+        "hint": "Carte n° 49 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 50,
+        "text": "(à définir)",
+        "hint": "Carte n° 50 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 51,
+        "text": "(à définir)",
+        "hint": "Carte n° 51 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 52,
+        "text": "(à définir)",
+        "hint": "Carte n° 52 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 53,
+        "text": "(à définir)",
+        "hint": "Carte n° 53 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 54,
+        "text": "(à définir)",
+        "hint": "Carte n° 54 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 55,
+        "text": "(à définir)",
+        "hint": "Carte n° 55 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 56,
+        "text": "(à définir)",
+        "hint": "Carte n° 56 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 57,
+        "text": "(à définir)",
+        "hint": "Carte n° 57 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 58,
+        "text": "(à définir)",
+        "hint": "Carte n° 58 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 59,
+        "text": "(à définir)",
+        "hint": "Carte n° 59 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 60,
+        "text": "(à définir)",
+        "hint": "Carte n° 60 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 61,
+        "text": "(à définir)",
+        "hint": "Carte n° 61 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 62,
+        "text": "(à définir)",
+        "hint": "Carte n° 62 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 63,
+        "text": "(à définir)",
+        "hint": "Carte n° 63 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 64,
+        "text": "(à définir)",
+        "hint": "Carte n° 64 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 65,
+        "text": "(à définir)",
+        "hint": "Carte n° 65 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 66,
+        "text": "(à définir)",
+        "hint": "Carte n° 66 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 67,
+        "text": "(à définir)",
+        "hint": "Carte n° 67 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 68,
+        "text": "(à définir)",
+        "hint": "Carte n° 68 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 69,
+        "text": "(à définir)",
+        "hint": "Carte n° 69 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 70,
+        "text": "(à définir)",
+        "hint": "Carte n° 70 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 71,
+        "text": "(à définir)",
+        "hint": "Carte n° 71 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 72,
+        "text": "(à définir)",
+        "hint": "Carte n° 72 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 73,
+        "text": "(à définir)",
+        "hint": "Carte n° 73 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 74,
+        "text": "(à définir)",
+        "hint": "Carte n° 74 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 75,
+        "text": "(à définir)",
+        "hint": "Carte n° 75 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 76,
+        "text": "(à définir)",
+        "hint": "Carte n° 76 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 77,
+        "text": "(à définir)",
+        "hint": "Carte n° 77 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 78,
+        "text": "(à définir)",
+        "hint": "Carte n° 78 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 79,
+        "text": "(à définir)",
+        "hint": "Carte n° 79 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 80,
+        "text": "(à définir)",
+        "hint": "Carte n° 80 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 81,
+        "text": "(à définir)",
+        "hint": "Carte n° 81 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 82,
+        "text": "(à définir)",
+        "hint": "Carte n° 82 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 83,
+        "text": "(à définir)",
+        "hint": "Carte n° 83 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 84,
+        "text": "(à définir)",
+        "hint": "Carte n° 84 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 85,
+        "text": "(à définir)",
+        "hint": "Carte n° 85 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 86,
+        "text": "(à définir)",
+        "hint": "Carte n° 86 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 87,
+        "text": "(à définir)",
+        "hint": "Carte n° 87 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 88,
+        "text": "(à définir)",
+        "hint": "Carte n° 88 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 89,
+        "text": "(à définir)",
+        "hint": "Carte n° 89 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 90,
+        "text": "(à définir)",
+        "hint": "Carte n° 90 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 91,
+        "text": "(à définir)",
+        "hint": "Carte n° 91 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 92,
+        "text": "(à définir)",
+        "hint": "Carte n° 92 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 93,
+        "text": "(à définir)",
+        "hint": "Carte n° 93 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 94,
+        "text": "(à définir)",
+        "hint": "Carte n° 94 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 95,
+        "text": "(à définir)",
+        "hint": "Carte n° 95 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 96,
+        "text": "(à définir)",
+        "hint": "Carte n° 96 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 97,
+        "text": "(à définir)",
+        "hint": "Carte n° 97 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 98,
+        "text": "(à définir)",
+        "hint": "Carte n° 98 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 99,
+        "text": "(à définir)",
+        "hint": "Carte n° 99 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 100,
+        "text": "(à définir)",
+        "hint": "Carte n° 100 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 101,
+        "text": "(à définir)",
+        "hint": "Carte n° 101 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 102,
+        "text": "(à définir)",
+        "hint": "Carte n° 102 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 103,
+        "text": "(à définir)",
+        "hint": "Carte n° 103 du paquet Rapido — texte à fournir."
+      },
+      {
+        "n": 104,
+        "text": "(à définir)",
+        "hint": "Carte n° 104 du paquet Rapido — texte à fournir."
+      }
     ]
   },
   {
@@ -37,27 +538,611 @@
     "code": "DIL",
     "color": "#D79A22",
     "instruction": "Joueur 1, prends le téléphone : choisis ; le groupe valide.",
-    "freeCardCount": 120,
-    "extraCardCount": 0,
+    "cardCount": 120,
     "drawPerGame": 12,
     "timerSeconds": 0,
     "readerCount": 1,
-    "free": true,
     "cards": [
-      { "n": 12, "text": "Perdre toutes tes photos, ou que le groupe voie tes 10 dernières recherches ?" },
-      { "n": 24, "text": "Ne plus jamais boire de café, ou ne plus jamais faire la grasse matinée ?" },
-      { "n": 31, "text": "Dire tout ce que tu penses pendant un an, ou ne rien pouvoir dire pendant un mois ?" },
-      { "n": 43, "text": "Vivre chez tes parents deux ans, ou avec {autre} deux ans ?" },
-      { "n": 56, "text": "Être toujours en retard de dix minutes, ou toujours en avance d'une heure ?" },
-      { "n": 67, "text": "Savoir quand tu vas mourir, ou savoir comment ?" },
-      { "n": 74, "text": "Ne plus jamais écouter de musique, ou ne plus jamais regarder de série ?" },
-      { "n": 82, "text": "Devoir chanter chaque phrase, ou devoir la murmurer ?" },
-      { "n": 91, "text": "Que {autre} lise tes messages, ou que ta famille lise tes notes ?" },
-      { "n": 99, "text": "Gagner 5 000 € une fois, ou 200 € par mois pendant trois ans ?" },
-      { "n": 108, "text": "Ne plus jamais mentir, ou ne plus jamais qu'on te croie ?" },
-      { "n": 113, "text": "Travailler avec quelqu'un que tu détestes, ou seul pendant deux ans ?" },
-      { "n": 117, "text": "Refaire une année de ta vie, ou en sauter une ?" },
-      { "n": 120, "text": "Être le plus drôle de la pièce, ou celui en qui tout le monde a confiance ?" }
+      {
+        "n": 1,
+        "text": "(à définir)",
+        "hint": "Carte n° 1 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 2,
+        "text": "(à définir)",
+        "hint": "Carte n° 2 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 3,
+        "text": "(à définir)",
+        "hint": "Carte n° 3 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 4,
+        "text": "(à définir)",
+        "hint": "Carte n° 4 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 5,
+        "text": "(à définir)",
+        "hint": "Carte n° 5 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 6,
+        "text": "(à définir)",
+        "hint": "Carte n° 6 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 7,
+        "text": "(à définir)",
+        "hint": "Carte n° 7 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 8,
+        "text": "(à définir)",
+        "hint": "Carte n° 8 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 9,
+        "text": "(à définir)",
+        "hint": "Carte n° 9 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 10,
+        "text": "(à définir)",
+        "hint": "Carte n° 10 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 11,
+        "text": "(à définir)",
+        "hint": "Carte n° 11 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 12,
+        "text": "(à définir)",
+        "hint": "Carte n° 12 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 13,
+        "text": "(à définir)",
+        "hint": "Carte n° 13 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 14,
+        "text": "(à définir)",
+        "hint": "Carte n° 14 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 15,
+        "text": "(à définir)",
+        "hint": "Carte n° 15 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 16,
+        "text": "(à définir)",
+        "hint": "Carte n° 16 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 17,
+        "text": "(à définir)",
+        "hint": "Carte n° 17 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 18,
+        "text": "(à définir)",
+        "hint": "Carte n° 18 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 19,
+        "text": "(à définir)",
+        "hint": "Carte n° 19 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 20,
+        "text": "(à définir)",
+        "hint": "Carte n° 20 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 21,
+        "text": "(à définir)",
+        "hint": "Carte n° 21 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 22,
+        "text": "(à définir)",
+        "hint": "Carte n° 22 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 23,
+        "text": "(à définir)",
+        "hint": "Carte n° 23 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 24,
+        "text": "(à définir)",
+        "hint": "Carte n° 24 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 25,
+        "text": "(à définir)",
+        "hint": "Carte n° 25 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 26,
+        "text": "(à définir)",
+        "hint": "Carte n° 26 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 27,
+        "text": "(à définir)",
+        "hint": "Carte n° 27 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 28,
+        "text": "(à définir)",
+        "hint": "Carte n° 28 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 29,
+        "text": "(à définir)",
+        "hint": "Carte n° 29 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 30,
+        "text": "(à définir)",
+        "hint": "Carte n° 30 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 31,
+        "text": "(à définir)",
+        "hint": "Carte n° 31 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 32,
+        "text": "(à définir)",
+        "hint": "Carte n° 32 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 33,
+        "text": "(à définir)",
+        "hint": "Carte n° 33 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 34,
+        "text": "(à définir)",
+        "hint": "Carte n° 34 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 35,
+        "text": "(à définir)",
+        "hint": "Carte n° 35 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 36,
+        "text": "(à définir)",
+        "hint": "Carte n° 36 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 37,
+        "text": "(à définir)",
+        "hint": "Carte n° 37 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 38,
+        "text": "(à définir)",
+        "hint": "Carte n° 38 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 39,
+        "text": "(à définir)",
+        "hint": "Carte n° 39 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 40,
+        "text": "(à définir)",
+        "hint": "Carte n° 40 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 41,
+        "text": "(à définir)",
+        "hint": "Carte n° 41 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 42,
+        "text": "(à définir)",
+        "hint": "Carte n° 42 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 43,
+        "text": "(à définir)",
+        "hint": "Carte n° 43 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 44,
+        "text": "(à définir)",
+        "hint": "Carte n° 44 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 45,
+        "text": "(à définir)",
+        "hint": "Carte n° 45 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 46,
+        "text": "(à définir)",
+        "hint": "Carte n° 46 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 47,
+        "text": "(à définir)",
+        "hint": "Carte n° 47 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 48,
+        "text": "(à définir)",
+        "hint": "Carte n° 48 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 49,
+        "text": "(à définir)",
+        "hint": "Carte n° 49 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 50,
+        "text": "(à définir)",
+        "hint": "Carte n° 50 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 51,
+        "text": "(à définir)",
+        "hint": "Carte n° 51 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 52,
+        "text": "(à définir)",
+        "hint": "Carte n° 52 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 53,
+        "text": "(à définir)",
+        "hint": "Carte n° 53 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 54,
+        "text": "(à définir)",
+        "hint": "Carte n° 54 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 55,
+        "text": "(à définir)",
+        "hint": "Carte n° 55 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 56,
+        "text": "(à définir)",
+        "hint": "Carte n° 56 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 57,
+        "text": "(à définir)",
+        "hint": "Carte n° 57 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 58,
+        "text": "(à définir)",
+        "hint": "Carte n° 58 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 59,
+        "text": "(à définir)",
+        "hint": "Carte n° 59 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 60,
+        "text": "(à définir)",
+        "hint": "Carte n° 60 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 61,
+        "text": "(à définir)",
+        "hint": "Carte n° 61 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 62,
+        "text": "(à définir)",
+        "hint": "Carte n° 62 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 63,
+        "text": "(à définir)",
+        "hint": "Carte n° 63 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 64,
+        "text": "(à définir)",
+        "hint": "Carte n° 64 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 65,
+        "text": "(à définir)",
+        "hint": "Carte n° 65 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 66,
+        "text": "(à définir)",
+        "hint": "Carte n° 66 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 67,
+        "text": "(à définir)",
+        "hint": "Carte n° 67 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 68,
+        "text": "(à définir)",
+        "hint": "Carte n° 68 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 69,
+        "text": "(à définir)",
+        "hint": "Carte n° 69 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 70,
+        "text": "(à définir)",
+        "hint": "Carte n° 70 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 71,
+        "text": "(à définir)",
+        "hint": "Carte n° 71 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 72,
+        "text": "(à définir)",
+        "hint": "Carte n° 72 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 73,
+        "text": "(à définir)",
+        "hint": "Carte n° 73 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 74,
+        "text": "(à définir)",
+        "hint": "Carte n° 74 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 75,
+        "text": "(à définir)",
+        "hint": "Carte n° 75 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 76,
+        "text": "(à définir)",
+        "hint": "Carte n° 76 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 77,
+        "text": "(à définir)",
+        "hint": "Carte n° 77 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 78,
+        "text": "(à définir)",
+        "hint": "Carte n° 78 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 79,
+        "text": "(à définir)",
+        "hint": "Carte n° 79 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 80,
+        "text": "(à définir)",
+        "hint": "Carte n° 80 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 81,
+        "text": "(à définir)",
+        "hint": "Carte n° 81 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 82,
+        "text": "(à définir)",
+        "hint": "Carte n° 82 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 83,
+        "text": "(à définir)",
+        "hint": "Carte n° 83 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 84,
+        "text": "(à définir)",
+        "hint": "Carte n° 84 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 85,
+        "text": "(à définir)",
+        "hint": "Carte n° 85 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 86,
+        "text": "(à définir)",
+        "hint": "Carte n° 86 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 87,
+        "text": "(à définir)",
+        "hint": "Carte n° 87 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 88,
+        "text": "(à définir)",
+        "hint": "Carte n° 88 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 89,
+        "text": "(à définir)",
+        "hint": "Carte n° 89 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 90,
+        "text": "(à définir)",
+        "hint": "Carte n° 90 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 91,
+        "text": "(à définir)",
+        "hint": "Carte n° 91 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 92,
+        "text": "(à définir)",
+        "hint": "Carte n° 92 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 93,
+        "text": "(à définir)",
+        "hint": "Carte n° 93 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 94,
+        "text": "(à définir)",
+        "hint": "Carte n° 94 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 95,
+        "text": "(à définir)",
+        "hint": "Carte n° 95 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 96,
+        "text": "(à définir)",
+        "hint": "Carte n° 96 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 97,
+        "text": "(à définir)",
+        "hint": "Carte n° 97 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 98,
+        "text": "(à définir)",
+        "hint": "Carte n° 98 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 99,
+        "text": "(à définir)",
+        "hint": "Carte n° 99 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 100,
+        "text": "(à définir)",
+        "hint": "Carte n° 100 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 101,
+        "text": "(à définir)",
+        "hint": "Carte n° 101 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 102,
+        "text": "(à définir)",
+        "hint": "Carte n° 102 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 103,
+        "text": "(à définir)",
+        "hint": "Carte n° 103 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 104,
+        "text": "(à définir)",
+        "hint": "Carte n° 104 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 105,
+        "text": "(à définir)",
+        "hint": "Carte n° 105 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 106,
+        "text": "(à définir)",
+        "hint": "Carte n° 106 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 107,
+        "text": "(à définir)",
+        "hint": "Carte n° 107 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 108,
+        "text": "(à définir)",
+        "hint": "Carte n° 108 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 109,
+        "text": "(à définir)",
+        "hint": "Carte n° 109 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 110,
+        "text": "(à définir)",
+        "hint": "Carte n° 110 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 111,
+        "text": "(à définir)",
+        "hint": "Carte n° 111 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 112,
+        "text": "(à définir)",
+        "hint": "Carte n° 112 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 113,
+        "text": "(à définir)",
+        "hint": "Carte n° 113 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 114,
+        "text": "(à définir)",
+        "hint": "Carte n° 114 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 115,
+        "text": "(à définir)",
+        "hint": "Carte n° 115 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 116,
+        "text": "(à définir)",
+        "hint": "Carte n° 116 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 117,
+        "text": "(à définir)",
+        "hint": "Carte n° 117 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 118,
+        "text": "(à définir)",
+        "hint": "Carte n° 118 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 119,
+        "text": "(à définir)",
+        "hint": "Carte n° 119 du paquet Dilemme — texte à fournir."
+      },
+      {
+        "n": 120,
+        "text": "(à définir)",
+        "hint": "Carte n° 120 du paquet Dilemme — texte à fournir."
+      }
     ]
   },
   {
@@ -66,32 +1151,845 @@
     "code": "CON",
     "color": "#3D6FD1",
     "instruction": "Joueur 1, prends le téléphone : réponds ou désigne ; le groupe juge.",
-    "example": {
-      "body": "« La dernière fois que t'as reporté ton réveil trois fois, ça se compte en quoi ? » Joueur 1 : « En heures. »"
-    },
-    "freeCardCount": 36,
-    "extraCardCount": 130,
+    "cardCount": 166,
     "drawPerGame": 12,
     "timerSeconds": 0,
     "readerCount": 1,
-    "free": false,
-    "priceLabel": "3,99 €",
     "cards": [
-      { "n": 709, "text": "La dernière fois que t'as reporté ton réveil trois fois, ça se compte en quoi ?", "hint": "Réponds, ou désigne quelqu'un qui fait pire." },
-      { "n": 712, "text": "Quel message tu as réécrit le plus de fois avant de l'envoyer ?" },
-      { "n": 718, "text": "Combien de temps tu as déjà laissé un message sans réponse, en jours ?" },
-      { "n": 724, "text": "Quelle est la chose la plus chère que tu as achetée et jamais utilisée ?" },
-      { "n": 731, "text": "À qui, dans cette pièce, tu as déjà menti cette semaine ?" },
-      { "n": 739, "text": "Quel est le dernier truc que tu as fait uniquement pour la photo ?" },
-      { "n": 746, "text": "Sur qui tu as déjà rejeté la faute alors que c'était toi ?" },
-      { "n": 753, "text": "Quelle excuse tu ressors systématiquement pour annuler ?" },
-      { "n": 761, "text": "Qu'est-ce que tu n'as jamais raconté à {autre} et que tu pourrais raconter là ?" },
-      { "n": 768, "text": "Quel est le compte que tu regardes le plus sans jamais liker ?" },
-      { "n": 774, "text": "Quelle est la dernière fois où tu as pleuré, et pourquoi ?" },
-      { "n": 782, "text": "Quel achat tu as caché à quelqu'un ?" },
-      { "n": 789, "text": "Quel est ton pire souvenir de soirée avec quelqu'un d'ici ?" },
-      { "n": 795, "text": "Qu'est-ce que tu ferais si personne dans cette pièce ne s'en souvenait demain ?" }
-    ]
+      {
+        "n": 1,
+        "text": "(à définir)",
+        "hint": "Carte n° 1 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 2,
+        "text": "(à définir)",
+        "hint": "Carte n° 2 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 3,
+        "text": "(à définir)",
+        "hint": "Carte n° 3 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 4,
+        "text": "(à définir)",
+        "hint": "Carte n° 4 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 5,
+        "text": "(à définir)",
+        "hint": "Carte n° 5 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 6,
+        "text": "(à définir)",
+        "hint": "Carte n° 6 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 7,
+        "text": "(à définir)",
+        "hint": "Carte n° 7 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 8,
+        "text": "(à définir)",
+        "hint": "Carte n° 8 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 9,
+        "text": "(à définir)",
+        "hint": "Carte n° 9 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 10,
+        "text": "(à définir)",
+        "hint": "Carte n° 10 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 11,
+        "text": "(à définir)",
+        "hint": "Carte n° 11 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 12,
+        "text": "(à définir)",
+        "hint": "Carte n° 12 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 13,
+        "text": "(à définir)",
+        "hint": "Carte n° 13 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 14,
+        "text": "(à définir)",
+        "hint": "Carte n° 14 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 15,
+        "text": "(à définir)",
+        "hint": "Carte n° 15 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 16,
+        "text": "(à définir)",
+        "hint": "Carte n° 16 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 17,
+        "text": "(à définir)",
+        "hint": "Carte n° 17 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 18,
+        "text": "(à définir)",
+        "hint": "Carte n° 18 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 19,
+        "text": "(à définir)",
+        "hint": "Carte n° 19 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 20,
+        "text": "(à définir)",
+        "hint": "Carte n° 20 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 21,
+        "text": "(à définir)",
+        "hint": "Carte n° 21 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 22,
+        "text": "(à définir)",
+        "hint": "Carte n° 22 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 23,
+        "text": "(à définir)",
+        "hint": "Carte n° 23 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 24,
+        "text": "(à définir)",
+        "hint": "Carte n° 24 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 25,
+        "text": "(à définir)",
+        "hint": "Carte n° 25 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 26,
+        "text": "(à définir)",
+        "hint": "Carte n° 26 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 27,
+        "text": "(à définir)",
+        "hint": "Carte n° 27 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 28,
+        "text": "(à définir)",
+        "hint": "Carte n° 28 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 29,
+        "text": "(à définir)",
+        "hint": "Carte n° 29 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 30,
+        "text": "(à définir)",
+        "hint": "Carte n° 30 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 31,
+        "text": "(à définir)",
+        "hint": "Carte n° 31 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 32,
+        "text": "(à définir)",
+        "hint": "Carte n° 32 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 33,
+        "text": "(à définir)",
+        "hint": "Carte n° 33 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 34,
+        "text": "(à définir)",
+        "hint": "Carte n° 34 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 35,
+        "text": "(à définir)",
+        "hint": "Carte n° 35 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 36,
+        "text": "(à définir)",
+        "hint": "Carte n° 36 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 37,
+        "text": "(à définir)",
+        "hint": "Carte n° 37 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 38,
+        "text": "(à définir)",
+        "hint": "Carte n° 38 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 39,
+        "text": "(à définir)",
+        "hint": "Carte n° 39 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 40,
+        "text": "(à définir)",
+        "hint": "Carte n° 40 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 41,
+        "text": "(à définir)",
+        "hint": "Carte n° 41 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 42,
+        "text": "(à définir)",
+        "hint": "Carte n° 42 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 43,
+        "text": "(à définir)",
+        "hint": "Carte n° 43 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 44,
+        "text": "(à définir)",
+        "hint": "Carte n° 44 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 45,
+        "text": "(à définir)",
+        "hint": "Carte n° 45 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 46,
+        "text": "(à définir)",
+        "hint": "Carte n° 46 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 47,
+        "text": "(à définir)",
+        "hint": "Carte n° 47 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 48,
+        "text": "(à définir)",
+        "hint": "Carte n° 48 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 49,
+        "text": "(à définir)",
+        "hint": "Carte n° 49 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 50,
+        "text": "(à définir)",
+        "hint": "Carte n° 50 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 51,
+        "text": "(à définir)",
+        "hint": "Carte n° 51 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 52,
+        "text": "(à définir)",
+        "hint": "Carte n° 52 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 53,
+        "text": "(à définir)",
+        "hint": "Carte n° 53 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 54,
+        "text": "(à définir)",
+        "hint": "Carte n° 54 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 55,
+        "text": "(à définir)",
+        "hint": "Carte n° 55 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 56,
+        "text": "(à définir)",
+        "hint": "Carte n° 56 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 57,
+        "text": "(à définir)",
+        "hint": "Carte n° 57 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 58,
+        "text": "(à définir)",
+        "hint": "Carte n° 58 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 59,
+        "text": "(à définir)",
+        "hint": "Carte n° 59 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 60,
+        "text": "(à définir)",
+        "hint": "Carte n° 60 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 61,
+        "text": "(à définir)",
+        "hint": "Carte n° 61 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 62,
+        "text": "(à définir)",
+        "hint": "Carte n° 62 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 63,
+        "text": "(à définir)",
+        "hint": "Carte n° 63 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 64,
+        "text": "(à définir)",
+        "hint": "Carte n° 64 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 65,
+        "text": "(à définir)",
+        "hint": "Carte n° 65 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 66,
+        "text": "(à définir)",
+        "hint": "Carte n° 66 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 67,
+        "text": "(à définir)",
+        "hint": "Carte n° 67 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 68,
+        "text": "(à définir)",
+        "hint": "Carte n° 68 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 69,
+        "text": "(à définir)",
+        "hint": "Carte n° 69 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 70,
+        "text": "(à définir)",
+        "hint": "Carte n° 70 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 71,
+        "text": "(à définir)",
+        "hint": "Carte n° 71 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 72,
+        "text": "(à définir)",
+        "hint": "Carte n° 72 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 73,
+        "text": "(à définir)",
+        "hint": "Carte n° 73 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 74,
+        "text": "(à définir)",
+        "hint": "Carte n° 74 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 75,
+        "text": "(à définir)",
+        "hint": "Carte n° 75 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 76,
+        "text": "(à définir)",
+        "hint": "Carte n° 76 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 77,
+        "text": "(à définir)",
+        "hint": "Carte n° 77 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 78,
+        "text": "(à définir)",
+        "hint": "Carte n° 78 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 79,
+        "text": "(à définir)",
+        "hint": "Carte n° 79 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 80,
+        "text": "(à définir)",
+        "hint": "Carte n° 80 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 81,
+        "text": "(à définir)",
+        "hint": "Carte n° 81 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 82,
+        "text": "(à définir)",
+        "hint": "Carte n° 82 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 83,
+        "text": "(à définir)",
+        "hint": "Carte n° 83 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 84,
+        "text": "(à définir)",
+        "hint": "Carte n° 84 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 85,
+        "text": "(à définir)",
+        "hint": "Carte n° 85 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 86,
+        "text": "(à définir)",
+        "hint": "Carte n° 86 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 87,
+        "text": "(à définir)",
+        "hint": "Carte n° 87 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 88,
+        "text": "(à définir)",
+        "hint": "Carte n° 88 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 89,
+        "text": "(à définir)",
+        "hint": "Carte n° 89 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 90,
+        "text": "(à définir)",
+        "hint": "Carte n° 90 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 91,
+        "text": "(à définir)",
+        "hint": "Carte n° 91 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 92,
+        "text": "(à définir)",
+        "hint": "Carte n° 92 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 93,
+        "text": "(à définir)",
+        "hint": "Carte n° 93 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 94,
+        "text": "(à définir)",
+        "hint": "Carte n° 94 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 95,
+        "text": "(à définir)",
+        "hint": "Carte n° 95 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 96,
+        "text": "(à définir)",
+        "hint": "Carte n° 96 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 97,
+        "text": "(à définir)",
+        "hint": "Carte n° 97 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 98,
+        "text": "(à définir)",
+        "hint": "Carte n° 98 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 99,
+        "text": "(à définir)",
+        "hint": "Carte n° 99 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 100,
+        "text": "(à définir)",
+        "hint": "Carte n° 100 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 101,
+        "text": "(à définir)",
+        "hint": "Carte n° 101 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 102,
+        "text": "(à définir)",
+        "hint": "Carte n° 102 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 103,
+        "text": "(à définir)",
+        "hint": "Carte n° 103 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 104,
+        "text": "(à définir)",
+        "hint": "Carte n° 104 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 105,
+        "text": "(à définir)",
+        "hint": "Carte n° 105 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 106,
+        "text": "(à définir)",
+        "hint": "Carte n° 106 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 107,
+        "text": "(à définir)",
+        "hint": "Carte n° 107 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 108,
+        "text": "(à définir)",
+        "hint": "Carte n° 108 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 109,
+        "text": "(à définir)",
+        "hint": "Carte n° 109 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 110,
+        "text": "(à définir)",
+        "hint": "Carte n° 110 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 111,
+        "text": "(à définir)",
+        "hint": "Carte n° 111 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 112,
+        "text": "(à définir)",
+        "hint": "Carte n° 112 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 113,
+        "text": "(à définir)",
+        "hint": "Carte n° 113 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 114,
+        "text": "(à définir)",
+        "hint": "Carte n° 114 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 115,
+        "text": "(à définir)",
+        "hint": "Carte n° 115 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 116,
+        "text": "(à définir)",
+        "hint": "Carte n° 116 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 117,
+        "text": "(à définir)",
+        "hint": "Carte n° 117 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 118,
+        "text": "(à définir)",
+        "hint": "Carte n° 118 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 119,
+        "text": "(à définir)",
+        "hint": "Carte n° 119 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 120,
+        "text": "(à définir)",
+        "hint": "Carte n° 120 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 121,
+        "text": "(à définir)",
+        "hint": "Carte n° 121 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 122,
+        "text": "(à définir)",
+        "hint": "Carte n° 122 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 123,
+        "text": "(à définir)",
+        "hint": "Carte n° 123 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 124,
+        "text": "(à définir)",
+        "hint": "Carte n° 124 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 125,
+        "text": "(à définir)",
+        "hint": "Carte n° 125 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 126,
+        "text": "(à définir)",
+        "hint": "Carte n° 126 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 127,
+        "text": "(à définir)",
+        "hint": "Carte n° 127 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 128,
+        "text": "(à définir)",
+        "hint": "Carte n° 128 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 129,
+        "text": "(à définir)",
+        "hint": "Carte n° 129 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 130,
+        "text": "(à définir)",
+        "hint": "Carte n° 130 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 131,
+        "text": "(à définir)",
+        "hint": "Carte n° 131 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 132,
+        "text": "(à définir)",
+        "hint": "Carte n° 132 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 133,
+        "text": "(à définir)",
+        "hint": "Carte n° 133 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 134,
+        "text": "(à définir)",
+        "hint": "Carte n° 134 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 135,
+        "text": "(à définir)",
+        "hint": "Carte n° 135 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 136,
+        "text": "(à définir)",
+        "hint": "Carte n° 136 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 137,
+        "text": "(à définir)",
+        "hint": "Carte n° 137 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 138,
+        "text": "(à définir)",
+        "hint": "Carte n° 138 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 139,
+        "text": "(à définir)",
+        "hint": "Carte n° 139 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 140,
+        "text": "(à définir)",
+        "hint": "Carte n° 140 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 141,
+        "text": "(à définir)",
+        "hint": "Carte n° 141 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 142,
+        "text": "(à définir)",
+        "hint": "Carte n° 142 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 143,
+        "text": "(à définir)",
+        "hint": "Carte n° 143 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 144,
+        "text": "(à définir)",
+        "hint": "Carte n° 144 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 145,
+        "text": "(à définir)",
+        "hint": "Carte n° 145 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 146,
+        "text": "(à définir)",
+        "hint": "Carte n° 146 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 147,
+        "text": "(à définir)",
+        "hint": "Carte n° 147 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 148,
+        "text": "(à définir)",
+        "hint": "Carte n° 148 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 149,
+        "text": "(à définir)",
+        "hint": "Carte n° 149 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 150,
+        "text": "(à définir)",
+        "hint": "Carte n° 150 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 151,
+        "text": "(à définir)",
+        "hint": "Carte n° 151 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 152,
+        "text": "(à définir)",
+        "hint": "Carte n° 152 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 153,
+        "text": "(à définir)",
+        "hint": "Carte n° 153 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 154,
+        "text": "(à définir)",
+        "hint": "Carte n° 154 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 155,
+        "text": "(à définir)",
+        "hint": "Carte n° 155 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 156,
+        "text": "(à définir)",
+        "hint": "Carte n° 156 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 157,
+        "text": "(à définir)",
+        "hint": "Carte n° 157 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 158,
+        "text": "(à définir)",
+        "hint": "Carte n° 158 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 159,
+        "text": "(à définir)",
+        "hint": "Carte n° 159 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 160,
+        "text": "(à définir)",
+        "hint": "Carte n° 160 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 161,
+        "text": "(à définir)",
+        "hint": "Carte n° 161 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 162,
+        "text": "(à définir)",
+        "hint": "Carte n° 162 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 163,
+        "text": "(à définir)",
+        "hint": "Carte n° 163 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 164,
+        "text": "(à définir)",
+        "hint": "Carte n° 164 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 165,
+        "text": "(à définir)",
+        "hint": "Carte n° 165 du paquet Confession — texte à fournir."
+      },
+      {
+        "n": 166,
+        "text": "(à définir)",
+        "hint": "Carte n° 166 du paquet Confession — texte à fournir."
+      }
+    ],
+    "example": {
+      "body": "« La dernière fois que t'as reporté ton réveil trois fois, ça se compte en quoi ? » Joueur 1 : « En heures. »"
+    }
   },
   {
     "id": "sauve-moi-si-tu-peux",
@@ -99,31 +1997,504 @@
     "code": "PUN",
     "color": "#7B4FCB",
     "instruction": "Joueur 1, lis ta carte. Joueur 2, sauve-le : 20 secondes.",
-    "example": {
-      "body": "Joueur 1 : « J'ai revendu le fauteuil roulant de mon grand-père. » Joueur 2 défend : « Techniquement, il remarche. »"
-    },
-    "freeCardCount": 36,
-    "extraCardCount": 62,
+    "cardCount": 98,
     "drawPerGame": 10,
     "timerSeconds": 20,
     "readerCount": 2,
-    "free": false,
-    "priceLabel": "3,99 €",
     "cards": [
-      { "n": 840, "text": "J'ai rendu la mauvaise urne.", "hint": "{j2} a 20 secondes pour défendre ça." },
-      { "n": 802, "text": "J'ai offert à ma mère le cadeau qu'elle m'avait offert l'année d'avant." },
-      { "n": 809, "text": "J'ai laissé un mot sur la voiture que j'ai rayée. Il n'y avait pas mon numéro." },
-      { "n": 815, "text": "J'ai dit que j'étais malade, et j'étais au concert de {autre}." },
-      { "n": 821, "text": "J'ai gardé la caution d'un appartement que je n'ai jamais loué." },
-      { "n": 827, "text": "J'ai mis le chat de mes voisins dans une autre maison. Il avait l'air mieux là-bas." },
-      { "n": 833, "text": "J'ai lu le journal intime de {autre} et j'ai corrigé une faute." },
-      { "n": 846, "text": "J'ai fait passer un plat surgelé pour une recette de famille." },
-      { "n": 852, "text": "J'ai porté un toast à un mariage en me trompant de prénom." },
-      { "n": 859, "text": "J'ai rendu un livre à la bibliothèque avec un mot d'excuse dedans à la place des pages." },
-      { "n": 864, "text": "J'ai revendu le cadeau de départ de mon équipe le soir même." },
-      { "n": 871, "text": "J'ai gardé le chien deux semaines de plus en disant qu'il s'était enfui." },
-      { "n": 878, "text": "J'ai signé à la place de mon frère. Deux fois." },
-      { "n": 885, "text": "J'ai dit à {autre} que sa cuisine était la meilleure. J'ai commandé après." }
-    ]
+      {
+        "n": 1,
+        "text": "(à définir)",
+        "hint": "Carte n° 1 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 2,
+        "text": "(à définir)",
+        "hint": "Carte n° 2 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 3,
+        "text": "(à définir)",
+        "hint": "Carte n° 3 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 4,
+        "text": "(à définir)",
+        "hint": "Carte n° 4 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 5,
+        "text": "(à définir)",
+        "hint": "Carte n° 5 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 6,
+        "text": "(à définir)",
+        "hint": "Carte n° 6 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 7,
+        "text": "(à définir)",
+        "hint": "Carte n° 7 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 8,
+        "text": "(à définir)",
+        "hint": "Carte n° 8 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 9,
+        "text": "(à définir)",
+        "hint": "Carte n° 9 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 10,
+        "text": "(à définir)",
+        "hint": "Carte n° 10 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 11,
+        "text": "(à définir)",
+        "hint": "Carte n° 11 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 12,
+        "text": "(à définir)",
+        "hint": "Carte n° 12 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 13,
+        "text": "(à définir)",
+        "hint": "Carte n° 13 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 14,
+        "text": "(à définir)",
+        "hint": "Carte n° 14 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 15,
+        "text": "(à définir)",
+        "hint": "Carte n° 15 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 16,
+        "text": "(à définir)",
+        "hint": "Carte n° 16 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 17,
+        "text": "(à définir)",
+        "hint": "Carte n° 17 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 18,
+        "text": "(à définir)",
+        "hint": "Carte n° 18 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 19,
+        "text": "(à définir)",
+        "hint": "Carte n° 19 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 20,
+        "text": "(à définir)",
+        "hint": "Carte n° 20 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 21,
+        "text": "(à définir)",
+        "hint": "Carte n° 21 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 22,
+        "text": "(à définir)",
+        "hint": "Carte n° 22 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 23,
+        "text": "(à définir)",
+        "hint": "Carte n° 23 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 24,
+        "text": "(à définir)",
+        "hint": "Carte n° 24 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 25,
+        "text": "(à définir)",
+        "hint": "Carte n° 25 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 26,
+        "text": "(à définir)",
+        "hint": "Carte n° 26 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 27,
+        "text": "(à définir)",
+        "hint": "Carte n° 27 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 28,
+        "text": "(à définir)",
+        "hint": "Carte n° 28 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 29,
+        "text": "(à définir)",
+        "hint": "Carte n° 29 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 30,
+        "text": "(à définir)",
+        "hint": "Carte n° 30 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 31,
+        "text": "(à définir)",
+        "hint": "Carte n° 31 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 32,
+        "text": "(à définir)",
+        "hint": "Carte n° 32 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 33,
+        "text": "(à définir)",
+        "hint": "Carte n° 33 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 34,
+        "text": "(à définir)",
+        "hint": "Carte n° 34 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 35,
+        "text": "(à définir)",
+        "hint": "Carte n° 35 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 36,
+        "text": "(à définir)",
+        "hint": "Carte n° 36 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 37,
+        "text": "(à définir)",
+        "hint": "Carte n° 37 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 38,
+        "text": "(à définir)",
+        "hint": "Carte n° 38 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 39,
+        "text": "(à définir)",
+        "hint": "Carte n° 39 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 40,
+        "text": "(à définir)",
+        "hint": "Carte n° 40 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 41,
+        "text": "(à définir)",
+        "hint": "Carte n° 41 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 42,
+        "text": "(à définir)",
+        "hint": "Carte n° 42 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 43,
+        "text": "(à définir)",
+        "hint": "Carte n° 43 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 44,
+        "text": "(à définir)",
+        "hint": "Carte n° 44 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 45,
+        "text": "(à définir)",
+        "hint": "Carte n° 45 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 46,
+        "text": "(à définir)",
+        "hint": "Carte n° 46 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 47,
+        "text": "(à définir)",
+        "hint": "Carte n° 47 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 48,
+        "text": "(à définir)",
+        "hint": "Carte n° 48 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 49,
+        "text": "(à définir)",
+        "hint": "Carte n° 49 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 50,
+        "text": "(à définir)",
+        "hint": "Carte n° 50 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 51,
+        "text": "(à définir)",
+        "hint": "Carte n° 51 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 52,
+        "text": "(à définir)",
+        "hint": "Carte n° 52 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 53,
+        "text": "(à définir)",
+        "hint": "Carte n° 53 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 54,
+        "text": "(à définir)",
+        "hint": "Carte n° 54 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 55,
+        "text": "(à définir)",
+        "hint": "Carte n° 55 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 56,
+        "text": "(à définir)",
+        "hint": "Carte n° 56 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 57,
+        "text": "(à définir)",
+        "hint": "Carte n° 57 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 58,
+        "text": "(à définir)",
+        "hint": "Carte n° 58 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 59,
+        "text": "(à définir)",
+        "hint": "Carte n° 59 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 60,
+        "text": "(à définir)",
+        "hint": "Carte n° 60 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 61,
+        "text": "(à définir)",
+        "hint": "Carte n° 61 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 62,
+        "text": "(à définir)",
+        "hint": "Carte n° 62 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 63,
+        "text": "(à définir)",
+        "hint": "Carte n° 63 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 64,
+        "text": "(à définir)",
+        "hint": "Carte n° 64 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 65,
+        "text": "(à définir)",
+        "hint": "Carte n° 65 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 66,
+        "text": "(à définir)",
+        "hint": "Carte n° 66 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 67,
+        "text": "(à définir)",
+        "hint": "Carte n° 67 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 68,
+        "text": "(à définir)",
+        "hint": "Carte n° 68 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 69,
+        "text": "(à définir)",
+        "hint": "Carte n° 69 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 70,
+        "text": "(à définir)",
+        "hint": "Carte n° 70 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 71,
+        "text": "(à définir)",
+        "hint": "Carte n° 71 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 72,
+        "text": "(à définir)",
+        "hint": "Carte n° 72 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 73,
+        "text": "(à définir)",
+        "hint": "Carte n° 73 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 74,
+        "text": "(à définir)",
+        "hint": "Carte n° 74 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 75,
+        "text": "(à définir)",
+        "hint": "Carte n° 75 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 76,
+        "text": "(à définir)",
+        "hint": "Carte n° 76 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 77,
+        "text": "(à définir)",
+        "hint": "Carte n° 77 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 78,
+        "text": "(à définir)",
+        "hint": "Carte n° 78 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 79,
+        "text": "(à définir)",
+        "hint": "Carte n° 79 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 80,
+        "text": "(à définir)",
+        "hint": "Carte n° 80 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 81,
+        "text": "(à définir)",
+        "hint": "Carte n° 81 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 82,
+        "text": "(à définir)",
+        "hint": "Carte n° 82 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 83,
+        "text": "(à définir)",
+        "hint": "Carte n° 83 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 84,
+        "text": "(à définir)",
+        "hint": "Carte n° 84 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 85,
+        "text": "(à définir)",
+        "hint": "Carte n° 85 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 86,
+        "text": "(à définir)",
+        "hint": "Carte n° 86 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 87,
+        "text": "(à définir)",
+        "hint": "Carte n° 87 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 88,
+        "text": "(à définir)",
+        "hint": "Carte n° 88 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 89,
+        "text": "(à définir)",
+        "hint": "Carte n° 89 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 90,
+        "text": "(à définir)",
+        "hint": "Carte n° 90 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 91,
+        "text": "(à définir)",
+        "hint": "Carte n° 91 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 92,
+        "text": "(à définir)",
+        "hint": "Carte n° 92 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 93,
+        "text": "(à définir)",
+        "hint": "Carte n° 93 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 94,
+        "text": "(à définir)",
+        "hint": "Carte n° 94 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 95,
+        "text": "(à définir)",
+        "hint": "Carte n° 95 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 96,
+        "text": "(à définir)",
+        "hint": "Carte n° 96 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 97,
+        "text": "(à définir)",
+        "hint": "Carte n° 97 du paquet Sauve-moi si tu peux — texte à fournir."
+      },
+      {
+        "n": 98,
+        "text": "(à définir)",
+        "hint": "Carte n° 98 du paquet Sauve-moi si tu peux — texte à fournir."
+      }
+    ],
+    "example": {
+      "body": "Joueur 1 : « J'ai revendu le fauteuil roulant de mon grand-père. » Joueur 2 défend : « Techniquement, il remarche. »"
+    }
   }
 ]

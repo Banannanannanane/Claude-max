@@ -69,13 +69,12 @@ envoi.
 - **Guideline 1.1.x (contenu répréhensible)** : régler la classification par
   âge en fonction des paquets réellement embarqués (17+ le cas échéant) et le
   mentionner dans les notes de revue.
-- **Guideline 3.1.1** : aucun lien vers un paiement hors app, y compris depuis
-  la FAQ ou le pied de page.
+- **Guideline 3.1.1** : tant qu'il n'y a pas d'achat in-app, aucun lien vers un
+  paiement ne doit apparaître — ni dans la FAQ, ni dans le pied de page.
 - **Confidentialité** : remplir la fiche « App Privacy » en « Données non
   collectées ».
 - **Notes pour le testeur** : indiquer qu'il faut saisir des prénoms
-  (« Changer les prénoms ») pour jouer à Entre vous, et fournir un compte
-  sandbox pour tester le déblocage d'un concept.
+  (« Changer les prénoms ») pour jouer à Entre vous.
 
 ### Envoi
 
@@ -88,16 +87,16 @@ ou via Xcode → Organizer → Distribute App.
 
 ## Achats in-app
 
-Le site vend les concepts en paiement web (3,99 € l'unité, 7,99 € les trois).
-**Ce circuit ne peut pas être réutilisé tel quel dans l'application** : Apple
-(guideline 3.1.1) et Google (règlement sur les paiements) imposent leur
-facturation pour tout contenu numérique débloqué dans une app, et rejettent un
-lien de paiement externe. Le déblocage passe donc par des achats in-app non
-consommables, gérés par `app/lib/services/purchase_service.dart`.
+**Cette version n'a aucun paiement** : tous les concepts et toutes leurs cartes
+sont ouverts, il n'y a ni achat, ni compte, ni restauration. Rien à déclarer
+côté monétisation dans les deux consoles.
 
-### Produits à créer
-
-Les mêmes identifiants des deux côtés (App Store Connect et Play Console) :
+Le site, lui, vend les concepts en paiement web (3,99 € l'unité, 7,99 € les
+trois). Le jour où ce modèle passe dans l'app, ce circuit **ne peut pas être
+réutilisé tel quel** : Apple (guideline 3.1.1) et Google (règlement sur les
+paiements) imposent leur facturation pour tout contenu numérique débloqué dans
+une application, et rejettent un lien de paiement externe. Il faudra des achats
+in-app non consommables :
 
 | Identifiant | Contenu | Prix |
 | --- | --- | --- |
@@ -106,25 +105,31 @@ Les mêmes identifiants des deux côtés (App Store Connect et Play Console) :
 | `fr.capart.concept.sauve-moi-si-tu-peux` | Sauve-moi si tu peux complet | 3,99 € |
 | `fr.capart.pack.trois` | Les trois concepts | 7,99 € |
 
-Type : **non consommable** (iOS) / **produit géré** (Android). Dilemme et
-Entre vous restent gratuits et n'ont pas de produit.
+Type : **non consommable** (iOS) / **produit géré** (Android). Un bouton
+« J'ai déjà acheté » appelant `restorePurchases()` est exigé par Apple pour
+tout achat non consommable. Et la commission des stores, de 15 à 30 %, change
+le calcul des « 67 centimes par pote » affiché sur le site.
 
-À prévoir avant l'envoi :
+Une implémentation complète (`in_app_purchase`, catalogue, restauration,
+déblocage) a existé au commit `d1e2a5e` : `git show d1e2a5e -- app/lib/services/purchase_service.dart`.
 
-- Les prix affichés dans l'app viennent du store (devise et format locaux) ;
-  le prix du site n'est qu'un repli tant que le catalogue n'est pas chargé.
-- « J'ai déjà acheté » appelle `restorePurchases()`. Apple exige ce bouton
-  pour tout achat non consommable.
-- Google Play impose de configurer la licence de test et de publier une
-  première version sur une piste fermée avant que les produits ne répondent.
-- La commission des stores est de 15 à 30 % : à 3,99 €, elle change le calcul
-  des « 67 centimes par pote » affiché sur le site.
+## Deux applications
+
+Le build Android produit deux applications qui s'installent côte à côte :
+
+| Variante | Identifiant | Nom sous l'icône |
+| --- | --- | --- |
+| Production | `fr.capart.ca_part` | Ça Part |
+| Test | `fr.capart.ca_part.test` | Ça Part test |
+
+Seule la variante production part sur les stores. La variante test sert à
+essayer une version sans écraser celle qui tourne ; ne pas la publier, sous
+peine d'avoir deux fiches concurrentes pour la même app.
 
 ## Confidentialité
 
-L'app n'a besoin d'aucune permission Android ni iOS. Le seul réseau utilisé
-est celui du magasin d'applications, pour les achats. La politique de
-confidentialité peut donc tenir en un paragraphe : aucune collecte, aucun
+L'app n'a besoin d'aucune permission Android ni iOS et n'accède à aucun
+réseau. La politique de confidentialité peut donc tenir en un paragraphe : aucune collecte, aucun
 partage, aucun traqueur ; les prénoms et les réglages restent sur l'appareil,
 les questions d'« Entre vous » sont effacées à la fin de la partie, et tout
 disparaît à la désinstallation.

@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'haptics.dart';
 
-/// Préférences locales : les prénoms de la table et les concepts débloqués.
+/// Préférences locales : les prénoms de la table et les réglages.
 ///
 /// Rien ne part sur un serveur — c'est la promesse du site (« Vos questions
 /// restent dans le navigateur de ce téléphone »), et ça simplifie la
@@ -12,7 +12,6 @@ class SettingsService extends ChangeNotifier {
   SettingsService._(this._prefs);
 
   static const _kPlayers = 'players';
-  static const _kUnlocked = 'unlocked_concepts';
   static const _kHaptics = 'haptics';
 
   final SharedPreferences _prefs;
@@ -29,24 +28,6 @@ class SettingsService extends ChangeNotifier {
   List<String> get players => _prefs.getStringList(_kPlayers) ?? const [];
   set players(List<String> value) {
     _prefs.setStringList(_kPlayers, value);
-    notifyListeners();
-  }
-
-  Set<String> get unlockedConcepts =>
-      (_prefs.getStringList(_kUnlocked) ?? const []).toSet();
-
-  bool isUnlocked(String conceptId) => unlockedConcepts.contains(conceptId);
-
-  void unlock(String conceptId) {
-    final next = unlockedConcepts..add(conceptId);
-    _prefs.setStringList(_kUnlocked, next.toList());
-    notifyListeners();
-  }
-
-  /// Remplace la liste des concepts débloqués — utilisé après une restauration
-  /// d'achats, qui fait autorité sur ce que le téléphone croyait savoir.
-  void replaceUnlocked(Set<String> conceptIds) {
-    _prefs.setStringList(_kUnlocked, conceptIds.toList());
     notifyListeners();
   }
 

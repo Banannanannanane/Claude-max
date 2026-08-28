@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'app.dart';
 import 'data/concepts_repository.dart';
 import 'design/tokens.dart';
-import 'services/purchase_service.dart';
 import 'services/settings_service.dart';
 
 Future<void> main() async {
@@ -20,23 +19,11 @@ Future<void> main() async {
 
   try {
     final concepts = await ConceptsRepository().load();
-    final purchases = PurchaseService(settings);
-    // Le catalogue du magasin arrive après le premier écran : l'app est
-    // jouable pendant ce temps, seuls les prix affichés sont ceux du site.
-    unawaited(purchases.init(concepts.map((c) => c.id)));
-    runApp(CaPartApp(
-      settings: settings,
-      purchases: purchases,
-      concepts: concepts,
-    ));
+    runApp(CaPartApp(settings: settings, concepts: concepts));
   } catch (error, stack) {
     debugPrint('Catalogue de concepts illisible : $error\n$stack');
     runApp(_CatalogError(error: error));
   }
-}
-
-void unawaited(Future<void> future) {
-  future.catchError((Object e) => debugPrint('Initialisation des achats : $e'));
 }
 
 /// Écran de repli si `assets/concepts/index.json` est absent ou malformé —

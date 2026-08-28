@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 Concept _concept({
   String id = 'c',
   String code = 'CCC',
-  bool free = false,
   int drawPerGame = 3,
   int readerCount = 1,
   List<ConceptCard> cards = const [],
@@ -17,11 +16,8 @@ Concept _concept({
       code: code,
       color: const Color(0xFF000000),
       instruction: '…',
-      freeCardCount: cards.where((c) => c.free).length,
-      extraCardCount: cards.where((c) => !c.free).length,
       drawPerGame: drawPerGame,
       readerCount: readerCount,
-      free: free,
       cards: cards,
     );
 
@@ -31,7 +27,6 @@ void main() {
       final party = Party(
         concepts: [
           _concept(
-            free: true,
             drawPerGame: 2,
             cards: const [
               ConceptCard(number: 1, text: 'a'),
@@ -41,7 +36,6 @@ void main() {
           ),
         ],
         players: const ['Léa', 'Théo'],
-        unlockedConceptIds: const {},
         seed: 1,
       );
 
@@ -52,35 +46,10 @@ void main() {
       expect(party.current, isNull);
     });
 
-    test('laisse dehors les cartes payantes tant que le concept est verrouillé',
-        () {
-      const cards = [
-        ConceptCard(number: 1, text: 'gratuite'),
-        ConceptCard(number: 2, text: 'payante', free: false),
-      ];
-
-      final locked = Party(
-        concepts: [_concept(drawPerGame: 10, cards: cards)],
-        players: const [],
-        unlockedConceptIds: const {},
-        seed: 1,
-      );
-      expect(locked.total, 1);
-
-      final unlocked = Party(
-        concepts: [_concept(drawPerGame: 10, cards: cards)],
-        players: const [],
-        unlockedConceptIds: const {'c'},
-        seed: 1,
-      );
-      expect(unlocked.total, 2);
-    });
-
     test('remplace les jetons de prénom', () {
       final party = Party(
         concepts: [
           _concept(
-            free: true,
             drawPerGame: 1,
             readerCount: 2,
             cards: const [
@@ -89,7 +58,6 @@ void main() {
           ),
         ],
         players: const ['Léa', 'Théo', 'Sam'],
-        unlockedConceptIds: const {},
         seed: 4,
       );
 
@@ -109,14 +77,12 @@ void main() {
       final party = Party(
         concepts: [
           _concept(
-            free: true,
             drawPerGame: 1,
             readerCount: 2,
             cards: const [ConceptCard(number: 1, text: '{j1} et {j2}')],
           ),
         ],
         players: const [],
-        unlockedConceptIds: const {},
         seed: 2,
       );
 
@@ -128,7 +94,6 @@ void main() {
         concepts: [
           _concept(
             id: 'un',
-            free: true,
             drawPerGame: 4,
             cards: List.generate(
               4,
@@ -137,7 +102,6 @@ void main() {
           ),
           _concept(
             id: 'deux',
-            free: true,
             drawPerGame: 4,
             cards: List.generate(
               4,
@@ -146,7 +110,6 @@ void main() {
           ),
         ],
         players: const [],
-        unlockedConceptIds: const {},
         seed: 9,
       );
 
@@ -158,9 +121,8 @@ void main() {
 
     test('un paquet vide est signalé, pas planté', () {
       final party = Party(
-        concepts: [_concept(free: true, cards: const [])],
+        concepts: [_concept(cards: const [])],
         players: const [],
-        unlockedConceptIds: const {},
         seed: 1,
       );
       expect(party.isEmpty, isTrue);

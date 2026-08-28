@@ -21,9 +21,11 @@ jobs:
       # Unsigned build: validates that the iOS target compiles.
       # Publishing to the App Store needs an Apple Developer account, a
       # distribution certificate and a provisioning profile — see docs/STORE.md.
+      # Les variantes prod/test ne sont déclarées que côté Android ; l'iOS
+      # demanderait deux schémas Xcode, à créer le jour où l'app y va.
       - name: Build iOS (no codesign)
         working-directory: app
-        run: flutter build ios --release --no-codesign
+        run: flutter build ios --release --no-codesign --dart-define=FLAVOR=prod
 
       - name: Package .app
         working-directory: app/build/ios/iphoneos

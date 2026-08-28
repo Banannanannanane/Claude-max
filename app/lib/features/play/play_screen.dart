@@ -35,7 +35,6 @@ class _PlayScreenState extends State<PlayScreen> {
     _party = Party(
       concepts: widget.conceptIds.map(scope.conceptById).toList(),
       players: scope.settings.players,
-      unlockedConceptIds: scope.settings.unlockedConcepts,
     );
   }
 

@@ -13,22 +13,36 @@ Play Store et l'App Store.
 | Accueil, grille des concepts, fiche, mélange | repris |
 | Partie : cartes, minuteurs 15 s / 20 s, prénoms | en place |
 | Mode « Entre vous » (les joueurs écrivent les cartes) | en place |
-| Déblocage payant via achats in-app + restauration | en place |
+| Aucun paiement : tout est ouvert | en place |
+| Deux apps installables côte à côte (Ça Part / Ça Part test) | en place |
 | Build APK / AAB / IPA + CI GitHub Actions | en place |
-| **Les paquets de cartes** | **58 cartes d'amorce, à remplacer par les vôtres** |
+| **Les textes de cartes** | **488 emplacements « (à définir) »** |
 | Police, logo, icône | à fournir |
 
 Détail et marche à suivre : [`docs/PORTAGE.md`](docs/PORTAGE.md).
 
 ## Les concepts
 
-| Concept | Code | Chrono | Accès |
-| --- | --- | --- | --- |
-| Rapido | RAP | 15 s | 3,99 € |
-| Dilemme | DIL | — | gratuit |
-| Confession | CON | — | 3,99 € |
-| Sauve-moi si tu peux | PUN | 20 s | 3,99 € |
-| Entre vous | — | — | gratuit |
+| Concept | Code | Chrono | Paquet | Tirées par partie |
+| --- | --- | --- | --- | --- |
+| Rapido | RAP | 15 s | 104 | 12 |
+| Dilemme | DIL | — | 120 | 12 |
+| Confession | CON | — | 166 | 12 |
+| Sauve-moi si tu peux | PUN | 20 s | 98 | 10 |
+| Entre vous | — | — | écrit par les joueurs | — |
+
+Plus « Mélange les concepts », qui tire dans les quatre paquets et alterne les
+formats.
+
+## Deux applications
+
+| Variante | Identifiant | Nom sous l'icône |
+| --- | --- | --- |
+| Production | `fr.capart.ca_part` | Ça Part |
+| Test | `fr.capart.ca_part.test` | Ça Part test |
+
+Les identifiants diffèrent, donc les deux s'installent côte à côte sur le même
+téléphone.
 
 ## Structure
 
@@ -54,8 +68,8 @@ docs/
 ```bash
 cd app
 flutter pub get
-flutter run
-flutter build apk --release
+flutter run --flavor prod --dart-define=FLAVOR=prod
+flutter build apk --release --flavor prod --dart-define=FLAVOR=prod
 ```
 
 Détails dans [`docs/BUILD.md`](docs/BUILD.md).
@@ -64,8 +78,8 @@ Détails dans [`docs/BUILD.md`](docs/BUILD.md).
 
 - **Flutter** plutôt qu'une WebView : Apple rejette les sites emballés
   (guideline 4.2), et l'app doit tourner sans connexion pendant une soirée.
-- **Rien sur un serveur** : prénoms, réglages et achats restent sur
-  l'appareil ; les questions d'« Entre vous » sont effacées à la fin de la
+- **Rien sur un serveur, aucun réseau** : prénoms et réglages restent sur
+  l'appareil, les questions d'« Entre vous » sont effacées à la fin de la
   partie. C'est la promesse du site, et ça simplifie les déclarations de
   confidentialité des deux stores.
 - **Le contenu est de la donnée** : les cartes sont un JSON, la DA un fichier
