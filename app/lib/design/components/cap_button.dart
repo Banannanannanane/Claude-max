@@ -3,29 +3,30 @@ import 'package:flutter/material.dart';
 import '../../services/haptics.dart';
 import '../tokens.dart';
 
-enum CapButtonVariant { primary, secondary, ghost }
+enum CapButtonVariant {
+  /// Bouton rouge plein : « Lancer », « Lancer une partie ».
+  primary,
 
-enum CapButtonSize { regular, large }
+  /// Bouton contourné : « Débloquer Rapido · 3,99 € », « Voir les concepts ».
+  outline,
+}
 
-/// Bouton de l'app : un seul composant pour toutes les variantes, pour que la
-/// DA reste pilotée par les tokens.
+/// Bouton pleine largeur de Ça Part.
 class CapButton extends StatefulWidget {
   const CapButton({
     super.key,
     required this.label,
     this.onPressed,
     this.variant = CapButtonVariant.primary,
-    this.size = CapButtonSize.regular,
-    this.icon,
     this.expand = true,
+    this.busy = false,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final CapButtonVariant variant;
-  final CapButtonSize size;
-  final IconData? icon;
   final bool expand;
+  final bool busy;
 
   @override
   State<CapButton> createState() => _CapButtonState();
@@ -34,49 +35,21 @@ class CapButton extends StatefulWidget {
 class _CapButtonState extends State<CapButton> {
   bool _pressed = false;
 
-  bool get _enabled => widget.onPressed != null;
-
-  Color get _background {
-    if (!_enabled) return CapColors.border;
-    switch (widget.variant) {
-      case CapButtonVariant.primary:
-        return _pressed ? CapColors.primaryPressed : CapColors.primary;
-      case CapButtonVariant.secondary:
-        return _pressed ? CapColors.surface : CapColors.surfaceRaised;
-      case CapButtonVariant.ghost:
-        return _pressed ? CapColors.border : const Color(0x00000000);
-    }
-  }
-
-  Color get _foreground {
-    if (!_enabled) return CapColors.textMuted;
-    return widget.variant == CapButtonVariant.primary
-        ? CapColors.onPrimary
-        : CapColors.textPrimary;
-  }
+  bool get _enabled => widget.onPressed != null && !widget.busy;
 
   @override
   Widget build(BuildContext context) {
-    final height = widget.size == CapButtonSize.large ? 60.0 : 52.0;
+    final primary = widget.variant == CapButtonVariant.primary;
 
-    final content = Row(
-      mainAxisSize: widget.expand ? MainAxisSize.max : MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (widget.icon != null) ...[
-          Icon(widget.icon, size: 20, color: _foreground),
-          const SizedBox(width: CapSpacing.sm),
-        ],
-        Flexible(
-          child: Text(
-            widget.label,
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            style: CapType.button.copyWith(color: _foreground),
-          ),
-        ),
-      ],
-    );
+    final background = primary
+        ? (_enabled
+            ? (_pressed ? CapColors.redPressed : CapColors.red)
+            : CapColors.border)
+        : (_pressed ? CapColors.surfaceSunken : const Color(0x00000000));
+
+    final foreground = primary
+        ? (_enabled ? CapColors.onRed : CapColors.textMuted)
+        : (_enabled ? CapColors.textPrimary : CapColors.textMuted);
 
     return Semantics(
       button: true,
@@ -95,28 +68,75 @@ class _CapButtonState extends State<CapButton> {
         child: AnimatedContainer(
           duration: CapMotion.fast,
           curve: CapMotion.curve,
-          height: height,
+          height: 58,
           width: widget.expand ? double.infinity : null,
           padding: const EdgeInsets.symmetric(horizontal: CapSpacing.lg),
+          alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: _background,
-            borderRadius: CapRadius.pillAll,
-            border: widget.variant == CapButtonVariant.ghost
-                ? Border.all(color: CapColors.border)
-                : null,
-            boxShadow: widget.variant == CapButtonVariant.primary && _enabled
-                ? CapShadows.card
-                : null,
+            color: background,
+            borderRadius: CapRadius.buttonAll,
+            border: primary ? null : Border.all(color: CapColors.border, width: 1.5),
           ),
-          transform: Matrix4.identity()
-            ..scaleByDouble(
-              _pressed ? 0.98 : 1.0,
-              _pressed ? 0.98 : 1.0,
-              1.0,
-              1.0,
+          child: widget.busy
+              ? SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(foreground),
+                  ),
+                )
+              : Text(
+                  widget.label,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: CapType.button.copyWith(color: foreground),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Lien rouge souligné : « Changer les prénoms », « J'ai déjà acheté ».
+class CapLink extends StatelessWidget {
+  const CapLink({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.align = TextAlign.left,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final TextAlign align;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = onPressed == null ? CapColors.textMuted : CapColors.red;
+    return Semantics(
+      button: true,
+      link: true,
+      child: GestureDetector(
+        onTap: onPressed == null
+            ? null
+            : () {
+                Haptics.selection();
+                onPressed!();
+              },
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: CapSpacing.sm),
+          child: Text(
+            label,
+            textAlign: align,
+            style: CapType.link.copyWith(
+              color: color,
+              decoration: TextDecoration.underline,
+              decorationColor: color,
+              decorationThickness: 1.6,
             ),
-          transformAlignment: Alignment.center,
-          child: Center(child: content),
+          ),
         ),
       ),
     );

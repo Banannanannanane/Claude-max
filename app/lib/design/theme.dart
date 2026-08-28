@@ -3,22 +3,21 @@ import 'package:flutter/services.dart';
 
 import 'tokens.dart';
 
-/// Construit le [ThemeData] Material à partir des tokens.
+/// Thème Material dérivé des tokens.
 ///
-/// Les écrans n'utilisent presque jamais ce thème directement : ils passent par
-/// les composants de `lib/design/components/`. Il est là pour que les widgets
-/// Material embarqués (dialogs, snackbars, sélection de texte) restent cohérents
-/// avec la DA.
+/// Les écrans passent par les composants de `lib/design/components/` ; ce
+/// thème n'est là que pour les widgets Material embarqués (dialogues,
+/// snackbars, curseur de saisie) restent dans la DA.
 ThemeData buildCapTheme() {
-  const scheme = ColorScheme.dark(
-    primary: CapColors.primary,
-    onPrimary: CapColors.onPrimary,
-    secondary: CapColors.secondary,
+  const scheme = ColorScheme.light(
+    primary: CapColors.red,
+    onPrimary: CapColors.onRed,
+    secondary: CapColors.textPrimary,
     onSecondary: CapColors.background,
     surface: CapColors.surface,
     onSurface: CapColors.textPrimary,
-    error: CapColors.danger,
-    onError: CapColors.onPrimary,
+    error: CapColors.red,
+    onError: CapColors.onRed,
   );
 
   return ThemeData(
@@ -26,7 +25,10 @@ ThemeData buildCapTheme() {
     colorScheme: scheme,
     scaffoldBackgroundColor: CapColors.background,
     fontFamily: CapType.fontFamily,
-    splashFactory: InkSparkle.splashFactory,
+    textSelectionTheme: const TextSelectionThemeData(
+      cursorColor: CapColors.red,
+      selectionHandleColor: CapColors.red,
+    ),
     textTheme: const TextTheme(
       displayLarge: CapType.display,
       titleLarge: CapType.title,
@@ -34,40 +36,35 @@ ThemeData buildCapTheme() {
       bodyLarge: CapType.body,
       bodyMedium: CapType.body,
       labelLarge: CapType.button,
-      labelSmall: CapType.caption,
+      labelSmall: CapType.eyebrow,
     ).apply(
       bodyColor: CapColors.textPrimary,
       displayColor: CapColors.textPrimary,
     ),
     dialogTheme: const DialogThemeData(
-      backgroundColor: CapColors.surfaceRaised,
-      shape: RoundedRectangleBorder(borderRadius: CapRadius.lgAll),
+      backgroundColor: CapColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: CapRadius.cardAll),
     ),
-    snackBarTheme: const SnackBarThemeData(
-      backgroundColor: CapColors.surfaceRaised,
-      contentTextStyle: CapType.body,
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: CapColors.ink,
+      contentTextStyle: CapType.body.copyWith(color: CapColors.onInk),
       behavior: SnackBarBehavior.floating,
-    ),
-    sliderTheme: const SliderThemeData(
-      activeTrackColor: CapColors.primary,
-      thumbColor: CapColors.primary,
-      inactiveTrackColor: CapColors.border,
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
-            ? CapColors.primary
+            ? CapColors.red
             : CapColors.textMuted,
       ),
     ),
   );
 }
 
-/// Barre de statut et barre de navigation transparentes, icônes claires.
+/// Le fond crème monte jusque sous la barre de statut : icônes sombres.
 const capSystemOverlay = SystemUiOverlayStyle(
   statusBarColor: Color(0x00000000),
-  statusBarIconBrightness: Brightness.light,
-  statusBarBrightness: Brightness.dark,
+  statusBarIconBrightness: Brightness.dark,
+  statusBarBrightness: Brightness.light,
   systemNavigationBarColor: CapColors.background,
-  systemNavigationBarIconBrightness: Brightness.light,
+  systemNavigationBarIconBrightness: Brightness.dark,
 );

@@ -16,6 +16,8 @@ dependencies:
   go_router: ^17.0.0
   shared_preferences: ^2.3.3
   package_info_plus: ^9.0.0
+  in_app_purchase: ^3.2.0
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
@@ -27,7 +29,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/games/
+    - assets/concepts/
     - assets/images/
 
   # TODO(DA): déclarer ici la police de la web app une fois les fichiers .ttf
@@ -45,15 +47,15 @@ flutter_launcher_icons:
   android: true
   ios: true
   remove_alpha_ios: true
-  adaptive_icon_background: "#0E0B1A"
+  adaptive_icon_background: "#F4EDE3"
   adaptive_icon_foreground: assets/images/app_icon_foreground.png
 
 # Écran de démarrage natif : `dart run flutter_native_splash:create`
 flutter_native_splash:
-  color: "#0E0B1A"
+  color: "#F4EDE3"
   image: assets/images/splash.png
   android_12:
-    color: "#0E0B1A"
+    color: "#F4EDE3"
     image: assets/images/splash.png
   android: true
   ios: true

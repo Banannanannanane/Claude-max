@@ -5,159 +5,104 @@ import 'package:go_router/go_router.dart';
 
 import '../../app.dart';
 import '../../design/components/cap_button.dart';
+import '../../design/components/cap_card.dart';
 import '../../design/components/cap_scaffold.dart';
 import '../../design/tokens.dart';
-import '../../models/game.dart';
-import '../../models/session.dart';
+import '../../models/party.dart';
 import '../../services/haptics.dart';
 
-/// Écran de partie. Aiguille vers le déroulé correspondant au moteur du jeu.
+/// Le déroulé d'une partie : une carte à la fois, le téléphone passe de main
+/// en main.
 class PlayScreen extends StatefulWidget {
-  const PlayScreen({super.key, required this.game, required this.players});
+  const PlayScreen({super.key, required this.conceptIds});
 
-  final GameDefinition game;
-  final List<String> players;
+  /// Un identifiant pour une partie sur un seul concept, plusieurs pour le
+  /// mode « Mélange les concepts ».
+  final List<String> conceptIds;
 
   @override
   State<PlayScreen> createState() => _PlayScreenState();
 }
 
 class _PlayScreenState extends State<PlayScreen> {
-  GameSession? _session;
+  Party? _party;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _session ??= GameSession(
-      game: widget.game,
-      players: widget.players,
-      includeSpicy: SettingsScope.of(context).spicyMode,
+    if (_party != null) return;
+    final scope = AppScope.of(context);
+    _party = Party(
+      concepts: widget.conceptIds.map(scope.conceptById).toList(),
+      players: scope.settings.players,
+      unlockedConceptIds: scope.settings.unlockedConcepts,
     );
   }
 
   @override
   void dispose() {
-    _session?.dispose();
+    _party?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final session = _session!;
+    final party = _party!;
+
     return CapScaffold(
-      title: widget.game.name,
+      title: widget.conceptIds.length == 1
+          ? AppScope.of(context).conceptById(widget.conceptIds.first).name
+          : 'Mélange',
       onBack: () => context.pop(),
-      child: AnimatedBuilder(
-        animation: session,
+      child: ListenableBuilder(
+        listenable: party,
         builder: (context, _) {
-          if (session.isEmpty) {
-            return _Message(
+          if (party.isEmpty) {
+            return const _EndPanel(
               title: 'Paquet vide',
-              body: widget.game.prompts.isEmpty
-                  ? 'Ce jeu n\'a pas encore de cartes dans assets/games/index.json.'
-                  : 'Toutes les cartes de ce jeu sont réservées au mode « hot », '
-                      'activable dans les réglages.',
-              accent: widget.game.accent,
+              body: 'Aucune carte disponible pour ce concept.',
             );
           }
-          if (session.isFinished) {
-            return _FinishedView(session: session);
+          if (party.isFinished) {
+            return _EndPanel(
+              title: 'Fin de la partie',
+              body: 'Vous avez passé les ${party.total} cartes.',
+              onRestart: party.restart,
+            );
           }
-          switch (widget.game.engine) {
-            case GameEngine.timedRound:
-              return _TimedRoundView(session: session);
-            case GameEngine.promptDeck:
-            case GameEngine.custom:
-              return _PromptDeckView(session: session);
-          }
+          return _Turn(
+            key: ValueKey(party.position),
+            party: party,
+          );
         },
       ),
     );
   }
 }
 
-/// Déroulé « on pioche une carte » : le joueur du tour lit sa carte, tape pour
-/// passer au suivant.
-class _PromptDeckView extends StatelessWidget {
-  const _PromptDeckView({required this.session});
+/// Un tour : la carte, les joueurs concernés, et le minuteur quand le concept
+/// en a un.
+class _Turn extends StatefulWidget {
+  const _Turn({super.key, required this.party});
 
-  final GameSession session;
-
-  @override
-  Widget build(BuildContext context) {
-    final prompt = session.current!;
-    final player = session.currentPlayer;
-
-    return Column(
-      children: [
-        _ProgressBar(session: session),
-        const SizedBox(height: CapSpacing.lg),
-        if (player != null)
-          Text(
-            'Au tour de $player',
-            style: CapType.caption.copyWith(color: CapColors.textMuted),
-          ),
-        Expanded(
-          child: GestureDetector(
-            onTap: session.next,
-            behavior: HitTestBehavior.opaque,
-            child: Center(
-              child: AnimatedSwitcher(
-                duration: CapMotion.normal,
-                switchInCurve: CapMotion.curve,
-                child: Column(
-                  key: ValueKey(prompt.text),
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      prompt.text,
-                      textAlign: TextAlign.center,
-                      style: CapType.title.copyWith(fontSize: 30, height: 1.25),
-                    ),
-                    if (prompt.subtitle != null) ...[
-                      const SizedBox(height: CapSpacing.md),
-                      Text(
-                        prompt.subtitle!,
-                        textAlign: TextAlign.center,
-                        style: CapType.body
-                            .copyWith(color: CapColors.textSecondary),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: CapSpacing.md),
-          child: CapButton(
-            label: session.remaining <= 1 ? 'Terminer' : 'Carte suivante',
-            size: CapButtonSize.large,
-            onPressed: session.next,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Déroulé chronométré : le joueur du tour fait deviner le plus de cartes
-/// possible avant la fin du temps.
-class _TimedRoundView extends StatefulWidget {
-  const _TimedRoundView({required this.session});
-
-  final GameSession session;
+  final Party party;
 
   @override
-  State<_TimedRoundView> createState() => _TimedRoundViewState();
+  State<_Turn> createState() => _TurnState();
 }
 
-class _TimedRoundViewState extends State<_TimedRoundView> {
+class _TurnState extends State<_Turn> {
   Timer? _timer;
-  late int _secondsLeft = widget.session.game.roundSeconds;
-  int _score = 0;
+  int _secondsLeft = 0;
   bool _running = false;
+
+  DrawnCard get card => widget.party.current!;
+
+  @override
+  void initState() {
+    super.initState();
+    _secondsLeft = card.concept.timerSeconds;
+  }
 
   @override
   void dispose() {
@@ -165,11 +110,10 @@ class _TimedRoundViewState extends State<_TimedRoundView> {
     super.dispose();
   }
 
-  void _startRound() {
+  void _startTimer() {
     _timer?.cancel();
     setState(() {
-      _secondsLeft = widget.session.game.roundSeconds;
-      _score = 0;
+      _secondsLeft = card.concept.timerSeconds;
       _running = true;
     });
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -186,174 +130,117 @@ class _TimedRoundViewState extends State<_TimedRoundView> {
     });
   }
 
-  void _found() {
-    setState(() => _score++);
-    widget.session.next();
+  /// « Joueur 1, prends le téléphone » devient « Léa, prends le téléphone ».
+  String get _readersLine {
+    final readers = card.readers;
+    if (readers.length == 1) return 'Au tour de ${readers.first}';
+    return '${readers.first} lit · ${readers[1]} défend';
   }
 
   @override
   Widget build(BuildContext context) {
-    final session = widget.session;
-    final player = session.currentPlayer;
-
-    if (!_running) {
-      final roundOver = _secondsLeft == 0;
-      return _Message(
-        title: roundOver ? 'Manche terminée' : 'Prêt ?',
-        body: roundOver
-            ? '$_score carte${_score > 1 ? 's' : ''} trouvée${_score > 1 ? 's' : ''}.'
-                '${session.nextPlayer != null ? '\n\nPassez le téléphone à ${session.nextPlayer}.' : ''}'
-            : player != null
-                ? '$player fait deviner pendant ${session.game.roundSeconds} secondes.'
-                : 'Manche de ${session.game.roundSeconds} secondes.',
-        accent: session.game.accent,
-        action: CapButton(
-          label: roundOver ? 'Manche suivante' : 'Démarrer',
-          size: CapButtonSize.large,
-          onPressed: _startRound,
-        ),
-      );
-    }
-
-    final prompt = session.current!;
-    final fraction = _secondsLeft / session.game.roundSeconds;
+    final party = widget.party;
+    final concept = card.concept;
+    final timed = concept.isTimed;
+    final timeUp = timed && !_running && _secondsLeft == 0;
 
     return Column(
       children: [
-        const SizedBox(height: CapSpacing.md),
-        Text(
-          '$_secondsLeft',
-          style: CapType.display.copyWith(
-            fontSize: 64,
-            color: fraction < 0.2 ? CapColors.danger : CapColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: CapSpacing.sm),
-        ClipRRect(
-          borderRadius: CapRadius.pillAll,
-          child: LinearProgressIndicator(
-            value: fraction,
-            minHeight: 6,
-            backgroundColor: CapColors.border,
-            valueColor: AlwaysStoppedAnimation(session.game.accent),
-          ),
-        ),
-        Expanded(
-          child: Center(
-            child: AnimatedSwitcher(
-              duration: CapMotion.fast,
-              child: Text(
-                prompt.text,
-                key: ValueKey(prompt.text),
-                textAlign: TextAlign.center,
-                style: CapType.display.copyWith(fontSize: 34),
-              ),
-            ),
-          ),
-        ),
-        Text(
-          'Score : $_score',
-          style: CapType.caption.copyWith(color: CapColors.textMuted),
-        ),
         const SizedBox(height: CapSpacing.sm),
         Row(
           children: [
-            Expanded(
-              child: CapButton(
-                label: 'Passer',
-                variant: CapButtonVariant.secondary,
-                onPressed: session.next,
-              ),
-            ),
-            const SizedBox(width: CapSpacing.sm),
-            Expanded(
-              child: CapButton(
-                label: 'Trouvé',
-                icon: Icons.check_rounded,
-                onPressed: _found,
-              ),
+            Expanded(child: CapEyebrow(concept.name, color: concept.color)),
+            Text(
+              '${party.position + 1} / ${party.total}',
+              style: CapType.cardCode.copyWith(color: CapColors.textMuted),
             ),
           ],
         ),
+        const SizedBox(height: CapSpacing.sm),
+        ClipRRect(
+          borderRadius: CapRadius.chipAll,
+          child: LinearProgressIndicator(
+            value: (party.position + 1) / party.total,
+            minHeight: 4,
+            backgroundColor: CapColors.border,
+            valueColor: AlwaysStoppedAnimation(concept.color),
+          ),
+        ),
+        const SizedBox(height: CapSpacing.lg),
+        Text(
+          _readersLine,
+          style: CapType.meta.copyWith(color: CapColors.textSecondary),
+        ),
+        const SizedBox(height: CapSpacing.md),
+        Expanded(
+          child: SingleChildScrollView(
+            child: CapCard(
+              accent: concept.color,
+              padding: const EdgeInsets.all(CapSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(card.text, style: CapType.heading.copyWith(fontSize: 25)),
+                  if (card.hint != null) ...[
+                    const SizedBox(height: CapSpacing.md),
+                    Text(
+                      card.hint!,
+                      style:
+                          CapType.body.copyWith(color: CapColors.textSecondary),
+                    ),
+                  ],
+                  const SizedBox(height: CapSpacing.xl),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        card.code,
+                        style: CapType.cardCode
+                            .copyWith(color: CapColors.textMuted),
+                      ),
+                      const CapWordmark(fontSize: 14),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (timed) ...[
+          const SizedBox(height: CapSpacing.md),
+          Text(
+            timeUp ? 'Temps écoulé' : '$_secondsLeft',
+            style: CapType.display.copyWith(
+              fontSize: timeUp ? 26 : 56,
+              color: timeUp ? CapColors.red : CapColors.textPrimary,
+            ),
+          ),
+        ],
+        const SizedBox(height: CapSpacing.md),
+        if (timed && !_running && !timeUp)
+          CapButton(
+            label: 'Démarrer les ${concept.timerSeconds} secondes',
+            onPressed: _startTimer,
+          )
+        else
+          CapButton(
+            label: party.position + 1 >= party.total
+                ? 'Terminer'
+                : 'Carte suivante',
+            onPressed: party.next,
+          ),
         const SizedBox(height: CapSpacing.md),
       ],
     );
   }
 }
 
-class _ProgressBar extends StatelessWidget {
-  const _ProgressBar({required this.session});
-
-  final GameSession session;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ClipRRect(
-          borderRadius: CapRadius.pillAll,
-          child: LinearProgressIndicator(
-            value: session.progress,
-            minHeight: 6,
-            backgroundColor: CapColors.border,
-            valueColor: AlwaysStoppedAnimation(session.game.accent),
-          ),
-        ),
-        const SizedBox(height: CapSpacing.sm),
-        Text(
-          '${session.total - session.remaining + 1} / ${session.total}',
-          textAlign: TextAlign.center,
-          style: CapType.caption.copyWith(color: CapColors.textMuted),
-        ),
-      ],
-    );
-  }
-}
-
-class _FinishedView extends StatelessWidget {
-  const _FinishedView({required this.session});
-
-  final GameSession session;
-
-  @override
-  Widget build(BuildContext context) {
-    return _Message(
-      title: 'Fin de la partie',
-      body: 'Vous avez passé les ${session.total} cartes de ce jeu.',
-      accent: session.game.accent,
-      action: Column(
-        children: [
-          CapButton(
-            label: 'Rejouer',
-            icon: Icons.refresh_rounded,
-            size: CapButtonSize.large,
-            onPressed: session.restart,
-          ),
-          const SizedBox(height: CapSpacing.sm),
-          CapButton(
-            label: 'Choisir un autre jeu',
-            variant: CapButtonVariant.ghost,
-            onPressed: () => context.goNamed('concepts'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Message extends StatelessWidget {
-  const _Message({
-    required this.title,
-    required this.body,
-    required this.accent,
-    this.action,
-  });
+class _EndPanel extends StatelessWidget {
+  const _EndPanel({required this.title, required this.body, this.onRestart});
 
   final String title;
   final String body;
-  final Color accent;
-  final Widget? action;
+  final VoidCallback? onRestart;
 
   @override
   Widget build(BuildContext context) {
@@ -364,18 +251,7 @@ class _Message extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-                  child: const Icon(
-                    Icons.celebration_rounded,
-                    color: CapColors.onPrimary,
-                    size: 34,
-                  ),
-                ),
-                const SizedBox(height: CapSpacing.lg),
-                Text(title, style: CapType.title, textAlign: TextAlign.center),
+                Text(title, style: CapType.display, textAlign: TextAlign.center),
                 const SizedBox(height: CapSpacing.md),
                 Text(
                   body,
@@ -386,11 +262,15 @@ class _Message extends StatelessWidget {
             ),
           ),
         ),
-        if (action != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: CapSpacing.md),
-            child: action!,
-          ),
+        if (onRestart != null)
+          CapButton(label: 'Rejouer', onPressed: onRestart),
+        const SizedBox(height: CapSpacing.sm),
+        CapButton(
+          label: 'Choisir un autre concept',
+          variant: CapButtonVariant.outline,
+          onPressed: () => context.goNamed('concepts'),
+        ),
+        const SizedBox(height: CapSpacing.md),
       ],
     );
   }

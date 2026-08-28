@@ -1,92 +1,138 @@
 import 'package:flutter/widgets.dart';
 
-/// Design tokens — la DA de l'application vit ici et nulle part ailleurs.
+/// Design tokens repris de la web app ca-part.fr.
 ///
-/// Reprendre la direction artistique de la web app revient à remplacer les
-/// valeurs de ce fichier (couleurs, typo, rayons, ombres, espacements) : aucun
-/// écran ne code de couleur ou de taille en dur.
-///
-/// TODO(DA): remplacer par les valeurs extraites du CSS de la web app
-/// (variables `--*` de :root, `font-family`, `border-radius`, `box-shadow`).
+/// La DA du site : fond crème chaud, noir profond pour le texte, un rouge de
+/// marque unique pour les actions, et une couleur par concept qui n'apparaît
+/// que sur la barre latérale des cartes et les pastilles.
 class CapColors {
   const CapColors._();
 
-  // Fond
-  static const background = Color(0xFF0E0B1A);
-  static const surface = Color(0xFF1A1430);
-  static const surfaceRaised = Color(0xFF241C42);
-  static const overlay = Color(0xCC0E0B1A);
+  // Fonds
+  static const background = Color(0xFFF4EDE3);
+  static const surface = Color(0xFFF8F2EA);
+  static const surfaceSunken = Color(0xFFEFE8DD);
+  static const ink = Color(0xFF141312); // cartes « Entre vous »
+  static const onInk = Color(0xFFFFFFFF);
 
   // Marque
-  static const primary = Color(0xFFFF4D6D);
-  static const primaryPressed = Color(0xFFE03A57);
-  static const onPrimary = Color(0xFFFFFFFF);
-  static const secondary = Color(0xFF4DD9C0);
-  static const accent = Color(0xFFFFC857);
+  static const red = Color(0xFFCE0E2E);
+  static const redPressed = Color(0xFFAE0B27);
+  static const onRed = Color(0xFFFFFFFF);
 
   // Texte
-  static const textPrimary = Color(0xFFFFFFFF);
-  static const textSecondary = Color(0xB3FFFFFF);
-  static const textMuted = Color(0x80FFFFFF);
+  static const textPrimary = Color(0xFF12100E);
+  static const textSecondary = Color(0xFF6E665C);
+  static const textMuted = Color(0xFF9A9186);
+  static const onInkMuted = Color(0xFFA79E93);
 
-  // États
-  static const border = Color(0x1FFFFFFF);
-  static const danger = Color(0xFFFF5A5A);
-  static const success = Color(0xFF4ADE80);
+  // Traits
+  static const border = Color(0xFFE2D9CB);
+  static const divider = Color(0xFFE7DFD2);
 }
 
-/// Famille typographique. Tant que la police de la web app n'est pas embarquée
-/// dans `assets/fonts/`, `null` laisse Flutter utiliser la police système.
+/// Couleurs de concept, telles qu'utilisées sur les barres de carte et les
+/// pastilles de la page d'accueil.
+class CapConceptColors {
+  const CapConceptColors._();
+
+  static const rapido = Color(0xFF1E7F4B);
+  static const dilemme = Color(0xFFD79A22);
+  static const confession = Color(0xFF3D6FD1);
+  static const sauveMoi = Color(0xFF7B4FCB);
+}
+
+/// Typographie : une grotesque très grasse pour les titres, la même famille en
+/// régulier pour le texte courant, et des intertitres en petites capitales
+/// espacées.
+///
+/// TODO(DA) : déposer les fichiers de la police du site dans assets/fonts/,
+/// les déclarer dans pubspec.yaml, puis renseigner [fontFamily]. Tant que
+/// c'est `null`, la police système prend le relais avec les mêmes graisses.
 class CapType {
   const CapType._();
 
-  /// TODO(DA): déclarer la police dans pubspec.yaml puis mettre son nom ici.
   static const String? fontFamily = null;
 
+  /// Titre de page (« Sauve-moi si tu peux », « Concepts. »).
   static const display = TextStyle(
     fontFamily: fontFamily,
     fontSize: 40,
-    height: 1.1,
+    height: 1.05,
     fontWeight: FontWeight.w800,
-    letterSpacing: -0.5,
+    letterSpacing: -1.2,
   );
+
+  /// Titre de section du site (« Entre vous. »).
   static const title = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 26,
-    height: 1.2,
-    fontWeight: FontWeight.w700,
+    fontSize: 30,
+    height: 1.12,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -0.8,
   );
+
+  /// Consigne d'une carte, nom d'un concept dans la grille.
   static const heading = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 20,
-    height: 1.25,
+    fontSize: 23,
+    height: 1.28,
     fontWeight: FontWeight.w700,
+    letterSpacing: -0.4,
   );
+
   static const body = TextStyle(
     fontFamily: fontFamily,
     fontSize: 16,
-    height: 1.45,
+    height: 1.55,
     fontWeight: FontWeight.w400,
   );
+
   static const bodyStrong = TextStyle(
     fontFamily: fontFamily,
     fontSize: 16,
-    height: 1.45,
-    fontWeight: FontWeight.w600,
+    height: 1.55,
+    fontWeight: FontWeight.w700,
   );
-  static const caption = TextStyle(
+
+  /// Ligne de méta sous une carte (« 36 cartes gratuites · … »).
+  static const meta = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 13,
-    height: 1.3,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 0.2,
+    fontSize: 14,
+    height: 1.4,
+    fontWeight: FontWeight.w400,
   );
+
+  /// Intertitre en capitales espacées (« CHOISIS TON CONCEPT »).
+  static const eyebrow = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 12.5,
+    height: 1.3,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 1.6,
+  );
+
+  /// Code de carte en bas à droite (« RAP · 626 »).
+  static const cardCode = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 12,
+    height: 1.2,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 1.2,
+  );
+
   static const button = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 16,
+    fontSize: 17,
     height: 1.2,
     fontWeight: FontWeight.w700,
-    letterSpacing: 0.3,
+  );
+
+  static const link = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 16,
+    height: 1.3,
+    fontWeight: FontWeight.w700,
   );
 }
 
@@ -104,33 +150,34 @@ class CapSpacing {
 class CapRadius {
   const CapRadius._();
 
-  static const sm = Radius.circular(8);
-  static const md = Radius.circular(16);
-  static const lg = Radius.circular(24);
-  static const pill = Radius.circular(999);
+  static const card = Radius.circular(18);
+  static const button = Radius.circular(12);
+  static const chip = Radius.circular(999);
 
-  static const smAll = BorderRadius.all(sm);
-  static const mdAll = BorderRadius.all(md);
-  static const lgAll = BorderRadius.all(lg);
-  static const pillAll = BorderRadius.all(pill);
+  static const cardAll = BorderRadius.all(card);
+  static const buttonAll = BorderRadius.all(button);
+  static const chipAll = BorderRadius.all(chip);
+
+  /// Largeur de la barre de couleur à gauche des cartes de concept.
+  static const accentBar = 6.0;
 }
 
 class CapShadows {
   const CapShadows._();
 
+  /// Ombre discrète et chaude des cartes du site.
   static const card = <BoxShadow>[
-    BoxShadow(color: Color(0x40000000), blurRadius: 24, offset: Offset(0, 8)),
+    BoxShadow(color: Color(0x14000000), blurRadius: 18, offset: Offset(0, 6)),
   ];
-  static const raised = <BoxShadow>[
-    BoxShadow(color: Color(0x59000000), blurRadius: 32, offset: Offset(0, 12)),
+  static const deck = <BoxShadow>[
+    BoxShadow(color: Color(0x1F000000), blurRadius: 28, offset: Offset(0, 10)),
   ];
 }
 
 class CapMotion {
   const CapMotion._();
 
-  static const fast = Duration(milliseconds: 150);
-  static const normal = Duration(milliseconds: 250);
-  static const slow = Duration(milliseconds: 400);
+  static const fast = Duration(milliseconds: 140);
+  static const normal = Duration(milliseconds: 240);
   static const curve = Curves.easeOutCubic;
 }

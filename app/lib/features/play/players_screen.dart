@@ -6,35 +6,29 @@ import '../../design/components/cap_button.dart';
 import '../../design/components/cap_card.dart';
 import '../../design/components/cap_scaffold.dart';
 import '../../design/tokens.dart';
-import '../../models/game.dart';
 
-/// Saisie des joueurs avant le lancement. Les noms de la dernière partie sont
-/// reproposés : sur un jeu de soirée, c'est presque toujours la même tablée.
+/// « Changer les prénoms ».
+///
+/// Les prénoms saisis remplacent les jetons des cartes ({j1}, {j2}, {autre}) :
+/// c'est ce qui fait qu'une carte s'adresse à quelqu'un autour de la table
+/// plutôt qu'à « Joueur 1 ».
 class PlayersScreen extends StatefulWidget {
-  const PlayersScreen({super.key, required this.game});
-
-  final GameDefinition game;
+  const PlayersScreen({super.key});
 
   @override
   State<PlayersScreen> createState() => _PlayersScreenState();
 }
 
 class _PlayersScreenState extends State<PlayersScreen> {
+  static const _maxPlayers = 16;
+
   final _controller = TextEditingController();
   final _focus = FocusNode();
-  late List<String> _players;
-  bool _restored = false;
+  List<String>? _players;
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_restored) return;
-    _restored = true;
-    _players = SettingsScope.of(context)
-        .lastPlayers
-        .take(widget.game.maxPlayers)
-        .toList();
-  }
+  List<String> get players => _players ??= List<String>.from(
+        AppScope.of(context).settings.players,
+      );
 
   @override
   void dispose() {
@@ -43,83 +37,75 @@ class _PlayersScreenState extends State<PlayersScreen> {
     super.dispose();
   }
 
-  bool get _canAdd => _players.length < widget.game.maxPlayers;
-  bool get _canStart => _players.length >= widget.game.minPlayers;
-
   void _add() {
     final name = _controller.text.trim();
-    if (name.isEmpty || !_canAdd) return;
-    if (_players.any((p) => p.toLowerCase() == name.toLowerCase())) {
+    if (name.isEmpty || players.length >= _maxPlayers) return;
+    if (players.any((p) => p.toLowerCase() == name.toLowerCase())) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$name est déjà dans la partie.')),
+        SnackBar(content: Text('$name est déjà à la table.')),
       );
       return;
     }
     setState(() {
-      _players.add(name);
+      players.add(name);
       _controller.clear();
     });
     _focus.requestFocus();
   }
 
-  void _start() {
-    SettingsScope.of(context).lastPlayers = _players;
-    context.pushNamed(
-      'play',
-      pathParameters: {'id': widget.game.id},
-      extra: List<String>.from(_players),
-    );
+  void _save() {
+    AppScope.of(context).settings.players = players;
+    context.pop();
   }
 
   @override
   Widget build(BuildContext context) {
+    final full = players.length >= _maxPlayers;
+
     return CapScaffold(
-      title: 'Les joueurs',
+      title: 'Les prénoms',
       onBack: () => context.pop(),
-      bottomBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!_canStart)
-            Padding(
-              padding: const EdgeInsets.only(bottom: CapSpacing.sm),
-              child: Text(
-                'Il faut au moins ${widget.game.minPlayers} joueurs.',
-                style: CapType.caption.copyWith(color: CapColors.textMuted),
-              ),
-            ),
-          CapButton(
-            label: 'C\'est parti',
-            icon: Icons.play_arrow_rounded,
-            size: CapButtonSize.large,
-            onPressed: _canStart ? _start : null,
-          ),
-        ],
-      ),
+      bottomBar: CapButton(label: 'Enregistrer', onPressed: _save),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const SizedBox(height: CapSpacing.sm),
+          Text('Qui est là ?', style: CapType.display),
+          const SizedBox(height: CapSpacing.sm),
+          Text(
+            'Les cartes appelleront les joueurs par leur prénom. Sans prénom '
+            'saisi, elles disent « Joueur 1 », comme sur le site.',
+            style: CapType.body.copyWith(color: CapColors.textSecondary),
+          ),
+          const SizedBox(height: CapSpacing.lg),
           Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: _controller,
                   focusNode: _focus,
-                  enabled: _canAdd,
+                  enabled: !full,
                   textCapitalization: TextCapitalization.words,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _add(),
                   style: CapType.body,
                   decoration: InputDecoration(
-                    hintText: _canAdd
-                        ? 'Prénom du joueur'
-                        : 'Table complète (${widget.game.maxPlayers})',
+                    hintText: full ? 'Table complète' : 'Prénom',
                     hintStyle:
                         CapType.body.copyWith(color: CapColors.textMuted),
                     filled: true,
-                    fillColor: CapColors.surfaceRaised,
+                    fillColor: CapColors.surface,
+                    enabledBorder: const OutlineInputBorder(
+                      borderRadius: CapRadius.buttonAll,
+                      borderSide: BorderSide(color: CapColors.border),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderRadius: CapRadius.buttonAll,
+                      borderSide: BorderSide(color: CapColors.red, width: 1.5),
+                    ),
                     border: const OutlineInputBorder(
-                      borderRadius: CapRadius.mdAll,
-                      borderSide: BorderSide.none,
+                      borderRadius: CapRadius.buttonAll,
+                      borderSide: BorderSide(color: CapColors.border),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: CapSpacing.md,
@@ -131,48 +117,45 @@ class _PlayersScreenState extends State<PlayersScreen> {
               const SizedBox(width: CapSpacing.sm),
               CapButton(
                 label: 'Ajouter',
-                variant: CapButtonVariant.secondary,
+                variant: CapButtonVariant.outline,
                 expand: false,
-                onPressed: _canAdd ? _add : null,
+                onPressed: full ? null : _add,
               ),
             ],
           ),
           const SizedBox(height: CapSpacing.lg),
           Expanded(
-            child: _players.isEmpty
+            child: players.isEmpty
                 ? Center(
                     child: Text(
-                      'Ajoutez les joueurs autour de la table.',
-                      textAlign: TextAlign.center,
+                      'Personne pour l\'instant.',
                       style: CapType.body.copyWith(color: CapColors.textMuted),
                     ),
                   )
                 : ListView.separated(
-                    itemCount: _players.length,
+                    itemCount: players.length,
                     separatorBuilder: (_, _) =>
                         const SizedBox(height: CapSpacing.sm),
                     itemBuilder: (context, index) => CapCard(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: CapSpacing.md,
-                        vertical: CapSpacing.sm + 2,
+                      bordered: true,
+                      background: CapColors.surface,
+                      padding: const EdgeInsets.only(
+                        left: CapSpacing.md,
+                        top: CapSpacing.sm,
+                        bottom: CapSpacing.sm,
+                        right: CapSpacing.sm,
                       ),
                       child: Row(
                         children: [
-                          Text(
-                            '${index + 1}',
-                            style: CapType.bodyStrong
-                                .copyWith(color: widget.game.accent),
-                          ),
-                          const SizedBox(width: CapSpacing.md),
                           Expanded(
-                            child: Text(_players[index], style: CapType.body),
+                            child: Text(players[index], style: CapType.body),
                           ),
                           IconButton(
                             onPressed: () =>
-                                setState(() => _players.removeAt(index)),
-                            icon: const Icon(Icons.close_rounded),
+                                setState(() => players.removeAt(index)),
+                            icon: const Icon(Icons.close_rounded, size: 20),
                             color: CapColors.textMuted,
-                            tooltip: 'Retirer ${_players[index]}',
+                            tooltip: 'Retirer ${players[index]}',
                           ),
                         ],
                       ),

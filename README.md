@@ -1,43 +1,52 @@
-# Ça part !
+# Ça Part.
 
-Application mobile de jeux de soirée, reprise de la web app
-[ca-part.fr](https://www.ca-part.fr/concepts) : même direction artistique, mêmes
-jeux, dans un binaire natif publiable sur le Play Store et l'App Store.
+L'application mobile de [ca-part.fr](https://www.ca-part.fr) : les mêmes
+concepts, la même direction artistique, dans un binaire natif publiable sur le
+Play Store et l'App Store.
 
 ## État
 
 | Brique | État |
 | --- | --- |
-| Application Flutter (Android, iOS, Web) | en place |
-| Design system piloté par tokens | en place, valeurs à remplacer par la DA du site |
-| Moteurs de jeu (paquet de cartes, manche chronométrée, écran sur mesure) | en place |
-| Catalogue de jeux piloté par JSON | en place, contenu d'exemple |
+| DA du site (crème, noir, rouge, une couleur par concept) | reprise |
+| Les 4 concepts, leurs consignes, chronos et compteurs | repris |
+| Accueil, grille des concepts, fiche, mélange | repris |
+| Partie : cartes, minuteurs 15 s / 20 s, prénoms | en place |
+| Mode « Entre vous » (les joueurs écrivent les cartes) | en place |
+| Déblocage payant via achats in-app + restauration | en place |
 | Build APK / AAB / IPA + CI GitHub Actions | en place |
-| **Contenu réel de ca-part.fr (DA, textes, jeux, assets)** | **en attente des sources** |
+| **Les paquets de cartes** | **58 cartes d'amorce, à remplacer par les vôtres** |
+| Police, logo, icône | à fournir |
 
-Le domaine `ca-part.fr` est bloqué par la politique de sortie réseau de
-l'environnement de développement : le contenu n'a pas pu être récupéré
-automatiquement. La marche à suivre pour l'importer est décrite dans
-[`docs/PORTAGE.md`](docs/PORTAGE.md) — c'est de la donnée, pas du code : un
-fichier de tokens et un fichier JSON.
+Détail et marche à suivre : [`docs/PORTAGE.md`](docs/PORTAGE.md).
+
+## Les concepts
+
+| Concept | Code | Chrono | Accès |
+| --- | --- | --- | --- |
+| Rapido | RAP | 15 s | 3,99 € |
+| Dilemme | DIL | — | gratuit |
+| Confession | CON | — | 3,99 € |
+| Sauve-moi si tu peux | PUN | 20 s | 3,99 € |
+| Entre vous | — | — | gratuit |
 
 ## Structure
 
 ```
-app/                          application Flutter
+app/
   lib/
-    design/                   tokens + composants (toute la DA vit ici)
-    models/                   définition d'un jeu, état d'une partie
-    data/                     chargement du catalogue
-    routing/                  routes, calquées sur les URLs du site
-    features/                 écrans : accueil, fiche, joueurs, partie, réglages
-  assets/games/index.json     le catalogue de jeux
-  test/                       tests unitaires et de widgets
+    design/          tokens + composants — toute la DA vit ici
+    models/          concept, carte, déroulé d'une partie
+    data/            chargement du catalogue
+    routing/         routes calquées sur les URLs du site
+    features/        accueil, concepts, partie, entre vous, infos
+    services/        préférences locales, achats in-app, haptique
+  assets/concepts/   le catalogue et les paquets de cartes
+  test/              tests unitaires et de widgets
 docs/
-  BUILD.md                    produire l'APK, l'AAB, l'IPA
-  STORE.md                    checklist Play Store et App Store
-  PORTAGE.md                  importer la DA et les jeux de la web app
-.github/workflows/            CI Android (APK + AAB) et iOS
+  BUILD.md           produire l'APK, l'AAB, l'IPA
+  STORE.md           checklists Play Store / App Store, achats in-app
+  PORTAGE.md         état du portage et ce qui reste à fournir
 ```
 
 ## Démarrage rapide
@@ -45,7 +54,7 @@ docs/
 ```bash
 cd app
 flutter pub get
-flutter run          # sur un appareil ou un émulateur
+flutter run
 flutter build apk --release
 ```
 
@@ -54,8 +63,11 @@ Détails dans [`docs/BUILD.md`](docs/BUILD.md).
 ## Choix techniques
 
 - **Flutter** plutôt qu'une WebView : Apple rejette les sites emballés
-  (guideline 4.2), et l'app fonctionne hors ligne.
-- **Aucun réseau, aucun compte** : tout est embarqué, ce qui simplifie les
-  déclarations de confidentialité des deux stores.
-- **Contenu séparé du code** : les jeux sont des données JSON, la DA un fichier
-  de tokens. Faire évoluer le contenu ne demande pas de toucher aux écrans.
+  (guideline 4.2), et l'app doit tourner sans connexion pendant une soirée.
+- **Rien sur un serveur** : prénoms, réglages et achats restent sur
+  l'appareil ; les questions d'« Entre vous » sont effacées à la fin de la
+  partie. C'est la promesse du site, et ça simplifie les déclarations de
+  confidentialité des deux stores.
+- **Le contenu est de la donnée** : les cartes sont un JSON, la DA un fichier
+  de tokens. Changer les paquets ou la charte ne demande pas de toucher aux
+  écrans.
