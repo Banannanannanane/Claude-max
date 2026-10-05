@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Brin de foin doré au milieu d'aiguilles d'acier -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:strokeColor="#FF8D939C" android:strokeWidth="3" android:strokeLineCap="round" android:pathData="M30,36 L78,72" />
+    <path android:strokeColor="#FFD27A43" android:strokeWidth="3" android:strokeLineCap="round" android:pathData="M28,66 L80,44" />
+    <path android:strokeColor="#FFC9CED6" android:strokeWidth="3" android:strokeLineCap="round" android:pathData="M44,28 L62,80" />
+    <path android:strokeColor="#FFB3BCCB" android:strokeWidth="3" android:strokeLineCap="round" android:pathData="M74,30 L36,78" />
+    <path android:strokeColor="#FFC99A2E" android:strokeWidth="6" android:strokeLineCap="round" android:pathData="M32,52 Q54,38 78,58" />
+    <path android:strokeColor="#FFF7DF86" android:strokeWidth="2" android:strokeLineCap="round" android:pathData="M33,51 Q54,37 77,56" />
+</vector>

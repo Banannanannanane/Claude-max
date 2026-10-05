@@ -1,0 +1,41 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.trouvelefoin.jeu'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.trouvelefoin.jeu'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+
+    signingConfigs {
+        release {
+            // Clé de signature du projet (non secrète) : permet d'installer les mises à jour par-dessus.
+            storeFile rootProject.file('keystore/trouvelefoin.jks')
+            storePassword 'foinfoin'
+            keyAlias 'trouvelefoin'
+            keyPassword 'foinfoin'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

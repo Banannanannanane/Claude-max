@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#121418">
+<title>Trouve le Foin</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div class="res money"><span class="ico">💰</span><b data-g="money">0 €</b></div>
+    <div class="res"><span class="ico">🌾</span><b data-g="hay">0</b></div>
+    <div class="res"><span class="ico">⚫</span><b data-g="coal">0</b></div>
+    <div class="res star" data-gh="nostars"><span class="ico">⭐</span><b data-g="stars">0</b></div>
+  </header>
+
+  <main>
+    <section id="tab-botte" class="tab active">
+      <div class="hud">
+        <div class="hud-row">
+          <b data-g="botteName">Botte n°1</b>
+          <span class="muted" data-g="botteHay"></span>
+          <button class="btn sm gold" data-a="nextBotte" data-gh="noNext">Botte suivante ➜</button>
+        </div>
+        <div class="bar"><div class="fill steel" data-gw="botteProg"></div></div>
+        <div class="hud-row small">
+          <span data-g="botteNeedles"></span>
+          <span class="muted" data-g="rates"></span>
+        </div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="pile"></canvas>
+        <div class="hint" data-gh="noHint" data-g="hint"></div>
+      </div>
+      <div id="inv" class="inv"></div>
+    </section>
+    <section id="tab-fonderie" class="tab scroll"></section>
+    <section id="tab-marche" class="tab scroll"></section>
+    <section id="tab-atelier" class="tab scroll"></section>
+    <section id="tab-plus" class="tab scroll"></section>
+  </main>
+
+  <nav id="nav">
+    <button data-tab="botte" class="on"><span>🪡</span>Botte</button>
+    <button data-tab="fonderie"><span>🔥</span>Fonderie</button>
+    <button data-tab="marche"><span>📈</span>Marché</button>
+    <button data-tab="atelier"><span>🛠️</span>Atelier<i class="dot-badge" data-gh="noUpg"></i></button>
+    <button data-tab="plus"><span>📜</span>Plus<i class="dot-badge" data-gh="noQuest"></i></button>
+  </nav>
+
+  <div id="toasts"></div>
+  <div id="modal" class="modal" hidden>
+    <div class="modal-box">
+      <h3 id="modal-title"></h3>
+      <div id="modal-body"></div>
+      <div id="modal-btns" class="modal-btns"></div>
+    </div>
+  </div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
