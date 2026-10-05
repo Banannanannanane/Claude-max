@@ -1,164 +1,215 @@
 extends Node
-## État de la partie et économie : tas, foin caché, entrepôt, machines, progression, sauvegarde.
+## État de la partie et simulation de l'usine : grille, convoyeurs, machines, trou de vente,
+## arbre technologique, contrats, succès et sauvegardes (3 emplacements).
 
 signal changed
 signal toast(text: String, gold: bool)
 signal hay_found(count: int, by_hand: bool)
-signal buildings_changed
+signal entities_changed
 signal pile_changed
-signal pile_completed
+signal sold(cell: Vector2i, item_type: String)
 
-const SAVE_PATH := "user://save.json"
+const STEP := 1.0 / 30.0
 const MAX_OFFLINE := 8.0 * 3600.0
+const SLOTS := 3
 
-# --- argent et stocks
+# --- économie
 var money := 0.0
-var hay_stock := 0
-var hay_stock_value := 0.0
-var hand_n := 0 # aiguilles en main
-var hand_h := 0 # foin caché dans la main
-var vrac_n := 0 # entrepôt : aiguilles non vérifiées
-var vrac_h := 0 # foin caché dans le vrac
-var table_n := 0 # file d'attente des tables de tri
-var table_h := 0
-var verified := 0
-var raw := 0 # lingots bruts
-var pure := 0 # lingots purs
+var hand_n := 0
+var hand_h := 0
 
 # --- tas en cours
 var pile_size := "petit"
-var pile_total := 400
-var pile_n := 400
+var pile_total := 600
+var pile_n := 600
 var pile_h := 22
 var pile_found := 0
 var pile_done := false
 
 # --- progression
-var up := {}
-var tree := {"licence": true}
-var buildings: Array = [] # [{type, x, z, rot}]
-var stats := {"needles": 0, "hay": 0, "piles": 0, "sold": 0, "earned": 0.0, "ingots": 0, "time": 0.0}
-var settings := {"sound": true, "sens": 1.0, "truck_hay": false}
+var shop := {} # niveaux de la boutique
+var tree := {"p_convoyeur": true} # nœuds achetés
+var ups := {} # niveaux des améliorations de plans
+var achievements := {}
+var stats := {}
+var settings := {"sound": true, "sens": 1.0, "music": true}
+var contract := {} # contrat en cours
+var offers: Array = [] # contrats proposés
+var rates := {"income": 0.0, "dig": 0.0, "hay": 0.0}
+var slot := 1
 var last_save := 0
 
+# --- usine
+var entities := {} # id -> Dictionary
+var grid := {} # Vector2i -> id
+var next_id := 1
+var _belt_order: Array = []
+var _order_dirty := true
+
 var offline := false
-var _acc := {}
-var _activity := {} # type -> horloge du dernier travail (animations)
+var _acc := 0.0
 var _clock := 0.0
 var _save_acc := 0.0
 var _changed_acc := 0.0
-var _toast_flood := 0.0
+var _sec_acc := 0.0
+var _rate_acc := 0.0
+var _rate_base := {}
+var _lost_toast := -100.0
+var _activity := {} # id -> horloge du dernier travail
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	if not load_game():
+	slot = _last_slot()
+	if not load_slot(slot):
 		new_game()
+
+
+# ============================================================ nouvelle partie
+func _blank_stats() -> Dictionary:
+	return {"needles": 0, "hay": 0, "piles": 0, "earned": 0.0, "ingots": 0, "time": 0.0, "belts": 0,
+		"contracts": 0, "sold": {}, "lost_hay": 0}
 
 
 func new_game() -> void:
 	money = 0.0
-	hay_stock = 0
-	hay_stock_value = 0.0
 	hand_n = 0
 	hand_h = 0
-	vrac_n = 0
-	vrac_h = 0
-	table_n = 0
-	table_h = 0
-	verified = 0
-	raw = 0
-	pure = 0
-	up = {}
-	tree = {"licence": true}
-	stats = {"needles": 0, "hay": 0, "piles": 0, "sold": 0, "earned": 0.0, "ingots": 0, "time": 0.0}
-	buildings = [
-		{"type": "table", "x": 5.0, "z": -2.0, "rot": 0},
-		{"type": "entrepot", "x": -8.0, "z": -1.0, "rot": 1},
-		{"type": "comptoir", "x": 5.5, "z": 6.0, "rot": 3},
-		{"type": "bureau", "x": -5.0, "z": 7.0, "rot": 0},
-	]
+	shop = {}
+	tree = {"p_convoyeur": true}
+	ups = {}
+	achievements = {}
+	stats = _blank_stats()
+	contract = {}
+	offers = []
+	rates = {"income": 0.0, "dig": 0.0, "hay": 0.0}
+	entities = {}
+	grid = {}
+	next_id = 1
 	_set_pile("petit")
-	buildings_changed.emit()
+	# installation de départ : une trémie près du tas, un tapis jusqu'au trou de vente
+	_add("trou", Vector2i(12, -2), 0)
+	_add("bureau", Vector2i(-10, 4), 0)
+	_add("tremie", Vector2i(0, -10), 1)
+	for x in range(2, 10):
+		_add("convoyeur", Vector2i(x, -10), 1)
+	for z in range(-10, -4):
+		_add("convoyeur", Vector2i(10, z), 2)
+	_roll_offers()
+	_order_dirty = true
+	entities_changed.emit()
+	pile_changed.emit()
 	changed.emit()
 
 
 # ============================================================ formules
-func lvl(id: String) -> int:
-	return int(up.get(id, 0))
+func shop_lvl(id: String) -> int:
+	return int(shop.get(id, 0))
 
 
-func has_right(id: String) -> bool:
+func up_lvl(id: String) -> int:
+	return int(ups.get(id, 0))
+
+
+func has_plan(id: String) -> bool:
 	return id == "" or tree.has(id)
 
 
-func upgrade_cost(id: String) -> float:
-	var u: Dictionary = Data.UPGRADES[id]
-	return round(u.base * pow(u.k, lvl(id)))
+func shop_cost(id: String) -> float:
+	var u: Dictionary = Data.SHOP[id]
+	return round(u.base * pow(u.k, shop_lvl(id)))
+
+
+func up_cost(id: String) -> float:
+	var u: Dictionary = Data.TREE_UPS[id]
+	return round(u.base * pow(u.k, up_lvl(id)))
 
 
 func hand_cap() -> int:
-	return 15 + 10 * lvl("main")
+	return 15 + 10 * shop_lvl("main")
 
 
 func grab_amount() -> int:
-	return 3 + 2 * lvl("poignee")
+	return 3 + 2 * shop_lvl("poignee")
 
 
 func stamina_max() -> float:
-	return 100.0 + 25.0 * lvl("endurance")
+	return 100.0 + 25.0 * shop_lvl("endurance")
 
 
 func stamina_regen() -> float:
-	return 14.0 + 5.0 * lvl("recup")
+	return 14.0 + 5.0 * shop_lvl("recup")
 
 
 func walk_speed() -> float:
-	return 4.2 + 0.45 * lvl("vitesse")
+	return 4.2 + 0.45 * shop_lvl("vitesse")
 
 
 func reach() -> float:
-	return 3.6 + 0.75 * lvl("portee")
+	return 3.6 + 0.75 * shop_lvl("portee")
 
 
 func spot_chance() -> float:
-	return minf(0.9, 0.3 + 0.07 * lvl("oeil"))
+	return minf(0.9, 0.3 + 0.07 * shop_lvl("oeil"))
 
 
-func count_type(t: String) -> int:
-	var n := 0
-	for b in buildings:
-		if b.type == t:
-			n += 1
-	return n
+func tremie_cap() -> int:
+	return 600 + 300 * shop_lvl("tremie_cap")
 
 
-func capacity() -> int:
-	return count_type("entrepot") * (300 + 150 * lvl("etageres"))
+func belt_speed() -> float:
+	return 1.6 * (1.0 + 0.2 * up_lvl("u_conv_vitesse"))
 
 
-func used() -> int:
-	return vrac_n + vrac_h + verified + raw + pure
+func auto_mult() -> float:
+	return (1.5 if tree.has("b_auto") else 1.0) * (1.0 + 0.1 * up_lvl("u_auto"))
 
 
-func free_space() -> int:
-	return maxi(0, capacity() - used())
+func machine_speed(type: String) -> float:
+	var m: Dictionary = Data.MACHINES[type]
+	var s := 1.0
+	if m.has("speed"):
+		s += (0.3 if type == "scanner" else 0.25) * up_lvl(m.speed)
+	return s * auto_mult()
 
 
-func table_cap() -> int:
-	return count_type("table") * 120
+func dig_range(type: String) -> float:
+	if type == "bras":
+		return 3.0 + up_lvl("u_bras_portee")
+	if type == "pelle":
+		return 5.0 + 1.5 * up_lvl("u_pelle_portee")
+	return 0.0
 
 
-func price_mult() -> float:
-	return (1.0 + 0.05 * lvl("m_vendeur")) * (1.25 if tree.has("contrats") else 1.0)
+func sell_mult() -> float:
+	return (1.1 if tree.has("b_trou") else 1.0) * (1.0 + 0.05 * up_lvl("u_trou_prix"))
+
+
+func quality_mult(item: String) -> float:
+	match item:
+		"brut":
+			return 1.0 + 0.1 * up_lvl("u_fond_qualite")
+		"pur":
+			return 1.0 + 0.1 * up_lvl("u_purif_qualite")
+		"tole":
+			return 1.0 + 0.1 * up_lvl("u_presse_qualite")
+		"fil":
+			return 1.0 + 0.1 * up_lvl("u_tref_qualite")
+		"boite":
+			return 1.0 + 0.1 * up_lvl("u_aig_qualite")
+	return 1.0
+
+
+func item_price(item: Dictionary) -> float:
+	var t: String = item.t
+	var base: float = Data.ITEMS[t].price
+	if t == "vrac" or t == "acier":
+		base *= float(item.get("n", Data.LOT)) / Data.LOT
+	return base * quality_mult(t) * sell_mult()
 
 
 func hay_unit_value() -> float:
-	return Data.PILES[pile_size].hay_value * (1.5 if tree.has("magnat") else 1.0)
-
-
-func machine_mult() -> float:
-	return 1.5 if tree.has("auto") else 1.0
+	return Data.PILES[pile_size].hay_value
 
 
 func pile_radius() -> float:
@@ -171,67 +222,241 @@ func pile_items() -> int:
 	return pile_n + pile_h
 
 
-func building_cost(t: String) -> float:
-	var base: float = Data.BUILDINGS[t].cost
-	var n := count_type(t)
-	if t == "table" or t == "entrepot":
-		n -= 1 # le premier est offert
-	return round(base * pow(1.5, maxi(0, n)))
+func build_cost(type: String) -> float:
+	var base: float = Data.MACHINES[type].cost
+	if type == "convoyeur" or type == "separateur":
+		return base
+	var n := count_type(type)
+	return round(base * pow(1.35, n))
 
 
-func is_active(t: String) -> bool:
-	return _clock - float(_activity.get(t, -10.0)) < 1.2
+func count_type(t: String) -> int:
+	var n := 0
+	for id in entities:
+		if entities[id].type == t:
+			n += 1
+	return n
 
 
-func digger_in_range(b: Dictionary) -> bool:
-	var r: float = Data.BUILDINGS[b.type].get("range", 0.0)
-	var d := Vector2(b.x - Data.PILE_POS.x, b.z - Data.PILE_POS.z).length()
-	return pile_items() > 0 and d - pile_radius() <= r
+func is_active(id: int) -> bool:
+	return _clock - float(_activity.get(id, -10.0)) < 1.0
 
 
-func rate_of(t: String) -> float:
-	var m := machine_mult()
-	match t:
-		"bras":
-			return 2.5 * (1.0 + 0.25 * lvl("m_bras")) * m
-		"pelle":
-			return 18.0 * (1.0 + 0.25 * lvl("m_pelle")) * m
-		"table":
-			return (2.0 + 1.5 * lvl("tri")) * (2.0 if tree.has("tri_express") else 1.0)
-		"verif":
-			return 8.0 * (1.0 + 0.3 * lvl("m_verif")) * m
-		"fonderie":
-			return 0.4 * (1.0 + 0.25 * lvl("m_fonderie")) * m
-		"purif":
-			return 0.25 * (1.0 + 0.25 * lvl("m_purif")) * m
-		"vendeur":
-			return 3.0 * (1.0 + 0.2 * lvl("m_vendeur")) * m
-	return 0.0
+# ============================================================ grille
+static func rot_vec(v: Vector2i, r: int) -> Vector2i:
+	for i in r % 4:
+		v = Vector2i(-v.y, v.x)
+	return v
 
 
-# ============================================================ notifications
+static func cell_center(c: Vector2i) -> Vector3:
+	return Vector3(c.x + 0.5, 0, c.y + 0.5)
+
+
+static func world_to_cell(p: Vector3) -> Vector2i:
+	return Vector2i(floori(p.x), floori(p.z))
+
+
+static func footprint(type: String, c: Vector2i, r: int) -> Array:
+	var s: Vector2i = Data.MACHINES[type].size
+	var out := []
+	for lx in range(-(s.x - 1) / 2, (s.x - 1) / 2 + 1):
+		for lz in range(-(s.y - 1) / 2, (s.y - 1) / 2 + 1):
+			out.append(c + rot_vec(Vector2i(lx, lz), r))
+	return out
+
+
+## Case devant la machine (où elle pose ce qu'elle produit).
+static func out_cell(type: String, c: Vector2i, r: int) -> Vector2i:
+	var s: Vector2i = Data.MACHINES[type].size
+	return c + Data.DIRS[r] * ((s.y + 1) / 2)
+
+
+## Case derrière la machine (d'où arrive le tapis d'entrée).
+static func in_cell(type: String, c: Vector2i, r: int) -> Vector2i:
+	var s: Vector2i = Data.MACHINES[type].size
+	return c - Data.DIRS[r] * ((s.y + 1) / 2)
+
+
+func _pile_blocks(cell: Vector2i) -> bool:
+	var R: float = Data.PILES[pile_size].radius
+	var p := cell_center(cell)
+	return Vector2(p.x - Data.PILE_POS.x, p.z - Data.PILE_POS.z).length() < R + 0.4
+
+
+func placement_ok(type: String, c: Vector2i, r: int, ignore := -1) -> String:
+	for cell in footprint(type, c, r):
+		if absi(cell.x) > Data.FIELD or absi(cell.y) > Data.FIELD:
+			return "Hors du terrain"
+		if _pile_blocks(cell):
+			return "Trop près du tas"
+		var o: int = grid.get(cell, -1)
+		if o >= 0 and o != ignore:
+			# un convoyeur peut être remplacé par une machine (il est remboursé)
+			if entities[o].type != "convoyeur" or type == "convoyeur":
+				return "Emplacement occupé"
+	return ""
+
+
+func entity_at(cell: Vector2i) -> Dictionary:
+	var id: int = grid.get(cell, -1)
+	return entities[id] if id >= 0 else {}
+
+
+func _add(type: String, c: Vector2i, r: int) -> int:
+	var id := next_id
+	next_id += 1
+	var e := {"id": id, "type": type, "c": c, "r": r}
+	_init_state(e)
+	entities[id] = e
+	for cell in footprint(type, c, r):
+		grid[cell] = id
+	_order_dirty = true
+	return id
+
+
+func _init_state(e: Dictionary) -> void:
+	match e.type:
+		"convoyeur", "separateur":
+			e["item"] = null
+			e["k"] = 0
+		"tremie":
+			e["n"] = 0
+			e["h"] = 0
+			e["acc"] = 0.0
+			e["outq"] = []
+		"tampon":
+			e["q"] = []
+		"bras", "pelle":
+			e["acc"] = 0.0
+			e["outq"] = []
+		"drone":
+			e["state"] = 0
+			e["pos"] = cell_center(e.c) + Vector3(0, 0.6, 0)
+			e["carry_n"] = 0
+			e["carry_h"] = 0
+		_:
+			if Data.MACHINES[e.type].has("in"):
+				e["inq"] = []
+				e["outq"] = []
+				e["prog"] = 0.0
+				e["busy"] = []
+
+
+func _remove(id: int) -> void:
+	var e: Dictionary = entities[id]
+	for cell in footprint(e.type, e.c, e.r):
+		if grid.get(cell, -1) == id:
+			grid.erase(cell)
+	entities.erase(id)
+	_order_dirty = true
+
+
+func can_build(type: String) -> String:
+	var m: Dictionary = Data.MACHINES[type]
+	if m.get("fixed", false):
+		return "Non constructible"
+	if not has_plan(m.plan):
+		return "Plan requis dans l'arbre"
+	if money < build_cost(type):
+		return "Pas assez d'argent"
+	return ""
+
+
+func build(type: String, c: Vector2i, r: int) -> bool:
+	if can_build(type) != "" or placement_ok(type, c, r) != "":
+		return false
+	# remplace les convoyeurs recouverts
+	for cell in footprint(type, c, r):
+		var o: int = grid.get(cell, -1)
+		if o >= 0:
+			money += build_cost("convoyeur")
+			_remove(o)
+	money -= build_cost(type)
+	_add(type, c, r)
+	if type == "convoyeur":
+		stats.belts += 1
+	_sfx("buy" if type != "convoyeur" else "click")
+	entities_changed.emit()
+	changed.emit()
+	return true
+
+
+func move_entity(id: int, c: Vector2i, r: int) -> bool:
+	var e: Dictionary = entities[id]
+	if placement_ok(e.type, c, r, id) != "":
+		return false
+	for cell in footprint(e.type, e.c, e.r):
+		if grid.get(cell, -1) == id:
+			grid.erase(cell)
+	for cell in footprint(e.type, c, r):
+		var o: int = grid.get(cell, -1)
+		if o >= 0 and o != id:
+			_remove(o)
+	e.c = c
+	e.r = r
+	for cell in footprint(e.type, c, r):
+		grid[cell] = id
+	if e.type == "drone":
+		e.pos = cell_center(c) + Vector3(0, 0.6, 0)
+	_order_dirty = true
+	entities_changed.emit()
+	return true
+
+
+func rotate_entity(id: int) -> void:
+	var e: Dictionary = entities[id]
+	var nr: int = (e.r + 1) % 4
+	if placement_ok(e.type, e.c, nr, id) == "":
+		move_entity(id, e.c, nr)
+
+
+func demolish(id: int) -> bool:
+	var e: Dictionary = entities.get(id, {})
+	if e.is_empty() or Data.MACHINES[e.type].get("fixed", false):
+		return false
+	var refund := build_cost(e.type) if e.type == "convoyeur" else build_cost(e.type) / 1.35 * 0.5
+	# les aiguilles de la trémie retournent dans le tas, le foin reste trouvable
+	if e.type == "tremie":
+		pile_n += int(e.n)
+		pile_h += int(e.h)
+	_return_hay_of(e)
+	_remove(id)
+	money += refund
+	entities_changed.emit()
+	changed.emit()
+	return true
+
+
+func _return_hay_of(e: Dictionary) -> void:
+	var lots: Array = []
+	if e.get("item") != null:
+		lots.append(e.item)
+	for k in ["outq", "inq", "q", "busy"]:
+		if e.has(k):
+			lots.append_array(e[k])
+	for it in lots:
+		if it.get("h", 0) > 0:
+			pile_h += int(it.h)
+
+
+# ============================================================ actions du joueur
+func _sfx(n: String) -> void:
+	if not offline:
+		Sfx.play(n)
+
+
 func _toast(text: String, gold := false) -> void:
 	if not offline:
 		toast.emit(text, gold)
 
 
-func _sfx(name: String) -> void:
-	if not offline:
-		Sfx.play(name)
-
-
-func gain(x: float) -> void:
-	money += x
-	stats.earned += x
-
-
-## Arrondi aléatoire : 2,3 → 2 (70 %) ou 3 (30 %).
 func _sround(x: float) -> int:
 	var f := floorf(x)
 	return int(f) + (1 if randf() < x - f else 0)
 
 
-## Tire k objets d'un mélange (n aiguilles, h foin). Renvoie Vector2i(aiguilles, foin).
+## Tire k objets d'un mélange (n aiguilles, h foin) : Vector2i(aiguilles, foin).
 func _draw_mix(k: int, n: int, h: int) -> Vector2i:
 	k = mini(k, n + h)
 	if k <= 0:
@@ -259,13 +484,16 @@ func _found(count: int, by_hand: bool) -> void:
 	if count <= 0:
 		return
 	pile_found += count
-	hay_stock += count
-	hay_stock_value += count * hay_unit_value()
 	stats.hay += count
+	var reward := count * hay_unit_value()
+	gain(reward)
 	if not offline:
 		hay_found.emit(count, by_hand)
 		_sfx("hay")
-		_toast("Brin de foin trouvé ! (%d / %d)" % [pile_found, Data.HAY_PER_PILE], true)
+		_toast("Brin de foin trouvé ! (%d / %d)  +%s" % [pile_found, Data.HAY_PER_PILE, Fmt.eur(reward)], true)
+	if not by_hand:
+		_unlock("first_scan")
+	_unlock("first_hay")
 	if pile_found >= Data.HAY_PER_PILE and not pile_done:
 		pile_done = true
 		stats.piles += 1
@@ -273,11 +501,16 @@ func _found(count: int, by_hand: bool) -> void:
 		gain(bonus)
 		_sfx("win")
 		_toast("%s terminé : les 22 brins sont trouvés ! Prime : %s" % [Data.PILES[pile_size].name, Fmt.eur(bonus)], true)
-		pile_completed.emit()
+		_unlock("first_pile")
+		if pile_size == "montagne":
+			_unlock("mountain")
 
 
-# ============================================================ actions du joueur
-## Ramasse une poignée dans le tas. Renvoie le nombre d'objets pris (-1 main pleine).
+func gain(x: float) -> void:
+	money += x
+	stats.earned += x
+
+
 func grab() -> int:
 	var room := hand_cap() - hand_n - hand_h
 	if room <= 0:
@@ -296,71 +529,68 @@ func grab() -> int:
 		else:
 			hand_h += 1
 	_found(seen, true)
-	_activity["main"] = _clock
 	pile_changed.emit()
 	changed.emit()
 	return got.x + got.y
 
 
-func deposit_table() -> int:
-	var room := table_cap() - table_n - table_h
-	var q := mini(room, hand_n + hand_h)
+## Vide la main dans une trémie. Renvoie le nombre d'aiguilles déposées.
+func deposit_tremie(id: int) -> int:
+	var e: Dictionary = entities[id]
+	var q := mini(tremie_cap() - int(e.n) - int(e.h), hand_n + hand_h)
 	if q <= 0:
 		return 0
 	var mix := _draw_mix(q, hand_n, hand_h)
 	hand_n -= mix.x
 	hand_h -= mix.y
-	table_n += mix.x
-	table_h += mix.y
+	e.n += mix.x
+	e.h += mix.y
 	changed.emit()
 	return q
 
 
-func deposit_storage() -> int:
-	var q := mini(free_space(), hand_n + hand_h)
-	if q <= 0:
+## Pose un lot (10 aiguilles max) de la main sur un tapis vide.
+func drop_on_belt(id: int) -> int:
+	var e: Dictionary = entities[id]
+	if e.item != null or hand_n + hand_h <= 0:
 		return 0
-	var mix := _draw_mix(q, hand_n, hand_h)
+	var mix := _draw_mix(mini(Data.LOT, hand_n + hand_h), hand_n, hand_h)
 	hand_n -= mix.x
 	hand_h -= mix.y
-	vrac_n += mix.x
-	vrac_h += mix.y
+	e.item = {"t": "vrac", "n": mix.x, "h": mix.y, "p": 0.0}
 	changed.emit()
-	return q
+	return mix.x + mix.y
 
 
-func buy_upgrade(id: String) -> bool:
-	var u: Dictionary = Data.UPGRADES[id]
-	var c := upgrade_cost(id)
-	if lvl(id) >= int(u.max) or money < c or not has_right(u.get("right", "")):
+func buy_shop(id: String) -> bool:
+	var u: Dictionary = Data.SHOP[id]
+	var c := shop_cost(id)
+	if shop_lvl(id) >= int(u.max) or money < c:
 		return false
 	money -= c
-	up[id] = lvl(id) + 1
+	shop[id] = shop_lvl(id) + 1
 	_sfx("buy")
 	changed.emit()
 	return true
 
 
+## 0 verrouillé, 1 achetable, 2 acquis
 func tree_state(id: String) -> int:
-	## 0 verrouillé, 1 achetable, 2 acquis
 	if tree.has(id):
 		return 2
 	var n: Dictionary = Data.TREE[id]
 	for r in n.req:
 		if not tree.has(r):
 			return 0
-	if stats.piles < int(n.get("piles", 0)):
+	if int(stats.piles) < int(n.get("piles", 0)):
 		return 0
 	return 1
 
 
 func buy_tree(id: String) -> bool:
-	if tree_state(id) != 1:
+	if tree_state(id) != 1 or money < float(Data.TREE[id].cost):
 		return false
-	var c: float = Data.TREE[id].cost
-	if money < c:
-		return false
-	money -= c
+	money -= float(Data.TREE[id].cost)
 	tree[id] = true
 	_sfx("buy")
 	_toast("Débloqué : %s" % Data.TREE[id].name, true)
@@ -368,72 +598,23 @@ func buy_tree(id: String) -> bool:
 	return true
 
 
-func can_build(t: String) -> bool:
-	var b: Dictionary = Data.BUILDINGS[t]
-	return b.buildable and has_right(b.right) and money >= building_cost(t)
-
-
-func place_building(t: String, pos: Vector3, rot: int) -> bool:
-	if not can_build(t):
-		return false
-	money -= building_cost(t)
-	buildings.append({"type": t, "x": snappedf(pos.x, 0.5), "z": snappedf(pos.z, 0.5), "rot": rot})
-	_sfx("buy")
-	buildings_changed.emit()
-	changed.emit()
-	return true
-
-
-## Déplacement gratuit d'un bâtiment existant.
-func move_building(i: int, pos: Vector3, rot: int) -> void:
-	buildings[i].x = snappedf(pos.x, 0.5)
-	buildings[i].z = snappedf(pos.z, 0.5)
-	buildings[i].rot = rot
-	buildings_changed.emit()
-
-
-func demolish(i: int) -> bool:
-	var b: Dictionary = buildings[i]
-	if not Data.BUILDINGS[b.type].buildable:
-		return false
-	if (b.type == "table" or b.type == "entrepot") and count_type(b.type) <= 1:
-		_toast("Il te faut garder au moins un exemplaire de ce bâtiment.")
-		return false
-	buildings.remove_at(i)
-	if b.type == "entrepot":
-		# ce qui ne rentre plus est perdu, en commençant par le vrac
-		var over := used() - capacity()
-		if over > 0:
-			var lost := _draw_mix(mini(over, vrac_n + vrac_h), vrac_n, vrac_h)
-			vrac_n -= lost.x
-			vrac_h -= lost.y
-			pile_h += lost.y # le foin perdu retourne au tas pour rester trouvable
-	gain(building_cost(b.type) * 0.5)
-	buildings_changed.emit()
-	changed.emit()
-	return true
-
-
-## Peut-on poser une emprise (rayon r) en pos ? ignore = index à ignorer (déplacement).
-func placement_ok(t: String, pos: Vector3, ignore := -1) -> String:
-	var sz: Vector2 = Data.BUILDINGS[t].size
-	var r := maxf(sz.x, sz.y) * 0.5
-	if absf(pos.x) > Data.FIELD - r or absf(pos.z) > Data.FIELD - r:
-		return "Hors du terrain"
-	var dp := Vector2(pos.x - Data.PILE_POS.x, pos.z - Data.PILE_POS.z).length()
-	if dp < pile_radius() + r + 0.3:
-		return "Trop près du tas"
-	for i in buildings.size():
-		if i == ignore:
-			continue
-		var o: Dictionary = buildings[i]
-		var os: Vector2 = Data.BUILDINGS[o.type].size
-		var orr := maxf(os.x, os.y) * 0.5
-		if Vector2(pos.x - o.x, pos.z - o.z).length() < (r + orr) * 0.82:
-			return "Emplacement occupé"
-	if Vector2(pos.x, pos.z - 12.0).length() < r + 1.0:
-		return "Laisse le passage libre"
+func up_parent(up_id: String) -> String:
+	for id in Data.TREE:
+		if up_id in Data.TREE[id].ups:
+			return id
 	return ""
+
+
+func buy_up(id: String) -> bool:
+	var u: Dictionary = Data.TREE_UPS[id]
+	var c := up_cost(id)
+	if not tree.has(up_parent(id)) or up_lvl(id) >= int(u.max) or money < c:
+		return false
+	money -= c
+	ups[id] = up_lvl(id) + 1
+	_sfx("buy")
+	changed.emit()
+	return true
 
 
 func order_cost(size: String) -> float:
@@ -441,8 +622,8 @@ func order_cost(size: String) -> float:
 
 
 func can_order(size: String) -> String:
-	if not has_right(Data.PILES[size].right):
-		return "Droit requis dans l'arbre"
+	if not has_plan(Data.PILES[size].right):
+		return "Contrat requis dans l'arbre"
 	if not pile_done:
 		return "Trouve d'abord les 22 brins du tas actuel"
 	if money < order_cost(size):
@@ -468,289 +649,634 @@ func _set_pile(size: String) -> void:
 	pile_h = Data.HAY_PER_PILE
 	pile_found = 0
 	pile_done = false
-	# Le foin encore caché ailleurs (ancien tas) ne compte plus.
 	hand_h = 0
-	vrac_h = 0
-	table_h = 0
-	# Les bâtiments recouverts par un tas plus grand sont poussés sur le côté.
-	var R: float = Data.PILES[size].radius
-	var moved := false
-	for b in buildings:
-		var sz: Vector2 = Data.BUILDINGS[b.type].size
-		var r := maxf(sz.x, sz.y) * 0.5
-		var d := Vector2(b.x - Data.PILE_POS.x, b.z - Data.PILE_POS.z)
-		if d.length() < R + r + 0.3:
-			var dir := d.normalized() if d.length() > 0.01 else Vector2(1, 0)
-			var p := Vector2(Data.PILE_POS.x, Data.PILE_POS.z) + dir * (R + r + 0.8)
-			b.x = snappedf(p.x, 0.5)
-			b.z = snappedf(p.y, 0.5)
-			moved = true
-	if moved:
-		buildings_changed.emit()
+	# le foin caché de l'ancien tas ne compte plus ; ce que le nouveau tas recouvre est remboursé
+	var removed := 0
+	for id in entities.keys():
+		var e: Dictionary = entities[id]
+		for k in ["outq", "inq", "q", "busy"]:
+			if e.has(k):
+				for it in e[k]:
+					it["h"] = 0
+		if e.get("item") != null:
+			e.item["h"] = 0
+		if e.has("h") and e.type == "tremie":
+			e.h = 0
+		if Data.MACHINES[e.type].get("fixed", false):
+			continue
+		for cell in footprint(e.type, e.c, e.r):
+			if _pile_blocks(cell):
+				money += build_cost(e.type) / (1.35 if e.type != "convoyeur" and e.type != "separateur" else 1.0)
+				_remove(id)
+				removed += 1
+				break
+	if removed > 0:
+		_toast("%d construction(s) recouverte(s) par le nouveau tas ont été remboursées." % removed)
+		entities_changed.emit()
 	pile_changed.emit()
 
 
-func sell(kind: String, q: int) -> float:
-	var have := stock_of(kind)
-	q = mini(q, have)
-	if q <= 0:
-		return 0.0
-	var total := q * unit_price(kind)
-	match kind:
-		"verified":
-			verified -= q
-		"raw":
-			raw -= q
-		"pure":
-			pure -= q
-		"hay":
-			hay_stock_value -= total / price_mult()
-			hay_stock -= q
-			if hay_stock <= 0:
-				hay_stock_value = 0.0
-	gain(total)
-	stats.sold += q
-	_sfx("cash")
+# ============================================================ contrats
+func available_items() -> Array:
+	var out := ["vrac"]
+	if tree.has("p_scanner"):
+		out.append("acier")
+	if tree.has("p_fonderie"):
+		out.append("brut")
+	if tree.has("p_purif"):
+		out.append("pur")
+	if tree.has("p_presse"):
+		out.append("tole")
+	if tree.has("p_trefileuse"):
+		out.append("fil")
+	if tree.has("p_aiguilleuse"):
+		out.append("boite")
+	return out
+
+
+func _roll_offers() -> void:
+	offers = []
+	var items := available_items()
+	for i in 3:
+		var t: String = items[randi() % items.size()] if i < 2 else items[items.size() - 1]
+		var qty := randi_range(15, 40) * (1 + int(stats.piles))
+		var price: float = Data.ITEMS[t].price
+		offers.append({"t": t, "qty": qty, "reward": round(qty * price * randf_range(1.6, 2.4) + 50.0), "time": float(randi_range(5, 12) * 60)})
+
+
+func accept_offer(i: int) -> bool:
+	if not contract.is_empty() or i >= offers.size():
+		return false
+	var o: Dictionary = offers[i]
+	contract = {"t": o.t, "qty": o.qty, "done": 0, "reward": o.reward, "until": stats.time + o.time}
+	offers.remove_at(i)
+	_sfx("click")
 	changed.emit()
-	return total
+	return true
 
 
-func stock_of(kind: String) -> int:
-	match kind:
-		"verified":
-			return verified
-		"raw":
-			return raw
-		"pure":
-			return pure
-		"hay":
-			return hay_stock
-	return 0
+func abandon_contract() -> void:
+	contract = {}
+	_roll_offers()
+	changed.emit()
 
 
-func unit_price(kind: String) -> float:
-	match kind:
-		"verified":
-			return Data.PRICE_NEEDLE * price_mult()
-		"raw":
-			return Data.PRICE_RAW * price_mult()
-		"pure":
-			return Data.PRICE_PURE * price_mult()
-		"hay":
-			return (hay_stock_value / maxf(1.0, hay_stock)) * price_mult() if hay_stock > 0 else hay_unit_value() * price_mult()
-	return 0.0
+# ============================================================ succès
+func _unlock(id: String) -> void:
+	if achievements.has(id):
+		return
+	achievements[id] = true
+	for a in Data.ACHIEVEMENTS:
+		if a[0] == id:
+			_toast("Succès débloqué : %s" % a[1], true)
+			_sfx("win")
 
 
-# ============================================================ simulation des machines
-func _work(key: String, rate: float, dt: float) -> int:
-	if rate <= 0.0:
-		_acc[key] = 0.0
-		return 0
-	var a: float = _acc.get(key, 0.0) + rate * dt
-	var n := int(floor(a))
-	_acc[key] = minf(a - n, maxf(1.0, rate))
-	return n
+func _check_achievements() -> void:
+	if int(stats.belts) >= 1:
+		_unlock("first_belt")
+	if int(stats.belts) >= 100:
+		_unlock("belts_100")
+	if int(stats.ingots) >= 1:
+		_unlock("first_ingot")
+	if int(stats.sold.get("pur", 0)) >= 100:
+		_unlock("pure_100")
+	if int(stats.contracts) >= 5:
+		_unlock("contract_5")
+	if int(stats.needles) >= 100000:
+		_unlock("needles_100k")
+	if int(stats.sold.get("boite", 0)) >= 1:
+		_unlock("boite_1")
+	if float(stats.earned) >= 1000000.0:
+		_unlock("money_1m")
 
 
-func tick(dt: float) -> void:
+# ============================================================ simulation
+## Essaie de faire entrer un objet dans la case `cell` en venant dans la direction `dir`.
+func _insert(cell: Vector2i, item: Dictionary, dir: int) -> bool:
+	var id: int = grid.get(cell, -1)
+	if id < 0:
+		return false
+	var e: Dictionary = entities[id]
+	match e.type:
+		"convoyeur":
+			if e.item == null and e.r != (dir + 2) % 4:
+				item.p = 0.0
+				e.item = item
+				return true
+		"separateur":
+			if e.item == null and e.r == dir:
+				item.p = 0.0
+				e.item = item
+				return true
+		"trou":
+			_sell(item, cell)
+			return true
+		"tampon":
+			if e.r == dir and e.q.size() < int(Data.MACHINES.tampon.cap):
+				e.q.append(item)
+				return true
+		"tremie":
+			# une trémie accepte aussi les aiguilles en vrac apportées par tapis
+			if item.t == "vrac" and int(e.n) + int(e.h) + int(item.n) + int(item.h) <= tremie_cap():
+				e.n += int(item.n)
+				e.h += int(item.h)
+				return true
+		_:
+			var m: Dictionary = Data.MACHINES[e.type]
+			if m.has("in") and e.r == dir and m.in.has(item.t):
+				var have := 0
+				for it in e.inq:
+					if it.t == item.t:
+						have += 1
+				if have < int(m.in[item.t]) * 3:
+					e.inq.append(item)
+					return true
+	return false
+
+
+func _sell(item: Dictionary, cell: Vector2i) -> void:
+	var t: String = item.t
+	var value := item_price(item)
+	gain(value)
+	stats.sold[t] = int(stats.sold.get(t, 0)) + 1
+	if t == "vrac" and int(item.get("h", 0)) > 0:
+		# du foin non détecté tombe dans le trou : il est recraché dans le tas
+		pile_h += int(item.h)
+		stats.lost_hay += int(item.h)
+		if _clock - _lost_toast > 8.0:
+			_lost_toast = _clock
+			_toast("Du foin non détecté est tombé dans le trou… il retourne dans le tas ! Installe un scanner.")
+			_sfx("prick")
+	if not contract.is_empty() and contract.t == t:
+		contract.done += 1
+		if contract.done >= contract.qty:
+			gain(contract.reward)
+			stats.contracts += 1
+			_toast("Contrat rempli ! Prime : %s" % Fmt.eur(contract.reward), true)
+			_sfx("win")
+			contract = {}
+			_roll_offers()
+	if not offline:
+		sold.emit(cell, t)
+
+
+func _rebuild_order() -> void:
+	# ordre de mise à jour : de l'aval vers l'amont, pour que les files avancent d'un bloc
+	var dist := {}
+	for id in entities:
+		var e: Dictionary = entities[id]
+		if e.type != "convoyeur" and e.type != "separateur":
+			continue
+		if dist.has(id):
+			continue
+		var path: Array = []
+		var on_path := {}
+		var cur: int = id
+		var base := 0
+		while true:
+			if dist.has(cur):
+				base = dist[cur]
+				break
+			if on_path.has(cur):
+				base = 0
+				break
+			path.append(cur)
+			on_path[cur] = true
+			var ce: Dictionary = entities[cur]
+			var nid: int = grid.get(ce.c + Data.DIRS[ce.r], -1)
+			if nid < 0 or (entities[nid].type != "convoyeur" and entities[nid].type != "separateur"):
+				base = 0
+				break
+			cur = nid
+		for i in range(path.size() - 1, -1, -1):
+			base += 1
+			dist[path[i]] = base
+	_belt_order = dist.keys()
+	_belt_order.sort_custom(func(a: int, b: int) -> bool: return dist[a] < dist[b])
+	_order_dirty = false
+
+
+func _step(dt: float) -> void:
 	_clock += dt
 	stats.time += dt
+	if _order_dirty:
+		_rebuild_order()
+	var spd := belt_speed() * dt
+	for id in _belt_order:
+		var e: Dictionary = entities[id]
+		var it = e.item
+		if it == null:
+			continue
+		it.p = minf(1.0, it.p + spd)
+		if it.p < 1.0:
+			continue
+		if e.type == "convoyeur":
+			if _insert(e.c + Data.DIRS[e.r], it, e.r):
+				e.item = null
+		else:
+			for k in 3:
+				var d: int = [(e.r + 3) % 4, e.r, (e.r + 1) % 4][(e.k + k) % 3]
+				if _insert(e.c + Data.DIRS[d], it, d):
+					e.item = null
+					e.k = (e.k + k + 1) % 3
+					break
+	for id in entities.keys():
+		if not entities.has(id):
+			continue
+		var e: Dictionary = entities[id]
+		match e.type:
+			"convoyeur", "separateur", "trou", "bureau":
+				pass
+			"tremie":
+				_tick_tremie(e, dt)
+			"bras", "pelle":
+				_tick_digger(e, dt)
+			"tampon":
+				if e.q.size() > 0 and _insert(out_cell(e.type, e.c, e.r), e.q[0], e.r):
+					e.q.pop_front()
+			"drone":
+				_tick_drone(e, dt)
+			_:
+				_tick_machine(e, dt)
 
-	# creuseurs : bras robots et pelleteuses à portée du tas
-	var dig := 0.0
-	var any_bras := false
-	var any_pelle := false
-	for b in buildings:
-		if (b.type == "bras" or b.type == "pelle") and digger_in_range(b):
-			dig += rate_of(b.type)
-			if b.type == "bras":
-				any_bras = true
-			else:
-				any_pelle = true
-	var nd := mini(_work("dig", dig, dt), free_space())
-	if nd > 0:
-		var got := _draw_mix(nd, pile_n, pile_h)
-		if got.x + got.y > 0:
-			pile_n -= got.x
-			pile_h -= got.y
-			vrac_n += got.x
-			vrac_h += got.y
-			stats.needles += got.x
-			if any_bras:
-				_activity["bras"] = _clock
-			if any_pelle:
-				_activity["pelle"] = _clock
-			if not offline:
-				pile_changed.emit()
 
-	# tables de tri
-	var nt := mini(_work("table", rate_of("table") * count_type("table"), dt), free_space())
-	if nt > 0 and table_n + table_h > 0:
-		var mix := _draw_mix(nt, table_n, table_h)
-		table_n -= mix.x
-		table_h -= mix.y
-		verified += mix.x
-		_activity["table"] = _clock
-		_found(mix.y, false)
+func _push_out(e: Dictionary) -> void:
+	if e.outq.size() > 0 and _insert(out_cell(e.type, e.c, e.r), e.outq[0], e.r):
+		e.outq.pop_front()
 
-	# vérificateurs
-	var nv := _work("verif", rate_of("verif") * count_type("verif"), dt)
-	if nv > 0 and vrac_n + vrac_h > 0:
-		var mix2 := _draw_mix(nv, vrac_n, vrac_h)
-		vrac_n -= mix2.x
-		vrac_h -= mix2.y
-		verified += mix2.x
-		_activity["verif"] = _clock
-		_found(mix2.y, false)
 
-	# fonderies : 10 aiguilles vérifiées -> 1 lingot brut (libère de la place)
-	var nf := mini(_work("fonderie", rate_of("fonderie") * count_type("fonderie"), dt), verified / Data.NEEDLES_PER_INGOT)
-	if nf > 0:
-		verified -= nf * Data.NEEDLES_PER_INGOT
-		raw += nf
-		stats.ingots += nf
-		_activity["fonderie"] = _clock
+func _tick_tremie(e: Dictionary, dt: float) -> void:
+	if e.outq.is_empty() and int(e.n) + int(e.h) > 0:
+		e.acc += 3.0 * dt
+		if e.acc >= 1.0:
+			e.acc = 0.0
+			var mix := _draw_mix(Data.LOT, int(e.n), int(e.h))
+			e.n -= mix.x
+			e.h -= mix.y
+			e.outq.append({"t": "vrac", "n": mix.x, "h": mix.y, "p": 0.0})
+			_activity[e.id] = _clock
+	_push_out(e)
 
-	# purificateurs
-	var np := mini(_work("purif", rate_of("purif") * count_type("purif"), dt), raw)
-	if np > 0:
-		raw -= np
-		pure += np
-		_activity["purif"] = _clock
 
-	# camions de vente : lingots purs, puis bruts, puis aiguilles (et foin si demandé)
-	var ns := _work("vendeur", rate_of("vendeur") * count_type("vendeur"), dt)
-	if ns > 0:
-		var sold := 0.0
-		for kind in ["pure", "raw", "verified", "hay"]:
-			if kind == "hay" and not settings.truck_hay:
-				continue
-			var q := mini(ns, stock_of(kind))
-			if kind == "verified":
-				q = mini(stock_of(kind), ns * 10) # les aiguilles partent par cartons
-			if q > 0:
-				var was := offline
-				offline = true # pas de bruit de caisse à chaque carton
-				sold += sell(kind, q)
-				offline = was
-				ns -= q if kind != "verified" else int(ceil(q / 10.0))
-			if ns <= 0:
-				break
-		if sold > 0.0:
-			_activity["vendeur"] = _clock
+func digger_in_range(type: String, c: Vector2i) -> bool:
+	var p := cell_center(c)
+	var d := Vector2(p.x - Data.PILE_POS.x, p.z - Data.PILE_POS.z).length()
+	return pile_items() > 0 and d - pile_radius() <= dig_range(type)
 
+
+func _tick_digger(e: Dictionary, dt: float) -> void:
+	_push_out(e)
+	if not digger_in_range(e.type, e.c) or e.outq.size() >= 3:
+		return
+	var m: Dictionary = Data.MACHINES[e.type]
+	e.acc += float(m.dig) * machine_speed(e.type) * dt
+	if e.acc < 1.0:
+		return
+	e.acc -= 1.0
+	for i in int(m.get("lot_mult", 1)):
+		var mix := _draw_mix(Data.LOT, pile_n, pile_h)
+		if mix.x + mix.y <= 0:
+			break
+		pile_n -= mix.x
+		pile_h -= mix.y
+		stats.needles += mix.x
+		e.outq.append({"t": "vrac", "n": mix.x, "h": mix.y, "p": 0.0})
+	_activity[e.id] = _clock
 	if not offline:
-		_changed_acc += dt
-		if _changed_acc >= 0.25:
-			_changed_acc = 0.0
-			changed.emit()
-		_save_acc += dt
-		if _save_acc >= 15.0:
-			_save_acc = 0.0
-			save_game()
+		pile_changed.emit()
+
+
+func _tick_machine(e: Dictionary, dt: float) -> void:
+	var m: Dictionary = Data.MACHINES[e.type]
+	_push_out(e)
+	if e.busy.is_empty():
+		# assez d'ingrédients ? on les prend
+		var counts := {}
+		for it in e.inq:
+			counts[it.t] = int(counts.get(it.t, 0)) + 1
+		for t in m.in:
+			if int(counts.get(t, 0)) < int(m.in[t]):
+				return
+		for t in m.in:
+			var need: int = m.in[t]
+			var i := 0
+			while need > 0 and i < e.inq.size():
+				if e.inq[i].t == t:
+					e.busy.append(e.inq[i])
+					e.inq.remove_at(i)
+					need -= 1
+				else:
+					i += 1
+		e.prog = 0.0
+	if e.outq.size() >= 4:
+		return
+	e.prog += dt * machine_speed(e.type) / float(m.time)
+	_activity[e.id] = _clock
+	if e.prog < 1.0:
+		return
+	var hay := 0
+	for it in e.busy:
+		hay += int(it.get("h", 0))
+	e.busy = []
+	e.prog = 0.0
+	var batch := 1
+	if m.has("batch"):
+		batch += up_lvl(m.batch)
+	for t in m.out:
+		for i in int(m.out[t]) * batch:
+			var lot := {"t": t, "p": 0.0}
+			if t == "acier":
+				lot["n"] = Data.LOT
+			e.outq.append(lot)
+	if e.type == "fonderie":
+		stats.ingots += batch
+	_found(hay, false)
+
+
+func _tick_drone(e: Dictionary, dt: float) -> void:
+	var speed := 5.0 * (1.0 + 0.25 * up_lvl("u_drone_vitesse")) * auto_mult()
+	var carry := 30 + 20 * up_lvl("u_drone_charge")
+	var target: Vector3
+	match int(e.state):
+		0: # vers le tas
+			if pile_items() <= 0:
+				target = cell_center(e.c) + Vector3(0, 0.6, 0)
+			else:
+				var d: Vector3 = Data.PILE_POS - e.pos
+				d.y = 0
+				target = Data.PILE_POS - d.normalized() * pile_radius() * 0.7 + Vector3(0, pile_radius() * 0.7 + 1.0, 0)
+				if e.pos.distance_to(target) < 0.6:
+					var mix := _draw_mix(carry, pile_n, pile_h)
+					pile_n -= mix.x
+					pile_h -= mix.y
+					stats.needles += mix.x
+					e.carry_n = mix.x
+					e.carry_h = mix.y
+					e.state = 1
+					_activity[e.id] = _clock
+					if not offline:
+						pile_changed.emit()
+		1: # vers la trémie la plus proche qui a de la place
+			var best := -1
+			var bd := 1e9
+			for id in entities:
+				var t: Dictionary = entities[id]
+				if t.type == "tremie" and int(t.n) + int(t.h) + int(e.carry_n) + int(e.carry_h) <= tremie_cap():
+					var dd: float = e.pos.distance_to(cell_center(t.c))
+					if dd < bd:
+						bd = dd
+						best = id
+			if best < 0:
+				target = e.pos
+			else:
+				var tr: Dictionary = entities[best]
+				target = cell_center(tr.c) + Vector3(0, 2.4, 0)
+				if e.pos.distance_to(target) < 0.6:
+					tr.n += int(e.carry_n)
+					tr.h += int(e.carry_h)
+					e.carry_n = 0
+					e.carry_h = 0
+					e.state = 0
+	e.pos = e.pos.move_toward(target, speed * dt)
 
 
 func _process(delta: float) -> void:
-	tick(minf(delta, 0.25))
+	_acc += minf(delta, 0.25)
+	var n := 0
+	while _acc >= STEP and n < 8:
+		_step(STEP)
+		_acc -= STEP
+		n += 1
+	_sec_acc += delta
+	if _sec_acc >= 1.0:
+		_sec_acc = 0.0
+		_check_achievements()
+		if not contract.is_empty() and stats.time > float(contract.until):
+			_toast("Contrat expiré…")
+			contract = {}
+			_roll_offers()
+	_rate_acc += delta
+	if _rate_acc >= 10.0:
+		_update_rates(_rate_acc)
+		_rate_acc = 0.0
+	_changed_acc += delta
+	if _changed_acc >= 0.25:
+		_changed_acc = 0.0
+		changed.emit()
+	_save_acc += delta
+	if _save_acc >= 20.0:
+		_save_acc = 0.0
+		save_slot(slot)
 
 
-## Fait tourner les machines pendant l'absence du joueur. Renvoie un résumé.
-func simulate(seconds: float) -> Dictionary:
+func _update_rates(window: float) -> void:
+	var now := {"income": float(stats.earned), "dig": float(stats.needles), "hay": float(stats.hay)}
+	if not _rate_base.is_empty():
+		for k in now:
+			var inst := maxf(0.0, (now[k] - float(_rate_base[k])) / window)
+			rates[k] = rates[k] * 0.7 + inst * 0.3
+	_rate_base = now
+
+
+## Fait tourner la ferme pendant l'absence, d'après la production récente.
+func simulate_offline(seconds: float) -> Dictionary:
 	seconds = minf(seconds, MAX_OFFLINE)
-	var m0 := money
-	var n0: int = stats.needles
-	var h0: int = stats.hay
-	var i0: int = stats.ingots
+	var dig := mini(pile_n, int(float(rates.dig) * seconds))
+	var hay := 0
+	if float(rates.hay) > 0.0 and dig > 0 and pile_n + pile_h > 0:
+		hay = mini(pile_h, int(round(float(dig) * float(pile_h) / float(pile_n + pile_h))))
+	var money_gain: float = float(rates.income) * seconds * 0.8
+	pile_n -= dig
+	stats.needles += dig
 	offline = true
-	var t := seconds
-	while t > 0.0:
-		var d := minf(1.0, t)
-		tick(d)
-		t -= d
+	gain(money_gain)
+	pile_h -= hay
+	_found(hay, false)
 	offline = false
+	stats.time += seconds
 	pile_changed.emit()
 	changed.emit()
-	return {"seconds": seconds, "money": money - m0, "needles": stats.needles - n0, "hay": stats.hay - h0, "ingots": stats.ingots - i0}
+	return {"seconds": seconds, "money": money_gain, "needles": dig, "hay": hay}
 
 
 # ============================================================ sauvegarde
+func slot_path(s: int) -> String:
+	return "user://save_%d.json" % s
+
+
+func _ser(v):
+	# Vector2i et Vector3 ne passent pas en JSON : on les convertit
+	if v is Vector2i:
+		return {"__v2": [v.x, v.y]}
+	if v is Vector3:
+		return {"__v3": [v.x, v.y, v.z]}
+	if v is Dictionary:
+		var d := {}
+		for k in v:
+			d[k] = _ser(v[k])
+		return d
+	if v is Array:
+		var a := []
+		for x in v:
+			a.append(_ser(x))
+		return a
+	return v
+
+
+func _deser(v):
+	if v is Dictionary:
+		if v.has("__v2"):
+			return Vector2i(int(v.__v2[0]), int(v.__v2[1]))
+		if v.has("__v3"):
+			return Vector3(v.__v3[0], v.__v3[1], v.__v3[2])
+		var d := {}
+		for k in v:
+			d[k] = _deser(v[k])
+		return d
+	if v is Array:
+		var a := []
+		for x in v:
+			a.append(_deser(x))
+		return a
+	return v
+
+
 func to_dict() -> Dictionary:
+	var ents := []
+	for id in entities:
+		ents.append(_ser(entities[id]))
 	return {
-		"v": 1, "money": money, "hay_stock": hay_stock, "hay_stock_value": hay_stock_value,
-		"hand_n": hand_n, "hand_h": hand_h, "vrac_n": vrac_n, "vrac_h": vrac_h, "table_n": table_n, "table_h": table_h,
-		"verified": verified, "raw": raw, "pure": pure,
+		"v": 2, "money": money, "hand_n": hand_n, "hand_h": hand_h,
 		"pile_size": pile_size, "pile_total": pile_total, "pile_n": pile_n, "pile_h": pile_h,
 		"pile_found": pile_found, "pile_done": pile_done,
-		"up": up, "tree": tree, "buildings": buildings, "stats": stats, "settings": settings,
-		"last_save": Time.get_unix_time_from_system(),
+		"shop": shop, "tree": tree, "ups": ups, "achievements": achievements, "stats": stats,
+		"settings": settings, "contract": contract, "offers": offers, "rates": rates,
+		"entities": ents, "next_id": next_id, "saved_at": Time.get_unix_time_from_system(),
 	}
 
 
-func save_game() -> void:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify(to_dict()))
-		last_save = int(Time.get_unix_time_from_system())
-
-
-func load_game() -> bool:
-	if not FileAccess.file_exists(SAVE_PATH):
+func save_slot(s: int) -> bool:
+	var f := FileAccess.open(slot_path(s), FileAccess.WRITE)
+	if not f:
 		return false
-	var txt := FileAccess.get_file_as_string(SAVE_PATH)
-	var d = JSON.parse_string(txt)
+	f.store_string(JSON.stringify(to_dict()))
+	f.close()
+	last_save = int(Time.get_unix_time_from_system())
+	var m := FileAccess.open("user://last_slot.txt", FileAccess.WRITE)
+	if m:
+		m.store_string(str(s))
+	return true
+
+
+func _last_slot() -> int:
+	if FileAccess.file_exists("user://last_slot.txt"):
+		var s := int(FileAccess.get_file_as_string("user://last_slot.txt"))
+		if s >= 1 and s <= SLOTS:
+			return s
+	return 1
+
+
+func slot_info(s: int) -> Dictionary:
+	if not FileAccess.file_exists(slot_path(s)):
+		return {}
+	var d = JSON.parse_string(FileAccess.get_file_as_string(slot_path(s)))
 	if typeof(d) != TYPE_DICTIONARY:
+		return {}
+	return {"money": float(d.get("money", 0)), "pile": Data.PILES.get(d.get("pile_size", "petit"), Data.PILES.petit).name,
+		"found": int(d.get("pile_found", 0)), "time": float(d.get("stats", {}).get("time", 0.0)),
+		"saved_at": int(d.get("saved_at", 0))}
+
+
+func delete_slot(s: int) -> void:
+	if FileAccess.file_exists(slot_path(s)):
+		DirAccess.remove_absolute(slot_path(s))
+
+
+func load_slot(s: int) -> bool:
+	if not FileAccess.file_exists(slot_path(s)):
 		return false
-	return from_dict(d)
+	var d = JSON.parse_string(FileAccess.get_file_as_string(slot_path(s)))
+	if typeof(d) != TYPE_DICTIONARY or not from_dict(d):
+		return false
+	slot = s
+	return true
 
 
 func from_dict(d: Dictionary) -> bool:
-	if not d.has("pile_size") or not Data.PILES.has(d.pile_size):
+	if int(d.get("v", 0)) != 2 or not Data.PILES.has(d.get("pile_size", "")):
 		return false
-	money = float(d.get("money", 0.0))
-	hay_stock = int(d.get("hay_stock", 0))
-	hay_stock_value = float(d.get("hay_stock_value", 0.0))
+	money = float(d.money)
 	hand_n = int(d.get("hand_n", 0))
 	hand_h = int(d.get("hand_h", 0))
-	vrac_n = int(d.get("vrac_n", 0))
-	vrac_h = int(d.get("vrac_h", 0))
-	table_n = int(d.get("table_n", 0))
-	table_h = int(d.get("table_h", 0))
-	verified = int(d.get("verified", 0))
-	raw = int(d.get("raw", 0))
-	pure = int(d.get("pure", 0))
 	pile_size = d.pile_size
-	pile_total = int(d.get("pile_total", Data.PILES[pile_size].needles))
-	pile_n = int(d.get("pile_n", pile_total))
-	pile_h = int(d.get("pile_h", 0))
-	pile_found = int(d.get("pile_found", 0))
-	pile_done = bool(d.get("pile_done", false))
-	up = {}
-	for k in d.get("up", {}):
-		if Data.UPGRADES.has(k):
-			up[k] = int(d.up[k])
-	tree = {"licence": true}
+	pile_total = int(d.pile_total)
+	pile_n = int(d.pile_n)
+	pile_h = int(d.pile_h)
+	pile_found = int(d.pile_found)
+	pile_done = bool(d.pile_done)
+	shop = {}
+	for k in d.get("shop", {}):
+		if Data.SHOP.has(k):
+			shop[k] = int(d.shop[k])
+	tree = {"p_convoyeur": true}
 	for k in d.get("tree", {}):
 		if Data.TREE.has(k):
 			tree[k] = true
-	buildings = []
-	for b in d.get("buildings", []):
-		if typeof(b) == TYPE_DICTIONARY and Data.BUILDINGS.has(b.get("type", "")):
-			buildings.append({"type": b.type, "x": float(b.x), "z": float(b.z), "rot": int(b.get("rot", 0))})
+	ups = {}
+	for k in d.get("ups", {}):
+		if Data.TREE_UPS.has(k):
+			ups[k] = int(d.ups[k])
+	achievements = d.get("achievements", {})
+	stats = _blank_stats()
 	var st: Dictionary = d.get("stats", {})
 	for k in stats:
 		if st.has(k):
-			stats[k] = st[k] if typeof(stats[k]) == TYPE_FLOAT else int(st[k])
+			if typeof(stats[k]) == TYPE_FLOAT:
+				stats[k] = float(st[k])
+			elif typeof(stats[k]) == TYPE_DICTIONARY:
+				stats[k] = st[k]
+			else:
+				stats[k] = int(st[k])
 	var se: Dictionary = d.get("settings", {})
 	for k in settings:
 		if se.has(k):
 			settings[k] = se[k]
-	last_save = int(d.get("last_save", Time.get_unix_time_from_system()))
-	buildings_changed.emit()
+	contract = d.get("contract", {})
+	offers = d.get("offers", [])
+	var ra: Dictionary = d.get("rates", {})
+	for k in rates:
+		rates[k] = float(ra.get(k, 0.0))
+	entities = {}
+	grid = {}
+	for raw in d.get("entities", []):
+		var e: Dictionary = _deser(raw)
+		if not Data.MACHINES.has(e.get("type", "")):
+			continue
+		e.id = int(e.id)
+		e.r = int(e.r)
+		entities[e.id] = e
+		for cell in footprint(e.type, e.c, e.r):
+			grid[cell] = e.id
+	next_id = int(d.get("next_id", 1))
+	for id in entities:
+		next_id = maxi(next_id, id + 1)
+	last_save = int(d.get("saved_at", Time.get_unix_time_from_system()))
+	if offers.is_empty() and contract.is_empty():
+		_roll_offers()
+	_order_dirty = true
+	entities_changed.emit()
 	pile_changed.emit()
 	changed.emit()
 	return true
 
 
+func new_game_in_slot(s: int) -> void:
+	slot = s
+	new_game()
+	save_slot(s)
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
-		save_game()
+		save_slot(slot)

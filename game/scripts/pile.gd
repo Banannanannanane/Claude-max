@@ -4,30 +4,47 @@ extends Node3D
 const MOUND_SHADER := """
 shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
-uniform vec3 base_col : source_color = vec3(0.52, 0.52, 0.53);
+uniform vec3 base_col : source_color = vec3(0.5, 0.5, 0.51);
+uniform float seed = 0.0;
+varying vec3 lp;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float streaks(vec2 uv, float s) {
+float noise(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y);
+}
+void vertex() {
+	// monticule irrégulier : bosses et creux, la base reste au sol
+	float n = noise(VERTEX.xz * 2.3 + seed) * 0.6 + noise(VERTEX.xz * 5.1 - seed) * 0.3 + noise(VERTEX.xz * 11.0) * 0.1;
+	float k = smoothstep(0.0, 0.25, VERTEX.y);
+	VERTEX += NORMAL * (n - 0.45) * 0.22 * k;
+	lp = VERTEX;
+}
+float streaks(vec2 uv, float s, float w) {
 	vec2 g = uv * s;
 	vec2 id = floor(g);
 	float a = hash(id) * 6.2831;
-	vec2 f = fract(g) - 0.5;
+	vec2 f = fract(g) - 0.5 + (vec2(hash(id + 3.1), hash(id + 5.7)) - 0.5) * 0.4;
 	vec2 d = vec2(cos(a), sin(a));
 	float l = abs(dot(f, vec2(-d.y, d.x)));
 	float along = abs(dot(f, d));
-	return smoothstep(0.07, 0.0, l) * step(along, 0.48) * (0.5 + 0.5 * hash(id + 7.3));
+	return smoothstep(w, 0.0, l) * step(along, 0.5) * (0.4 + 0.6 * hash(id + 7.3));
 }
 void fragment() {
-	float s1 = streaks(UV * vec2(2.0, 1.0), 70.0);
-	float s2 = streaks(UV * vec2(2.0, 1.0) + 0.37, 45.0);
-	float s = max(s1, s2 * 0.8);
-	ALBEDO = base_col * (0.35 + 0.85 * s);
-	METALLIC = 0.6;
-	ROUGHNESS = 0.55 - 0.3 * s;
+	vec2 uv = UV * vec2(2.0, 1.0);
+	float s = max(max(streaks(uv, 95.0, 0.06), streaks(uv + 0.37, 60.0, 0.05) * 0.85), streaks(uv + 0.71, 150.0, 0.08) * 0.7);
+	float cavity = noise(lp.xz * 9.0) * 0.5 + 0.5;
+	vec3 col = base_col * (0.28 + 0.95 * s) * mix(0.75, 1.1, cavity);
+	ALBEDO = col;
+	METALLIC = 0.7;
+	ROUGHNESS = 0.6 - 0.35 * s;
+	SPECULAR = 0.6;
 }
 """
 
 var _mound: MeshInstance3D
 var _needles: MultiMeshInstance3D
+var _scatter: MultiMeshInstance3D
 var _hay: MultiMeshInstance3D
 var _body: StaticBody3D
 var _shape: CylinderShape3D
@@ -55,6 +72,14 @@ func _ready() -> void:
 	shm.shader = sh
 	_mound.material_override = shm
 	add_child(_mound)
+
+	_scatter = MultiMeshInstance3D.new()
+	var sc := MultiMesh.new()
+	sc.transform_format = MultiMesh.TRANSFORM_3D
+	sc.mesh = Mk.needle_mesh()
+	_scatter.multimesh = sc
+	_scatter.material_override = Mk.needle_material()
+	add_child(_scatter)
 
 	_needles = MultiMeshInstance3D.new()
 	var mm := MultiMesh.new()
@@ -122,14 +147,27 @@ func _build_needles(r: float, h: float) -> void:
 	_built_size = Game.pile_size
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(Game.pile_size)
-	var count := clampi(int(150.0 * r * r), 250, 5000)
+	(_mound.material_override as ShaderMaterial).set_shader_parameter("seed", float(hash(Game.pile_size) % 100))
+	var count := clampi(int(260.0 * r * r), 400, 7000)
 	var mm := _needles.multimesh
 	mm.instance_count = count
 	for i in count:
 		var p := _surface_point(r, h, rng)
-		var axis := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.4, 1), rng.randf_range(-1, 1)).normalized()
-		var b := Basis(axis, rng.randf() * TAU) * Basis(Vector3.RIGHT, rng.randf_range(0.4, 2.7))
+		# la plupart des aiguilles sont couchées sur la pente, quelques-unes dépassent
+		var nrm := Vector3(p.x / (r * r), p.y / (h * h), p.z / (r * r)).normalized()
+		var tangent := nrm.cross(Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1))).normalized()
+		var tilt := rng.randf_range(-0.35, 0.35) if rng.randf() < 0.8 else rng.randf_range(0.6, 1.2)
+		var b := Basis(Quaternion(Vector3.UP, tangent.lerp(nrm, clampf(tilt, -1.0, 1.0)).normalized()))
 		mm.set_instance_transform(i, Transform3D(b, p))
+	# aiguilles tombées au sol autour du tas
+	var sm := _scatter.multimesh
+	var ns := clampi(int(40.0 * r), 60, 500)
+	sm.instance_count = ns
+	for i in ns:
+		var a := rng.randf() * TAU
+		var d := r * rng.randf_range(0.95, 1.35)
+		var flat := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.FORWARD, PI / 2 + rng.randf_range(-0.1, 0.1))
+		sm.set_instance_transform(i, Transform3D(flat, Vector3(cos(a) * d, 0.02, sin(a) * d)))
 	# quelques brins de foin qui dépassent : un indice qu'il en reste
 	var hm := _hay.multimesh
 	hm.instance_count = 3

@@ -40,27 +40,28 @@ func _ready() -> void:
 
 func _intro() -> void:
 	hud.message("Trouve le Foin", "\n".join([
-		"Tout le monde cherche l'aiguille dans la botte de foin…",
-		"Ici, c'est l'inverse : un tas d'aiguilles cache 22 brins de foin. À toi de les trouver !",
+		"Tout le monde cherche l'aiguille dans la botte de foin… Ici, c'est l'inverse : ce tas d'aiguilles cache 22 brins de foin. À toi de les trouver !",
 		"",
-		"Vise le tas et garde ACTION appuyé pour ramasser une poignée d'aiguilles, puis dépose-la sur la table de tri : elle repère le foin caché.",
-		"Vends ta production au comptoir, achète des améliorations à la boutique et des droits de construction dans l'arbre, puis automatise tout : vérificateurs, bras robots, pelleteuses, fonderies, purificateurs…",
+		"1. Vise le tas et garde ACTION appuyé pour ramasser des aiguilles.",
+		"2. Verse-les dans la trémie : le tapis les emmène jusqu'au trou de vente.",
+		"3. Le trou est le seul endroit où l'on vend. Ce qui y tombe est payé… mais le foin non détecté retourne dans le tas !",
+		"4. Achète le plan du Scanner dans l'Arbre et place-le sur le tapis pour détecter le foin.",
+		"5. Ensuite : fonderie, purificateur, presses, bras robots, pelleteuses, drones… automatise tout !",
 	]))
 
 
 func _catch_up() -> void:
 	var away := Time.get_unix_time_from_system() - float(Game.last_save)
-	if away < 10.0:
+	if away < 30.0:
 		return
-	var r := Game.simulate(away)
-	Game.save_game()
-	if r.seconds >= 60.0 and (r.needles > 0 or r.money > 0.5 or r.ingots > 0):
+	var r := Game.simulate_offline(away)
+	Game.save_slot(Game.slot)
+	if r.seconds >= 60.0 and (r.needles > 0 or r.money > 0.5):
 		hud.message("Pendant ton absence…", "\n".join([
-			"Tes machines ont tourné pendant %s." % Fmt.duration(r.seconds),
+			"Ton usine a tourné pendant %s." % Fmt.duration(r.seconds),
 			"",
 			"Aiguilles ramassées : %s" % Fmt.num(r.needles),
 			"Brins de foin trouvés : %d" % r.hay,
-			"Lingots coulés : %s" % Fmt.num(r.ingots),
 			"Argent gagné : %s" % Fmt.eur(r.money),
 		]))
 

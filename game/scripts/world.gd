@@ -25,9 +25,30 @@ void fragment() {
 }
 """
 
+const BELT_SHADER := """
+shader_type spatial;
+render_mode diffuse_burley;
+uniform float speed = 1.6;
+void fragment() {
+	// chevrons qui défilent vers l'avant (-Z local = haut de l'UV)
+	vec2 uv = UV;
+	float v = fract(uv.y * 2.0 + TIME * speed * 2.0 + abs(uv.x - 0.5) * 1.2);
+	float chevron = smoothstep(0.0, 0.08, v) * smoothstep(0.32, 0.24, v);
+	vec3 base = vec3(0.07, 0.075, 0.08);
+	ALBEDO = mix(base, vec3(0.9, 0.75, 0.15), chevron * 0.55);
+	ROUGHNESS = 0.85;
+}
+"""
+
 var pile: Node3D
-var building_nodes: Array = []
+var nodes := {} # id -> Node3D
+var drones := {} # id -> Node3D
+var _belts: MultiMeshInstance3D
+var _belt_tops: MultiMeshInstance3D
+var _items: MultiMeshInstance3D
+var _belt_mat: ShaderMaterial
 var _t := 0.0
+var _fall_budget := 0.0
 
 
 func _ready() -> void:
@@ -39,8 +60,10 @@ func _ready() -> void:
 	pile = Node3D.new()
 	pile.set_script(load("res://scripts/pile.gd"))
 	add_child(pile)
-	Game.buildings_changed.connect(rebuild_buildings)
-	rebuild_buildings()
+	_make_belt_layers()
+	Game.entities_changed.connect(rebuild)
+	Game.sold.connect(_on_sold)
+	rebuild()
 
 
 func _environment() -> void:
@@ -98,9 +121,6 @@ func _ground() -> void:
 	cs.shape = WorldBoundaryShape3D.new()
 	body.add_child(cs)
 	add_child(body)
-	# chemin de terre entre la ferme et le tas
-	var path := Mk.box(self, Vector3(3.0, 0.02, 20.0), Vector3(0, 0.005, 2.0), Mk.mat(Color(0.36, 0.29, 0.19), 0.0, 1.0))
-	path.name = "Chemin"
 	# murs invisibles le long de la clôture
 	var L := Data.FIELD + 1.5
 	for i in 4:
@@ -199,40 +219,170 @@ func _barn() -> void:
 	Mk.sphere(self, 2.2, Vector3(-38, 11, 22), Mk.mat(Color(0.6, 0.15, 0.12), 0.2, 0.6))
 
 
-func rebuild_buildings() -> void:
-	for n in building_nodes:
-		n.queue_free()
-	building_nodes.clear()
-	for i in Game.buildings.size():
-		var b: Dictionary = Game.buildings[i]
-		var node := Buildings.create(b.type)
-		node.position = Vector3(b.x, 0, b.z)
-		node.rotation.y = b.rot * PI / 2.0
-		node.set_meta("phase", randf())
-		node.set_meta("type", b.type)
-		node.set_meta("index", i)
-		Buildings.add_body(node, b.type, i)
-		add_child(node)
-		building_nodes.append(node)
+
+
+func _make_belt_layers() -> void:
+	_belts = MultiMeshInstance3D.new()
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	var frame := BoxMesh.new()
+	frame.size = Vector3(0.98, 0.16, 1.0)
+	mm.mesh = frame
+	_belts.multimesh = mm
+	_belts.material_override = Mk.mat(Color(0.3, 0.32, 0.36), 0.5, 0.5)
+	add_child(_belts)
+	_belt_tops = MultiMeshInstance3D.new()
+	var mt := MultiMesh.new()
+	mt.transform_format = MultiMesh.TRANSFORM_3D
+	var top := PlaneMesh.new()
+	top.size = Vector2(0.78, 1.0)
+	mt.mesh = top
+	_belt_tops.multimesh = mt
+	_belt_mat = ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = BELT_SHADER
+	_belt_mat.shader = sh
+	_belt_tops.material_override = _belt_mat
+	_belt_tops.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_belt_tops)
+	_items = MultiMeshInstance3D.new()
+	var mi := MultiMesh.new()
+	mi.transform_format = MultiMesh.TRANSFORM_3D
+	mi.use_colors = true
+	mi.mesh = BoxMesh.new()
+	mi.instance_count = 256
+	mi.visible_instance_count = 0
+	_items.multimesh = mi
+	var im := StandardMaterial3D.new()
+	im.vertex_color_use_as_albedo = true
+	im.metallic = 0.6
+	im.roughness = 0.35
+	_items.material_override = im
+	add_child(_items)
+
+
+static func basis_for(r: int) -> Basis:
+	return Basis(Vector3.UP, -r * PI / 2.0)
+
+
+func rebuild() -> void:
+	# machines : on garde les nœuds existants, on crée les nouveaux, on supprime les disparus
+	for id in nodes.keys():
+		if not Game.entities.has(id) or nodes[id].get_meta("sig") != _sig(Game.entities[id]):
+			nodes[id].queue_free()
+			nodes.erase(id)
+	for id in drones.keys():
+		if not Game.entities.has(id):
+			drones[id].queue_free()
+			drones.erase(id)
+	var belts: Array = []
+	for id in Game.entities:
+		var e: Dictionary = Game.entities[id]
+		if e.type == "convoyeur":
+			belts.append(e)
+			continue
+		if nodes.has(id):
+			continue
+		var n := Buildings.create(e.type)
+		n.position = Game.cell_center(e.c)
+		n.basis = basis_for(e.r)
+		n.set_meta("phase", randf())
+		n.set_meta("sig", _sig(e))
+		Buildings.add_body(n, e.type, id)
+		add_child(n)
+		nodes[id] = n
+		if e.type == "drone" and not drones.has(id):
+			var d := Buildings.create_drone()
+			add_child(d)
+			drones[id] = d
+	var mm := _belts.multimesh
+	mm.instance_count = belts.size()
+	_belt_tops.multimesh.instance_count = belts.size()
+	for i in belts.size():
+		var e: Dictionary = belts[i]
+		var o := Game.cell_center(e.c)
+		mm.set_instance_transform(i, Transform3D(basis_for(e.r), o + Vector3(0, 0.08, 0)))
+		_belt_tops.multimesh.set_instance_transform(i, Transform3D(basis_for(e.r), o + Vector3(0, 0.165, 0)))
+
+
+func _sig(e: Dictionary) -> String:
+	return "%s%s%d" % [e.type, e.c, e.r]
 
 
 func _process(delta: float) -> void:
 	_t += delta
-	var cap := maxf(1.0, Game.capacity())
-	for node: Node3D in building_nodes:
-		var type: String = node.get_meta("type")
-		var i: int = node.get_meta("index")
-		if i >= Game.buildings.size():
+	_fall_budget = minf(_fall_budget + delta * 6.0, 6.0)
+	_belt_mat.set_shader_parameter("speed", Game.belt_speed())
+	# objets sur les tapis
+	var mm := _items.multimesh
+	var n := 0
+	for id in Game.entities:
+		var e: Dictionary = Game.entities[id]
+		var it = e.get("item")
+		if it == null or not (e.type == "convoyeur" or e.type == "separateur"):
 			continue
+		if n >= mm.instance_count:
+			mm.instance_count = mm.instance_count * 2
+		var info: Dictionary = Data.ITEMS[it.t]
+		var dir := Data.DIRS[e.r] as Vector2i
+		var prog: float = it.p - 0.5
+		var pos := Game.cell_center(e.c) + Vector3(dir.x, 0, dir.y) * prog
+		var sc: Vector3 = info.scale
+		pos.y = 0.2 + sc.y * 0.5
+		var b := basis_for(e.r).scaled(sc) if it.t != "fil" else Basis(Vector3.FORWARD, PI / 2).scaled(sc)
+		mm.set_instance_transform(n, Transform3D(b, pos))
+		var col: Color = info.color
+		if it.t == "vrac" and int(it.get("h", 0)) > 0 and Game.shop_lvl("oeil") >= 4:
+			col = col.lerp(Color(1, 0.85, 0.3), 0.35)
+		mm.set_instance_color(n, col)
+		n += 1
+	mm.visible_instance_count = n
+	# animation des machines
+	for id in nodes:
+		if not Game.entities.has(id):
+			continue
+		var e: Dictionary = Game.entities[id]
+		var node: Node3D = nodes[id]
 		var info := {}
-		var active := Game.is_active(type)
-		if type == "bras" or type == "pelle":
-			var b: Dictionary = Game.buildings[i]
-			active = active and Game.digger_in_range(b)
-			var d := Data.PILE_POS - node.position
-			info["aim"] = atan2(-d.x, -d.z) - node.rotation.y
-		elif type == "table":
-			info["fill"] = clampf(float(Game.table_n + Game.table_h) / maxf(1.0, Game.table_cap()), 0.0, 1.0)
-		elif type == "entrepot":
-			info["fill"] = clampf(Game.used() / cap, 0.0, 1.0)
-		Buildings.animate(node, type, _t, active, info)
+		var active := Game.is_active(id)
+		match e.type:
+			"bras", "pelle":
+				var d: Vector3 = Data.PILE_POS - node.position
+				var world_yaw := atan2(-d.x, -d.z)
+				info["aim"] = world_yaw - node.rotation.y
+				active = active and Game.digger_in_range(e.type, e.c)
+			"tremie":
+				info["fill"] = clampf(float(int(e.n) + int(e.h)) / Game.tremie_cap(), 0.0, 1.0)
+			"tampon":
+				info["fill"] = clampf(float(e.q.size()) / float(Data.MACHINES.tampon.cap), 0.0, 1.0)
+		Buildings.animate(node, e.type, _t, active, info)
+	for id in drones:
+		var d: Node3D = drones[id]
+		var e2: Dictionary = Game.entities[id]
+		d.position = d.position.lerp(e2.pos, minf(1.0, delta * 10.0))
+		var parts: Dictionary = d.get_meta("parts")
+		for rr: MeshInstance3D in parts.rotors:
+			rr.rotation.y = _t * 30.0
+		parts.load.visible = int(e2.carry_n) > 0
+
+
+func _on_sold(cell: Vector2i, t: String) -> void:
+	if _fall_budget < 1.0:
+		return
+	_fall_budget -= 1.0
+	var info: Dictionary = Data.ITEMS[t]
+	var box := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = info.scale
+	box.mesh = bm
+	box.material_override = Mk.mat(info.color, 0.6, 0.35)
+	box.position = Game.cell_center(cell) + Vector3(0, 0.3, 0)
+	add_child(box)
+	var trou := Vector3.ZERO
+	for id in Game.entities:
+		if Game.entities[id].type == "trou":
+			trou = Game.cell_center(Game.entities[id].c)
+	var tw := create_tween()
+	tw.tween_property(box, "position", trou + Vector3(randf_range(-0.6, 0.6), -2.5, randf_range(-0.6, 0.6)), 0.7).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tw.parallel().tween_property(box, "scale", Vector3(0.3, 0.3, 0.3), 0.7)
+	tw.tween_callback(box.queue_free)

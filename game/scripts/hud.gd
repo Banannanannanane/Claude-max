@@ -12,6 +12,8 @@ var _hay: Label
 var _hand: Label
 var _pile: Label
 var _store: Label
+var _contract: Label
+var _place_label: Label
 var _stamina: ProgressBar
 var _hay_bar: ProgressBar
 var _prompt: Label
@@ -106,6 +108,9 @@ func _build_info() -> void:
 	v.add_child(_hand)
 	_store = UI.label("", 18, UI.MUTED)
 	v.add_child(_store)
+	_contract = UI.label("", 17, UI.BLUE, true)
+	_contract.custom_minimum_size = Vector2(330, 0)
+	v.add_child(_contract)
 	var sl := UI.label("Endurance", 16, UI.MUTED)
 	v.add_child(sl)
 	_stamina = UI.bar()
@@ -117,7 +122,7 @@ func _build_menu() -> void:
 	_menu.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	_menu.add_theme_constant_override("separation", 8)
 	root.add_child(_menu)
-	for e in [["Boutique", "boutique", "GoldButton"], ["Arbre", "arbre", "GoldButton"], ["Construire", "construire", "BlueButton"], ["Stock", "stock", ""], ["Menu", "reglages", ""]]:
+	for e in [["Boutique", "boutique", "GoldButton"], ["Arbre", "arbre", "GoldButton"], ["Construire", "construire", "BlueButton"], ["Usine", "stock", ""], ["Menu", "reglages", ""]]:
 		var b := UI.button(e[0], open_panel.bind(e[1]), e[2])
 		b.mouse_filter = Control.MOUSE_FILTER_STOP
 		b.custom_minimum_size = Vector2(0, 64)
@@ -187,9 +192,9 @@ func _build_touch() -> void:
 	_btn_jump = _touch_button("Saut", 55, Color(0.5, 0.5, 0.55), 22)
 	_btn_jump.pressed.connect(func() -> void: _jump = true)
 	_btn_place = _touch_button("PLACER", 90, Color(0.3, 0.85, 0.4), 26)
-	_btn_place.pressed.connect(func() -> void:
-		if player.confirm_build():
-			toast("Bâtiment placé !", true))
+	_place_label = _btn_place.get_child(0)
+	_btn_place.pressed.connect(func() -> void: player.place_pressed())
+	_btn_place.released.connect(func() -> void: player.place_released())
 	_btn_rotate = _touch_button("Pivoter", 60, Color(0.3, 0.6, 1.0), 22)
 	_btn_rotate.pressed.connect(func() -> void: player.rotate_build())
 	_btn_cancel = _touch_button("Annuler", 55, Color(0.85, 0.3, 0.25), 22)
@@ -270,7 +275,8 @@ func _input(event: InputEvent) -> void:
 		elif event.physical_keycode == KEY_R and player.build_type != "":
 			player.rotate_build()
 		elif event.physical_keycode == KEY_ENTER and player.build_type != "":
-			player.confirm_build()
+			player.place_pressed()
+			player.place_released()
 	elif event is InputEventKey and not event.pressed and event.physical_keycode == KEY_E:
 		action_held = false
 
@@ -294,7 +300,13 @@ func _refresh() -> void:
 	var held := Game.hand_n + Game.hand_h
 	_hand.text = "Main : %d / %d" % [held, Game.hand_cap()]
 	_hand.add_theme_color_override("font_color", UI.BAD if held >= Game.hand_cap() else Color(0.93, 0.94, 0.96))
-	_store.text = "Entrepôt : %s / %s" % [Fmt.num(Game.used()), Fmt.num(Game.capacity())]
+	_store.text = "Revenus : %s / min" % Fmt.eur(float(Game.rates.income) * 60.0)
+	_contract.visible = not Game.contract.is_empty()
+	if Game.contract.is_empty():
+		_contract.text = ""
+	else:
+		var c: Dictionary = Game.contract
+		_contract.text = "Contrat : %d / %d %s (%s)" % [c.done, c.qty, Data.ITEMS[c.t].name.to_lower(), Fmt.duration(maxf(0.0, float(c.until) - float(Game.stats.time)))]
 
 
 func _process(delta: float) -> void:
@@ -317,7 +329,14 @@ func _process(delta: float) -> void:
 
 func _update_prompt() -> void:
 	if player.build_type != "":
-		_prompt.text = "Vise un emplacement puis touche PLACER" + ("" if player.ghost_ok else "")
+		var demo: bool = player.build_type == "__demolir"
+		_place_label.text = "DÉMOLIR" if demo else "PLACER"
+		if demo:
+			_prompt.text = "Vise ce que tu veux démolir" if player.ghost_ok else player.ghost_why
+		elif player.build_type == "convoyeur":
+			_prompt.text = "Garde PLACER appuyé en marchant pour poser une ligne de tapis (%s)" % Fmt.eur(Game.build_cost("convoyeur"))
+		else:
+			_prompt.text = "%s — %s" % [Data.MACHINES[player.build_type].name, Fmt.eur(Game.build_cost(player.build_type)) if player.move_id < 0 else "déplacement"]
 		return
 	var t: Dictionary = player.target
 	var kind: String = t.get("kind", "")
@@ -331,24 +350,24 @@ func _update_prompt() -> void:
 			txt = "Le tas est vide"
 		else:
 			txt = "Ramasser des aiguilles (garde le bouton appuyé)"
-	elif kind == "building":
-		var type: String = t.type
-		match type:
-			"table":
-				act = "Déposer"
-				txt = "Table de tri : %d / %d en attente" % [Game.table_n + Game.table_h, Game.table_cap()]
-			"entrepot":
-				act = "Déposer"
-				txt = "Entrepôt : %s / %s" % [Fmt.num(Game.used()), Fmt.num(Game.capacity())]
-			"comptoir":
-				act = "Vendre"
-				txt = "Comptoir de vente"
+	elif kind == "entity" and Game.entities.has(t.id):
+		var e: Dictionary = Game.entities[t.id]
+		match e.type:
+			"tremie":
+				act = "Verser"
+				txt = "Trémie : %d / %d aiguilles" % [int(e.n) + int(e.h), Game.tremie_cap()]
+			"convoyeur":
+				act = "Poser"
+				txt = "Convoyeur — poser une poignée dessus" if Game.hand_n + Game.hand_h > 0 else "Convoyeur"
 			"bureau":
 				act = "Commander"
-				txt = "Bureau des commandes de tas"
+				txt = "Bureau des commandes et des contrats"
+			"trou":
+				act = "Infos"
+				txt = "Trou de vente — fais-y tomber tes produits par convoyeur"
 			_:
 				act = "Infos"
-				txt = Data.BUILDINGS[type].name
+				txt = Data.MACHINES[e.type].name
 	else:
 		act = "Action"
 	_prompt.text = txt
@@ -399,8 +418,10 @@ func open_panel(name: String) -> void:
 			p = Panels.TreePanel.new()
 		"construire":
 			p = Panels.BuildPanel.new()
-		"vente":
-			p = Panels.SellPanel.new()
+		"sauvegardes":
+			p = Panels.SavePanel.new()
+		"succes":
+			p = Panels.AchievementsPanel.new()
 		"commandes":
 			p = Panels.OrderPanel.new()
 		"stock":
@@ -412,9 +433,9 @@ func open_panel(name: String) -> void:
 	_show(p)
 
 
-func open_building(i: int) -> void:
-	var p := Panels.BuildingPanel.new()
-	p.index = i
+func open_entity(id: int) -> void:
+	var p := Panels.EntityPanel.new()
+	p.id = id
 	_show(p)
 
 
@@ -451,10 +472,15 @@ func panel_open() -> bool:
 func begin_build(type: String) -> void:
 	close_panel()
 	player.start_build(type)
-	toast("Mode construction : vise un emplacement et touche PLACER.")
+	if type == "__demolir":
+		toast("Démolition : vise un objet et touche DÉMOLIR (remboursé en partie).")
+	elif type == "convoyeur":
+		toast("Regarde dans la direction du tapis et garde PLACER appuyé en avançant.")
+	else:
+		toast("Vise un emplacement libre et touche PLACER. Pivoter change le sens.")
 
 
-func begin_move(index: int) -> void:
+func begin_move(id: int) -> void:
 	close_panel()
-	player.start_build(Game.buildings[index].type, index)
-	toast("Déplace le bâtiment puis touche PLACER.")
+	player.start_build(Game.entities[id].type, id)
+	toast("Déplace la machine puis touche PLACER.")

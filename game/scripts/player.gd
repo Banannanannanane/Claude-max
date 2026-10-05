@@ -18,12 +18,18 @@ var ray: RayCast3D
 var hand: MultiMeshInstance3D
 var stamina := 100.0
 var target := {}
-var build_type := "" # mode construction
-var move_index := -1 # déplacement d'un bâtiment existant
-var build_rot := 0
+var build_type := "" # mode construction ("__demolir" = démolition)
+var move_id := -1 # déplacement d'une machine existante
+var build_rot := 0 # rotation ajoutée par le bouton Pivoter
 var ghost: Node3D
 var ghost_ok := false
-var ghost_pos := Vector3.ZERO
+var ghost_cell := Vector2i.ZERO
+var ghost_r := 0
+var ghost_why := ""
+var place_held := false
+var _last_placed := Vector2i(999999, 0)
+var _cells: MultiMeshInstance3D
+var _drop_cd := 0.0
 var _grab_cd := 0.0
 var _bob := 0.0
 var _hand_kick := 0.0
@@ -33,7 +39,7 @@ var _exhausted := false
 func _ready() -> void:
 	collision_layer = 1
 	collision_mask = 1
-	position = Vector3(0, 0.1, 9)
+	position = Vector3(1.5, 0.1, -3.5)
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.35
@@ -56,6 +62,19 @@ func _ready() -> void:
 	cam.add_child(ray)
 	_make_hand()
 	stamina = Game.stamina_max()
+	_cells = MultiMeshInstance3D.new()
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	var q := PlaneMesh.new()
+	q.size = Vector2(0.94, 0.94)
+	mm.mesh = q
+	_cells.multimesh = mm
+	var cm := StandardMaterial3D.new()
+	cm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	cm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	cm.albedo_color = Color(0.3, 1, 0.4, 0.4)
+	_cells.material_override = cm
+	_cells.visible = false
 
 
 func _make_hand() -> void:
@@ -131,17 +150,43 @@ func _physics_process(delta: float) -> void:
 	hand.multimesh.visible_instance_count = int(ceil(fill * 30.0))
 
 	_grab_cd = maxf(0.0, _grab_cd - delta)
-	ray.target_position = Vector3(0, 0, -Game.reach())
+	_drop_cd = maxf(0.0, _drop_cd - delta)
+	ray.target_position = Vector3(0, 0, -(Game.reach() + 1.5))
+	_update_target()
 	if build_type != "":
 		_update_ghost()
-	else:
-		_update_target()
-		if hud and hud.action_held and target.get("kind", "") == "pile":
+		if place_held and build_type == "convoyeur" and ghost_ok and ghost_cell != _last_placed:
+			_place_now()
+	elif hud and hud.action_held:
+		var kind: String = target.get("kind", "")
+		if kind == "pile":
 			try_grab()
+		elif kind == "entity" and target.type == "convoyeur" and _drop_cd <= 0.0:
+			_drop_cd = 0.18
+			_drop_on_belt(false)
 
 
 func is_exhausted() -> bool:
 	return _exhausted
+
+
+## Case visée au sol (rayon du viseur jusqu'au sol), ou à défaut devant soi.
+func aim_cell(max_dist: float) -> Vector2i:
+	var from := cam.global_position
+	var fwd := -cam.global_transform.basis.z
+	if fwd.y < -0.05:
+		var t := (from.y - 0.15) / -fwd.y
+		if t <= max_dist:
+			return Game.world_to_cell(from + fwd * t)
+	var flat := Vector3(fwd.x, 0, fwd.z).normalized()
+	return Game.world_to_cell(global_position + flat * minf(max_dist, 3.0))
+
+
+func facing_dir() -> int:
+	var f := -global_transform.basis.z
+	if absf(f.x) > absf(f.z):
+		return 1 if f.x > 0 else 3
+	return 2 if f.z > 0 else 0
 
 
 func _update_target() -> void:
@@ -149,16 +194,19 @@ func _update_target() -> void:
 	if ray.is_colliding():
 		var c := ray.get_collider()
 		if c and c.has_meta("kind"):
-			info["kind"] = c.get_meta("kind")
-			info["point"] = ray.get_collision_point()
-			if info.kind == "building":
-				info["index"] = c.get_meta("index")
-				info["type"] = c.get_meta("type")
-	if info.get("kind", "") != target.get("kind", "") or info.get("index", -1) != target.get("index", -1):
-		target = info
+			if c.get_meta("kind") == "pile":
+				info = {"kind": "pile", "point": ray.get_collision_point()}
+			elif c.get_meta("kind") == "entity" and Game.entities.has(c.get_meta("id")):
+				var id: int = c.get_meta("id")
+				info = {"kind": "entity", "id": id, "type": Game.entities[id].type}
+	if info.is_empty():
+		var e := Game.entity_at(aim_cell(Game.reach()))
+		if not e.is_empty() and (e.type == "convoyeur" or e.type == "separateur"):
+			info = {"kind": "entity", "id": e.id, "type": e.type}
+	var changed_t: bool = info.get("kind", "") != target.get("kind", "") or info.get("id", -1) != target.get("id", -1)
+	target = info
+	if changed_t:
 		target_changed.emit(target)
-	else:
-		target = info
 
 
 ## Action principale (bouton) selon la cible.
@@ -169,35 +217,44 @@ func action_pressed() -> void:
 	if kind == "pile":
 		try_grab()
 		return
-	if kind != "building":
+	if kind != "entity":
 		if Game.hand_n + Game.hand_h > 0:
-			hud.toast("Vise la table de tri ou l'entrepôt pour déposer tes aiguilles.")
+			hud.toast("Vise une trémie ou un tapis pour déposer tes aiguilles.")
 		return
-	var type: String = target.type
-	match type:
-		"table":
-			_deposit(Game.deposit_table(), "sur la table de tri", "La table de tri est pleine !")
-		"entrepot":
-			_deposit(Game.deposit_storage(), "dans l'entrepôt", "L'entrepôt est plein ! Vends, fonds ou agrandis.")
-		"comptoir":
-			hud.open_panel("vente")
+	var id: int = target.id
+	match target.type:
+		"tremie":
+			var q := Game.deposit_tremie(id)
+			if Game.hand_n + Game.hand_h == 0 and q == 0:
+				hud.toast("Tu n'as rien en main. Va ramasser des aiguilles au tas !")
+			elif q <= 0:
+				hud.toast("La trémie est pleine !")
+				Sfx.play("prick")
+			else:
+				Sfx.play("click")
+				_hand_kick = 1.0
+				hud.toast("%d aiguilles versées dans la trémie" % q)
+		"convoyeur":
+			_drop_cd = 0.25
+			_drop_on_belt(true)
 		"bureau":
 			hud.open_panel("commandes")
+		"trou":
+			hud.toast("Le trou de vente : amène-y tes produits avec des convoyeurs !")
 		_:
-			hud.open_building(int(target.index))
+			hud.open_entity(id)
 
 
-func _deposit(q: int, where: String, full_msg: String) -> void:
-	if Game.hand_n + Game.hand_h == 0 and q == 0:
-		hud.toast("Tu n'as rien en main. Va ramasser des aiguilles au tas !")
+func _drop_on_belt(tell: bool) -> void:
+	if Game.hand_n + Game.hand_h <= 0:
+		if tell:
+			hud.toast("Tu n'as rien en main.")
 		return
-	if q <= 0:
-		hud.toast(full_msg)
-		Sfx.play("prick")
-		return
-	Sfx.play("click")
-	_hand_kick = 1.0
-	hud.toast("%d aiguilles déposées %s" % [q, where])
+	if Game.drop_on_belt(int(target.id)) > 0:
+		_hand_kick = 1.0
+		Sfx.play("click")
+	elif tell:
+		hud.toast("Ce tapis est occupé.")
 
 
 func try_grab() -> void:
@@ -211,7 +268,7 @@ func try_grab() -> void:
 	_grab_cd = GRAB_DELAY
 	if got < 0:
 		_grab_cd = 1.0
-		hud.toast("Main pleine ! Dépose les aiguilles à la table de tri ou à l'entrepôt.")
+		hud.toast("Main pleine ! Verse-la dans une trémie ou pose-la sur un tapis.")
 		return
 	if got == 0:
 		return
@@ -223,18 +280,21 @@ func try_grab() -> void:
 		hud.grab_fx(target.get("point", Vector3.ZERO))
 
 
-# ============================================================ mode construction
-func start_build(type: String, index := -1) -> void:
+# ============================================================ construction / démolition
+func start_build(type: String, id := -1) -> void:
+	cancel_build()
 	build_type = type
-	move_index = index
-	build_rot = 0 if index < 0 else int(Game.buildings[index].rot)
-	if ghost:
-		ghost.queue_free()
-	ghost = Buildings.create(type)
-	world.add_child(ghost)
-	_ghostify(ghost)
-	if index >= 0 and index < world.building_nodes.size():
-		world.building_nodes[index].visible = false
+	move_id = id
+	build_rot = 0
+	if type != "__demolir":
+		ghost = Buildings.create(type)
+		world.add_child(ghost)
+		_ghostify(ghost)
+		if id >= 0 and world.nodes.has(id):
+			world.nodes[id].visible = false
+	if not _cells.is_inside_tree():
+		world.add_child(_cells)
+	_cells.visible = true
 
 
 var _ghost_mat: StandardMaterial3D
@@ -256,27 +316,40 @@ func _ghostify(n: Node) -> void:
 
 
 func _update_ghost() -> void:
-	var sz: Vector2 = Data.BUILDINGS[build_type].size
-	var fwd := -global_transform.basis.z
-	var dist := Game.reach() + maxf(sz.x, sz.y) * 0.5 + 1.0
-	var p := global_position + fwd * dist
-	p.y = 0
-	p.x = snappedf(p.x, 0.5)
-	p.z = snappedf(p.z, 0.5)
-	ghost_pos = p
-	ghost.position = p
-	ghost.rotation.y = build_rot * PI / 2.0
-	var why := Game.placement_ok(build_type, p, move_index)
-	ghost_ok = why == ""
-	var tint := Color(0.3, 1, 0.4) if ghost_ok else Color(1, 0.3, 0.3)
-	_ghost_mat.albedo_color = Color(tint, 0.45)
-	var lbl: Label3D = ghost.get_meta("parts").label
-	var extra := ""
-	if build_type == "bras" or build_type == "pelle":
-		var inr := Game.digger_in_range({"type": build_type, "x": p.x, "z": p.z})
-		extra = "\nÀ portée du tas" if inr else "\nTrop loin du tas !"
-	lbl.text = (Data.BUILDINGS[build_type].name if ghost_ok else why) + extra
-	lbl.modulate = tint
+	var dist := Game.reach() + 3.0
+	ghost_cell = aim_cell(dist)
+	var cells: Array = []
+	var tint := Color(0.3, 1, 0.4)
+	if build_type == "__demolir":
+		var e := Game.entity_at(ghost_cell)
+		ghost_ok = not e.is_empty() and not Data.MACHINES[e.type].get("fixed", false)
+		ghost_why = "" if ghost_ok else ("Rien à démolir ici" if e.is_empty() else "Indestructible")
+		cells = Game.footprint(e.type, e.c, e.r) if not e.is_empty() else [ghost_cell]
+		tint = Color(1, 0.3, 0.25)
+	else:
+		ghost_r = (facing_dir() + build_rot) % 4
+		ghost_why = Game.placement_ok(build_type, ghost_cell, ghost_r, move_id)
+		if ghost_why == "" and move_id < 0:
+			ghost_why = Game.can_build(build_type)
+		ghost_ok = ghost_why == ""
+		cells = Game.footprint(build_type, ghost_cell, ghost_r)
+		ghost.position = Game.cell_center(ghost_cell)
+		ghost.basis = world.basis_for(ghost_r)
+		if not ghost_ok:
+			tint = Color(1, 0.3, 0.3)
+		_ghost_mat.albedo_color = Color(tint, 0.45)
+		var lbl = ghost.get_meta("parts").get("label")
+		if lbl:
+			var extra := ""
+			if build_type == "bras" or build_type == "pelle":
+				extra = "\nÀ portée du tas" if Game.digger_in_range(build_type, ghost_cell) else "\nTrop loin du tas !"
+			lbl.text = (Data.MACHINES[build_type].name if ghost_ok else ghost_why) + extra
+			lbl.modulate = tint
+	var mm := _cells.multimesh
+	mm.instance_count = cells.size()
+	for i in cells.size():
+		mm.set_instance_transform(i, Transform3D(Basis(), Game.cell_center(cells[i]) + Vector3(0, 0.03, 0)))
+	(_cells.material_override as StandardMaterial3D).albedo_color = Color(tint, 0.35 if ghost_ok else 0.25)
 
 
 func rotate_build() -> void:
@@ -284,26 +357,51 @@ func rotate_build() -> void:
 	Sfx.play("click")
 
 
-func confirm_build() -> bool:
+func place_pressed() -> void:
+	place_held = true
+	_last_placed = Vector2i(999999, 0)
+	_place_now()
+
+
+func place_released() -> void:
+	place_held = false
+
+
+func _place_now() -> bool:
 	if not ghost_ok:
-		Sfx.play("prick")
+		if not place_held or build_type != "convoyeur":
+			hud.toast(ghost_why)
+			Sfx.play("prick")
 		return false
-	if move_index >= 0:
-		Game.move_building(move_index, ghost_pos, build_rot)
-	elif not Game.place_building(build_type, ghost_pos, build_rot):
-		hud.toast("Pas assez d'argent.")
+	if build_type == "__demolir":
+		var e := Game.entity_at(ghost_cell)
+		if not e.is_empty() and Game.demolish(e.id):
+			Sfx.play("cast")
+		return true
+	if move_id >= 0:
+		if Game.move_entity(move_id, ghost_cell, ghost_r):
+			Sfx.play("buy")
+			cancel_build()
+			return true
 		return false
-	cancel_build()
-	return true
+	if Game.build(build_type, ghost_cell, ghost_r):
+		_last_placed = ghost_cell
+		if build_type != "convoyeur":
+			hud.toast("%s construit !" % Data.MACHINES[build_type].name, true)
+		return true
+	return false
 
 
 func cancel_build() -> void:
-	if move_index >= 0 and move_index < world.building_nodes.size():
-		world.building_nodes[move_index].visible = true
+	if move_id >= 0 and world.nodes.has(move_id):
+		world.nodes[move_id].visible = true
 	build_type = ""
-	move_index = -1
+	move_id = -1
+	place_held = false
 	if ghost:
 		ghost.queue_free()
 		ghost = null
+	if _cells:
+		_cells.visible = false
 	target = {}
 	target_changed.emit(target)

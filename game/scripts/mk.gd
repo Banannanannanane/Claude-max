@@ -74,7 +74,7 @@ static func label(parent: Node3D, text: String, pos: Vector3, size := 48, color 
 	l.text = text
 	l.position = pos
 	l.font_size = size
-	l.pixel_size = 0.011
+	l.pixel_size = 0.008
 	l.modulate = color
 	l.outline_size = 10
 	l.outline_modulate = Color(0, 0, 0, 0.85)
@@ -96,7 +96,7 @@ static func needle_mesh(length := 0.55, radius := 0.014) -> CylinderMesh:
 
 
 static func needle_material() -> StandardMaterial3D:
-	return mat(Color(0.66, 0.66, 0.67), 0.55, 0.32)
+	return mat(Color(0.56, 0.56, 0.57), 0.35, 0.4)
 
 
 static func hay_material() -> StandardMaterial3D:

@@ -21,18 +21,24 @@ Chaque push compile le jeu automatiquement (GitHub Actions → onglet **Releases
 
 | | |
 |---|---|
-| **Tas d'aiguilles** | 5 tailles : petit (400 aiguilles), moyen (1 500), gros (6 000), énorme (25 000) et montagne (120 000). Chacun cache 22 brins de foin. Les trouver tous débloque le tas suivant au bureau des commandes. |
-| **À la main** | Vise le tas et garde ACTION appuyé pour ramasser une poignée. Une partie du foin se repère tout de suite, le reste reste caché dans tes aiguilles. L'endurance limite la course et le ramassage. |
-| **Vérification** | Les aiguilles non vérifiées sont **invendables** (il pourrait y avoir du foin dedans). Pour les vérifier : la table de tri au début, puis des vérificateurs automatiques. |
-| **Métallurgie** | Fonderie : 10 aiguilles donnent 1 lingot brut. Purificateur : lingot brut → lingot pur, plus cher. |
-| **Automatisation** | Bras robots et pelleteuses, à placer près du tas. Camion de vente automatique. Entrepôts supplémentaires. |
-| **Arbre de progression** | Il faut **acheter le droit** de construire chaque machine, et celui de commander les tas plus gros. On y trouve aussi des bonus : tri express, contrats premium, automatisation avancée, magnat de l'aiguille. |
-| **Boutique** | Capacité de la main, grosses poignées, endurance, récupération, vitesse, longs bras (ramasser et placer plus loin), œil de lynx, étagères d'entrepôt, tri rapide, plus les moteurs des machines. |
+| **Tas d'aiguilles** | 5 tailles : petit (600 aiguilles), moyen (2 500), gros (10 000), énorme (40 000) et montagne (200 000). Chacun cache 22 brins de foin, et chaque brin trouvé rapporte une prime. Trouver les 22 permet de commander le tas suivant au bureau. |
+| **À la main** | Vise le tas et garde ACTION appuyé pour ramasser. Verse ensuite dans une trémie, ou pose ta poignée directement sur un tapis. L'endurance limite la course et le ramassage. |
+| **Convoyeurs** | De vrais tapis en 3D sur une grille : les lots d'aiguilles et les lingots y circulent. Pour en poser une ligne, garde PLACER appuyé en marchant. Les séparateurs répartissent le flux, les stockages tampons l'absorbent. |
+| **Un seul point de vente** | Le **trou de vente**, un grand puits dans le sol : seul ce que les tapis y font tomber est payé. Le foin non détecté qui y tombe retourne dans le tas. |
+| **Scanners** | Placés sur la ligne, ils détectent le foin caché, et les aiguilles en ressortent vérifiées. |
+| **Métallurgie** | Aiguilles vérifiées → **fonderie** (lingots bruts) → **purificateur** (lingots purs) → **presse à tôles** ou **tréfileuse** (bobines de fil) → **aiguilleuse** (boîtes d'aiguilles neuves). Chaque étape vaut plus cher. |
+| **Automatisation** | Bras robots et pelleteuses à placer près du tas, et drones collecteurs qui font la navette jusqu'aux trémies. |
+| **Arbre technologique** | 5 étapes. Les **plans** donnent le droit de construire chaque machine, et chacun a ses **améliorations à niveaux** : tapis plus rapides, fonte plus rapide, grand creuset (plus de lingots par fournée), qualité (meilleur prix), portée des bras… On y achète aussi les **contrats** pour les tas plus gros et des bonus (trou élargi, automatisation avancée). |
+| **Boutique** | Capacité de la main, fourche, endurance, récupération, bottes, longs bras (ramasser et placer plus loin), œil de lynx, trémies géantes. |
+| **Bureau** | Commande des tas et **contrats de livraison** à prime, avec un délai. |
+| **Sauvegardes** | 3 emplacements avec sauvegarde automatique, sauvegarde manuelle et chargement. La production continue hors ligne (8 h maximum). Il y a aussi 12 **succès** à débloquer. |
+
+Chaque machine prend ce qui arrive par l'arrière (flèche verte) et rend sa production par
+l'avant (flèche bleue).
 
 Commandes tactiles : joystick flottant à gauche, glisser à droite pour regarder, boutons
-ACTION, Courir et Saut. Au clavier (pour tester sur PC) : ZQSD/WASD, souris, E, Maj, Espace.
-La partie est sauvegardée automatiquement, et les machines continuent de tourner jusqu'à 8 h
-quand le jeu est fermé.
+ACTION, Courir et Saut. En mode construction : PLACER, Pivoter et Annuler. Au clavier (pour
+tester sur PC) : ZQSD/WASD, souris, E, R pour pivoter, Entrée pour placer, Maj, Espace.
 
 ## Structure
 
