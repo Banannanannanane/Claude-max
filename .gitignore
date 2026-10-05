@@ -1,6 +1,8 @@
-.gradle/
+# Godot
+game/.godot/
 build/
-app/build/
-local.properties
-*.iml
-.idea/
+*.tmp
+# Clés de publication privées : ne jamais les versionner
+*.keystore
+release*.jks
+key.properties

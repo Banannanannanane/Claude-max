@@ -1,0 +1,38 @@
+name: iOS (projet Xcode)
+
+# Génère le projet Xcode du jeu. Pour publier sur l'App Store, il faut ensuite
+# l'ouvrir dans Xcode sur un Mac avec un compte Apple Developer (voir docs/STORE.md).
+on:
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: macos-latest
+    env:
+      GODOT_VERSION: 4.5.1
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Installer Godot et les modèles d'export
+        run: |
+          curl -sSfL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          unzip -q godot.zip
+          curl -sSfL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q templates.tpz -d tpl
+          mkdir -p "$HOME/Library/Application Support/Godot/export_templates"
+          mv tpl/templates "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          echo "GODOT=$PWD/Godot.app/Contents/MacOS/Godot" >> $GITHUB_ENV
+
+      - name: Exporter le projet Xcode
+        working-directory: game
+        run: |
+          $GODOT --headless --import
+          mkdir -p ../build/ios
+          $GODOT --headless --export-release "iOS" ../build/ios/TrouveLeFoin.xcodeproj
+          cd ../build && zip -qry TrouveLeFoin-ios-xcode.zip ios
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TrouveLeFoin-ios-xcode
+          path: build/TrouveLeFoin-ios-xcode.zip
+          if-no-files-found: error

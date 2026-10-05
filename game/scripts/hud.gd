@@ -1,0 +1,460 @@
+extends CanvasLayer
+## Interface en jeu : infos, viseur, joystick, boutons tactiles, notifications et fenêtres.
+
+var player: Node
+var main: Node
+var root: Control
+var sprint_held := false
+var action_held := false
+
+var _money: Label
+var _hay: Label
+var _hand: Label
+var _pile: Label
+var _store: Label
+var _stamina: ProgressBar
+var _hay_bar: ProgressBar
+var _prompt: Label
+var _cross: Control
+var _toasts: VBoxContainer
+var _flash: ColorRect
+var _big: Label
+var _panel: Control
+
+var _joy_base: TextureRect
+var _joy_knob: TextureRect
+var _joy_index := -1
+var _joy_center := Vector2.ZERO
+var _joy_vec := Vector2.ZERO
+var _look_index := -1
+var _jump := false
+
+var _btn_action: TouchScreenButton
+var _btn_sprint: TouchScreenButton
+var _btn_jump: TouchScreenButton
+var _btn_place: TouchScreenButton
+var _btn_rotate: TouchScreenButton
+var _btn_cancel: TouchScreenButton
+var _action_label: Label
+var _buttons: Array = [] # [TouchScreenButton, rayon]
+var _menu: HBoxContainer
+
+const JOY_R := 90.0
+
+
+func _ready() -> void:
+	layer = 10
+	root = Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.theme = UI.theme()
+	add_child(root)
+	_build_info()
+	_build_menu()
+	_build_center()
+	_build_touch()
+	_toasts = VBoxContainer.new()
+	_toasts.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_toasts.position = Vector2(-330, 150)
+	_toasts.custom_minimum_size = Vector2(660, 0)
+	_toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_toasts.alignment = BoxContainer.ALIGNMENT_BEGIN
+	root.add_child(_toasts)
+	_flash = ColorRect.new()
+	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_flash.color = Color(1, 0.85, 0.3, 0)
+	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_flash)
+	_big = UI.label("", 52, UI.GOLD)
+	_big.set_anchors_preset(Control.PRESET_CENTER)
+	_big.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_big.add_theme_constant_override("outline_size", 14)
+	_big.position = Vector2(-400, -170)
+	_big.custom_minimum_size = Vector2(800, 0)
+	_big.modulate.a = 0
+	_big.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_big)
+	Game.toast.connect(toast)
+	Game.hay_found.connect(_on_hay)
+	Game.changed.connect(_refresh)
+	get_viewport().size_changed.connect(_layout)
+	_layout()
+	_refresh()
+
+
+# ============================================================ construction de l'interface
+func _build_info() -> void:
+	var p := PanelContainer.new()
+	p.theme_type_variation = "Hud"
+	p.position = Vector2(16, 12)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(p)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 3)
+	v.custom_minimum_size = Vector2(330, 0)
+	p.add_child(v)
+	_money = UI.label("", 30, UI.GOLD)
+	v.add_child(_money)
+	_hay = UI.label("", 21)
+	v.add_child(_hay)
+	_hay_bar = UI.bar("HayBar")
+	_hay_bar.max_value = Data.HAY_PER_PILE
+	v.add_child(_hay_bar)
+	_pile = UI.label("", 18, UI.MUTED)
+	v.add_child(_pile)
+	_hand = UI.label("", 21)
+	v.add_child(_hand)
+	_store = UI.label("", 18, UI.MUTED)
+	v.add_child(_store)
+	var sl := UI.label("Endurance", 16, UI.MUTED)
+	v.add_child(sl)
+	_stamina = UI.bar()
+	v.add_child(_stamina)
+
+
+func _build_menu() -> void:
+	_menu = HBoxContainer.new()
+	_menu.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_menu.add_theme_constant_override("separation", 8)
+	root.add_child(_menu)
+	for e in [["Boutique", "boutique", "GoldButton"], ["Arbre", "arbre", "GoldButton"], ["Construire", "construire", "BlueButton"], ["Stock", "stock", ""], ["Menu", "reglages", ""]]:
+		var b := UI.button(e[0], open_panel.bind(e[1]), e[2])
+		b.mouse_filter = Control.MOUSE_FILTER_STOP
+		b.custom_minimum_size = Vector2(0, 64)
+		b.add_theme_font_size_override("font_size", 22)
+		_menu.add_child(b)
+
+
+func _build_center() -> void:
+	_cross = Control.new()
+	_cross.set_anchors_preset(Control.PRESET_CENTER)
+	_cross.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_cross.draw.connect(func() -> void:
+		_cross.draw_circle(Vector2.ZERO, 5.0, Color(1, 1, 1, 0.9))
+		_cross.draw_arc(Vector2.ZERO, 11.0, 0, TAU, 24, Color(0, 0, 0, 0.6), 2.0))
+	root.add_child(_cross)
+	_prompt = UI.label("", 24)
+	_prompt.set_anchors_preset(Control.PRESET_CENTER)
+	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_prompt.add_theme_constant_override("outline_size", 10)
+	_prompt.position = Vector2(-400, 30)
+	_prompt.custom_minimum_size = Vector2(800, 0)
+	_prompt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_prompt)
+
+
+func _touch_button(text: String, radius: float, color: Color, font := 24) -> TouchScreenButton:
+	var b := TouchScreenButton.new()
+	b.texture_normal = UI.circle_texture(int(radius), Color(color, 0.55))
+	b.texture_pressed = UI.circle_texture(int(radius), Color(color.lightened(0.3), 0.8))
+	var sh := CircleShape2D.new()
+	sh.radius = radius
+	b.shape = sh
+	b.shape_centered = true
+	b.passby_press = false
+	root.add_child(b)
+	var l := UI.label(text, font)
+	l.add_theme_constant_override("outline_size", 8)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.size = Vector2(radius * 2, radius * 2)
+	b.add_child(l)
+	_buttons.append([b, radius])
+	return b
+
+
+func _build_touch() -> void:
+	_joy_base = TextureRect.new()
+	_joy_base.texture = UI.circle_texture(int(JOY_R), Color(1, 1, 1, 0.18))
+	_joy_base.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_joy_base.size = Vector2(JOY_R * 2, JOY_R * 2)
+	root.add_child(_joy_base)
+	_joy_knob = TextureRect.new()
+	_joy_knob.texture = UI.circle_texture(40, Color(1, 1, 1, 0.5))
+	_joy_knob.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_joy_knob.size = Vector2(80, 80)
+	root.add_child(_joy_knob)
+
+	_btn_action = _touch_button("", 95, Color(0.95, 0.7, 0.15), 26)
+	_action_label = _btn_action.get_child(0)
+	_btn_action.pressed.connect(func() -> void:
+		action_held = true
+		player.action_pressed())
+	_btn_action.released.connect(func() -> void: action_held = false)
+	_btn_sprint = _touch_button("Courir", 62, Color(0.3, 0.6, 1.0), 22)
+	_btn_sprint.pressed.connect(func() -> void: sprint_held = true)
+	_btn_sprint.released.connect(func() -> void: sprint_held = false)
+	_btn_jump = _touch_button("Saut", 55, Color(0.5, 0.5, 0.55), 22)
+	_btn_jump.pressed.connect(func() -> void: _jump = true)
+	_btn_place = _touch_button("PLACER", 90, Color(0.3, 0.85, 0.4), 26)
+	_btn_place.pressed.connect(func() -> void:
+		if player.confirm_build():
+			toast("Bâtiment placé !", true))
+	_btn_rotate = _touch_button("Pivoter", 60, Color(0.3, 0.6, 1.0), 22)
+	_btn_rotate.pressed.connect(func() -> void: player.rotate_build())
+	_btn_cancel = _touch_button("Annuler", 55, Color(0.85, 0.3, 0.25), 22)
+	_btn_cancel.pressed.connect(func() -> void: player.cancel_build())
+
+
+func _layout() -> void:
+	var s := root.get_viewport_rect().size
+	_menu.position = Vector2(s.x - _menu.get_combined_minimum_size().x - 16, 12)
+	_reset_joy()
+	_btn_action.position = Vector2(s.x - 95 * 2 - 40, s.y - 95 * 2 - 40)
+	_btn_sprint.position = Vector2(s.x - 62 * 2 - 270, s.y - 62 * 2 - 30)
+	_btn_jump.position = Vector2(s.x - 55 * 2 - 70, s.y - 95 * 2 - 175)
+	_btn_place.position = _btn_action.position + Vector2(5, 5)
+	_btn_rotate.position = _btn_sprint.position
+	_btn_cancel.position = _btn_jump.position
+
+
+func _reset_joy() -> void:
+	var s := root.get_viewport_rect().size
+	_joy_center = Vector2(60 + JOY_R, s.y - 60 - JOY_R)
+	_joy_vec = Vector2.ZERO
+	_joy_base.position = _joy_center - Vector2(JOY_R, JOY_R)
+	_joy_knob.position = _joy_center - Vector2(40, 40)
+	_joy_base.modulate.a = 0.6
+	_joy_knob.modulate.a = 0.6
+
+
+# ============================================================ entrées tactiles
+func _over_button(p: Vector2) -> bool:
+	for e in _buttons:
+		var b: TouchScreenButton = e[0]
+		if b.visible and p.distance_to(b.position + Vector2(e[1], e[1])) <= e[1] + 6:
+			return true
+	return false
+
+
+func _over_ui(p: Vector2) -> bool:
+	if _menu.get_global_rect().has_point(p):
+		return true
+	return _over_button(p)
+
+
+func _input(event: InputEvent) -> void:
+	if _panel and is_instance_valid(_panel):
+		return
+	if event is InputEventScreenTouch:
+		var s := root.get_viewport_rect().size
+		if event.pressed:
+			if _over_ui(event.position):
+				return
+			if event.position.x < s.x * 0.42 and event.position.y > s.y * 0.35 and _joy_index < 0:
+				_joy_index = event.index
+				_joy_center = event.position
+				_joy_base.position = _joy_center - Vector2(JOY_R, JOY_R)
+				_joy_knob.position = _joy_center - Vector2(40, 40)
+				_joy_base.modulate.a = 1.0
+				_joy_knob.modulate.a = 1.0
+			elif _look_index < 0:
+				_look_index = event.index
+		else:
+			if event.index == _joy_index:
+				_joy_index = -1
+				_reset_joy()
+			if event.index == _look_index:
+				_look_index = -1
+	elif event is InputEventScreenDrag:
+		if event.index == _joy_index:
+			var d: Vector2 = event.position - _joy_center
+			_joy_vec = d.limit_length(JOY_R) / JOY_R
+			_joy_knob.position = _joy_center + d.limit_length(JOY_R) - Vector2(40, 40)
+		elif event.index == _look_index:
+			player.look(event.relative)
+	elif event is InputEventKey and event.pressed and not event.echo:
+		if event.physical_keycode == KEY_E:
+			action_held = true
+			player.action_pressed()
+		elif event.physical_keycode == KEY_R and player.build_type != "":
+			player.rotate_build()
+		elif event.physical_keycode == KEY_ENTER and player.build_type != "":
+			player.confirm_build()
+	elif event is InputEventKey and not event.pressed and event.physical_keycode == KEY_E:
+		action_held = false
+
+
+func move_vector() -> Vector2:
+	return _joy_vec
+
+
+func consume_jump() -> bool:
+	var j := _jump
+	_jump = false
+	return j
+
+
+# ============================================================ affichage
+func _refresh() -> void:
+	_money.text = Fmt.eur(Game.money)
+	_hay.text = "Foin trouvé : %d / %d" % [Game.pile_found, Data.HAY_PER_PILE]
+	_hay_bar.value = Game.pile_found
+	_pile.text = "%s · %s aiguilles" % [Data.PILES[Game.pile_size].name, Fmt.num(Game.pile_n)]
+	var held := Game.hand_n + Game.hand_h
+	_hand.text = "Main : %d / %d" % [held, Game.hand_cap()]
+	_hand.add_theme_color_override("font_color", UI.BAD if held >= Game.hand_cap() else Color(0.93, 0.94, 0.96))
+	_store.text = "Entrepôt : %s / %s" % [Fmt.num(Game.used()), Fmt.num(Game.capacity())]
+
+
+func _process(delta: float) -> void:
+	if not player:
+		return
+	_stamina.max_value = Game.stamina_max()
+	_stamina.value = player.stamina
+	_stamina.modulate = Color(1, 0.5, 0.5) if player.is_exhausted() else Color.WHITE
+	var building: bool = player.build_type != ""
+	var free := not panel_open()
+	for b in [_btn_action, _btn_sprint, _btn_jump]:
+		b.visible = free and not building
+	for b in [_btn_place, _btn_rotate, _btn_cancel]:
+		b.visible = free and building
+	_cross.visible = not building
+	_update_prompt()
+	_flash.color.a = maxf(0.0, _flash.color.a - delta * 1.5)
+	_big.modulate.a = maxf(0.0, _big.modulate.a - delta * 0.6)
+
+
+func _update_prompt() -> void:
+	if player.build_type != "":
+		_prompt.text = "Vise un emplacement puis touche PLACER" + ("" if player.ghost_ok else "")
+		return
+	var t: Dictionary = player.target
+	var kind: String = t.get("kind", "")
+	var act := ""
+	var txt := ""
+	if kind == "pile":
+		act = "Ramasser"
+		if Game.hand_n + Game.hand_h >= Game.hand_cap():
+			txt = "Main pleine !"
+		elif Game.pile_items() <= 0:
+			txt = "Le tas est vide"
+		else:
+			txt = "Ramasser des aiguilles (garde le bouton appuyé)"
+	elif kind == "building":
+		var type: String = t.type
+		match type:
+			"table":
+				act = "Déposer"
+				txt = "Table de tri : %d / %d en attente" % [Game.table_n + Game.table_h, Game.table_cap()]
+			"entrepot":
+				act = "Déposer"
+				txt = "Entrepôt : %s / %s" % [Fmt.num(Game.used()), Fmt.num(Game.capacity())]
+			"comptoir":
+				act = "Vendre"
+				txt = "Comptoir de vente"
+			"bureau":
+				act = "Commander"
+				txt = "Bureau des commandes de tas"
+			_:
+				act = "Infos"
+				txt = Data.BUILDINGS[type].name
+	else:
+		act = "Action"
+	_prompt.text = txt
+	_action_label.text = act
+
+
+func toast(text: String, gold := false) -> void:
+	var p := PanelContainer.new()
+	p.theme_type_variation = "Hud"
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var l := UI.label(text, 21, UI.GOLD if gold else Color(0.95, 0.96, 0.98), true)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	p.add_child(l)
+	_toasts.add_child(p)
+	while _toasts.get_child_count() > 3:
+		var old := _toasts.get_child(0)
+		_toasts.remove_child(old)
+		old.queue_free()
+	var tw := create_tween()
+	tw.tween_interval(2.6)
+	tw.tween_property(p, "modulate:a", 0.0, 0.4)
+	tw.tween_callback(p.queue_free)
+
+
+func _on_hay(count: int, by_hand: bool) -> void:
+	_flash.color.a = 0.35 if by_hand else 0.15
+	Input.vibrate_handheld(90 if by_hand else 40)
+	_big.text = "BRIN DE FOIN !" if by_hand else "Foin détecté !"
+	_big.modulate.a = 1.0
+	if by_hand and main:
+		main.hay_fx()
+
+
+func grab_fx(point: Vector3) -> void:
+	if main:
+		main.spark_fx(point)
+
+
+# ============================================================ fenêtres
+func open_panel(name: String) -> void:
+	if player.build_type != "":
+		player.cancel_build()
+	var p: PanelBase
+	match name:
+		"boutique":
+			p = Panels.ShopPanel.new()
+		"arbre":
+			p = Panels.TreePanel.new()
+		"construire":
+			p = Panels.BuildPanel.new()
+		"vente":
+			p = Panels.SellPanel.new()
+		"commandes":
+			p = Panels.OrderPanel.new()
+		"stock":
+			p = Panels.StockPanel.new()
+		"reglages":
+			p = Panels.SettingsPanel.new()
+		_:
+			return
+	_show(p)
+
+
+func open_building(i: int) -> void:
+	var p := Panels.BuildingPanel.new()
+	p.index = i
+	_show(p)
+
+
+func message(title: String, body: String) -> void:
+	var p := Panels.MessagePanel.new()
+	p.heading = title
+	p.body = body
+	_show(p)
+
+
+func _show(p: PanelBase) -> void:
+	close_panel()
+	Sfx.play("click")
+	p.hud = self
+	_panel = p
+	action_held = false
+	sprint_held = false
+	_joy_index = -1
+	_look_index = -1
+	_reset_joy()
+	root.add_child(p)
+
+
+func close_panel() -> void:
+	if _panel and is_instance_valid(_panel):
+		_panel.queue_free()
+	_panel = null
+
+
+func panel_open() -> bool:
+	return _panel != null and is_instance_valid(_panel)
+
+
+func begin_build(type: String) -> void:
+	close_panel()
+	player.start_build(type)
+	toast("Mode construction : vise un emplacement et touche PLACER.")
+
+
+func begin_move(index: int) -> void:
+	close_panel()
+	player.start_build(Game.buildings[index].type, index)
+	toast("Déplace le bâtiment puis touche PLACER.")
