@@ -3,7 +3,7 @@ class_name Data
 
 const PILE_POS := Vector3(0, 0, -16)
 const HAY_PER_PILE := 22
-const FIELD := 46 # demi-côté du terrain constructible (cases)
+const FIELD := 80 # demi-côté du terrain constructible (cases)
 const LOT := 10 # aiguilles par lot transporté sur les tapis
 
 ## Directions de la grille : 0 nord (-Z), 1 est (+X), 2 sud (+Z), 3 ouest (-X).
@@ -30,8 +30,8 @@ const ITEMS := {
 }
 const ITEM_ORDER := ["vrac", "acier", "brut", "pur", "tole", "fil", "boite"]
 
-## Machines. size = (largeur, profondeur) en cases, toujours impaires ; l'entrée est à l'arrière,
-## la sortie à l'avant. plan = nœud de l'arbre qui donne le droit de construire.
+## Machines. size = (largeur, profondeur) en cases ; l'entrée est à l'arrière (toute la largeur),
+## la sortie à l'avant (la machine sert à tour de rôle chaque case de devant). plan = nœud de l'arbre qui donne le droit de construire.
 ## recipe : entrée (type -> quantité), sortie (type -> quantité), durée en secondes.
 const MACHINES := {
 	"convoyeur": {"name": "Convoyeur", "desc": "Tapis roulant : transporte les objets dans le sens des flèches.",
@@ -39,37 +39,37 @@ const MACHINES := {
 	"separateur": {"name": "Séparateur", "desc": "Répartit les objets à gauche, devant et à droite, chacun son tour.",
 		"size": Vector2i(1, 1), "cost": 60.0, "plan": "p_separateur", "h": 0.6},
 	"tremie": {"name": "Trémie", "desc": "Dépose tes aiguilles dedans : elle les envoie sur le tapis, lot par lot.",
-		"size": Vector2i(3, 3), "cost": 250.0, "plan": "p_convoyeur", "h": 1.6, "cap": 600},
+		"size": Vector2i(2, 2), "cost": 250.0, "plan": "p_convoyeur", "h": 1.9, "cap": 600},
 	"scanner": {"name": "Scanner", "desc": "Détecte le foin caché dans les aiguilles en vrac. Les aiguilles ressortent vérifiées.",
-		"size": Vector2i(1, 3), "cost": 150.0, "plan": "p_scanner", "h": 2.0,
+		"size": Vector2i(1, 2), "cost": 150.0, "plan": "p_scanner", "h": 1.9,
 		"in": {"vrac": 1}, "out": {"acier": 1}, "time": 1.2, "speed": "u_scan_vitesse"},
 	"bras": {"name": "Bras robot", "desc": "Ramasse les aiguilles du tas et les pose sur le tapis de devant. À placer près du tas.",
-		"size": Vector2i(1, 1), "cost": 400.0, "plan": "p_bras", "h": 1.0, "dig": 2.0, "range": "u_bras_portee", "speed": "u_bras_vitesse"},
+		"size": Vector2i(1, 1), "cost": 400.0, "plan": "p_bras", "h": 1.2, "dig": 2.0, "range": "u_bras_portee", "speed": "u_bras_vitesse"},
 	"pelle": {"name": "Pelleteuse", "desc": "Creuse le tas par grosses pelletées. À placer près du tas.",
-		"size": Vector2i(3, 3), "cost": 6000.0, "plan": "p_pelle", "h": 2.4, "dig": 0.6, "range": "u_pelle_portee", "speed": "u_pelle_vitesse", "lot_mult": 3},
+		"size": Vector2i(2, 2), "cost": 6000.0, "plan": "p_pelle", "h": 1.9, "dig": 0.6, "range": "u_pelle_portee", "speed": "u_pelle_vitesse", "lot_mult": 3},
 	"fonderie": {"name": "Fonderie", "desc": "Fond les aiguilles vérifiées en lingots bruts (jamais de vrac : le foin brûlerait !).",
-		"size": Vector2i(3, 3), "cost": 800.0, "plan": "p_fonderie", "h": 2.6,
+		"size": Vector2i(2, 2), "cost": 800.0, "plan": "p_fonderie", "h": 2.2,
 		"in": {"acier": 1}, "out": {"brut": 1}, "time": 3.0, "speed": "u_fond_vitesse", "batch": "u_fond_lot", "quality": "u_fond_qualite"},
 	"purif": {"name": "Purificateur", "desc": "Purifie les lingots bruts en lingots purs.",
-		"size": Vector2i(3, 3), "cost": 3000.0, "plan": "p_purif", "h": 3.0,
+		"size": Vector2i(2, 2), "cost": 3000.0, "plan": "p_purif", "h": 2.3,
 		"in": {"brut": 1}, "out": {"pur": 1}, "time": 3.0, "speed": "u_purif_vitesse", "quality": "u_purif_qualite"},
 	"presse": {"name": "Presse à tôles", "desc": "Lamine 2 lingots purs en une tôle d'acier.",
-		"size": Vector2i(3, 3), "cost": 12000.0, "plan": "p_presse", "h": 2.6,
+		"size": Vector2i(2, 2), "cost": 12000.0, "plan": "p_presse", "h": 2.3,
 		"in": {"pur": 2}, "out": {"tole": 1}, "time": 4.0, "speed": "u_presse_vitesse", "quality": "u_presse_qualite"},
 	"trefileuse": {"name": "Tréfileuse", "desc": "Étire un lingot pur en deux bobines de fil.",
-		"size": Vector2i(3, 3), "cost": 10000.0, "plan": "p_trefileuse", "h": 2.2,
+		"size": Vector2i(2, 2), "cost": 10000.0, "plan": "p_trefileuse", "h": 1.8,
 		"in": {"pur": 1}, "out": {"fil": 2}, "time": 3.0, "speed": "u_tref_vitesse", "quality": "u_tref_qualite"},
 	"aiguilleuse": {"name": "Aiguilleuse", "desc": "Fabrique des boîtes d'aiguilles neuves avec le fil. Ironique, non ?",
-		"size": Vector2i(3, 3), "cost": 40000.0, "plan": "p_aiguilleuse", "h": 2.4,
+		"size": Vector2i(2, 2), "cost": 40000.0, "plan": "p_aiguilleuse", "h": 2.0,
 		"in": {"fil": 1}, "out": {"boite": 1}, "time": 5.0, "speed": "u_aig_vitesse", "quality": "u_aig_qualite"},
 	"tampon": {"name": "Stockage tampon", "desc": "Accumule jusqu'à 120 objets et les relâche au rythme du tapis.",
-		"size": Vector2i(3, 3), "cost": 500.0, "plan": "p_tampon", "h": 2.2, "cap": 120},
+		"size": Vector2i(2, 2), "cost": 500.0, "plan": "p_tampon", "h": 2.0, "cap": 120},
 	"drone": {"name": "Drone collecteur", "desc": "Fait la navette entre le tas et la trémie la plus proche.",
 		"size": Vector2i(1, 1), "cost": 15000.0, "plan": "p_drone", "h": 0.3},
 	"trou": {"name": "Trou de vente", "desc": "Le seul endroit où l'on vend : tout ce qui y tombe est payé.",
-		"size": Vector2i(5, 5), "cost": 0.0, "plan": "", "h": 0.4, "fixed": true},
-	"bureau": {"name": "Bureau des commandes", "desc": "Commande les tas d'aiguilles et accepte des contrats.",
-		"size": Vector2i(3, 3), "cost": 0.0, "plan": "", "h": 2.5, "fixed": true},
+		"size": Vector2i(4, 4), "cost": 0.0, "plan": "", "h": 0.4, "fixed": true},
+	"bureau": {"name": "Borne des commandes", "desc": "Commande les tas d'aiguilles et accepte des contrats.",
+		"size": Vector2i(1, 1), "cost": 0.0, "plan": "", "h": 1.6, "fixed": true},
 }
 const BUILD_ORDER := ["convoyeur", "tremie", "scanner", "separateur", "bras", "fonderie", "tampon", "purif",
 	"pelle", "presse", "trefileuse", "drone", "aiguilleuse"]
@@ -149,4 +149,26 @@ const ACHIEVEMENTS := [
 	["boite_1", "La boucle est bouclée", "Vends une boîte d'aiguilles neuves."],
 	["money_1m", "Millionnaire", "Gagne 1 000 000 € au total."],
 	["mountain", "Au sommet", "Termine une montagne d'aiguilles."],
+]
+
+## Objectifs guidés : [identifiant, texte, récompense]. La progression est calculée par Game.quest_progress().
+const QUESTS := [
+	["grab30", "Ramasse 30 aiguilles dans le tas", 15.0],
+	["tremie", "Verse tes aiguilles dans la trémie", 15.0],
+	["sell10", "Gagne 10 € grâce au trou de vente", 25.0],
+	["plan_scan", "Achète le plan du Scanner (Arbre)", 30.0],
+	["scanner", "Pose un scanner sur la ligne de tapis", 40.0],
+	["hay3", "Trouve 3 brins de foin", 60.0],
+	["belts10", "Pose 10 convoyeurs", 60.0],
+	["pile1", "Termine ton premier tas (22 brins)", 150.0],
+	["fonderie", "Construis une fonderie", 150.0],
+	["ingot", "Vends un lingot brut", 200.0],
+	["bras", "Construis un bras robot près du tas", 300.0],
+	["moyen", "Commande un tas moyen", 400.0],
+	["contrat", "Remplis un contrat de livraison", 600.0],
+	["purif", "Construis un purificateur", 1000.0],
+	["gros", "Commande un gros tas", 2500.0],
+	["presse", "Vends une tôle d'acier", 5000.0],
+	["boite", "Vends une boîte d'aiguilles neuves", 20000.0],
+	["montagne", "Commande la montagne d'aiguilles", 50000.0],
 ]

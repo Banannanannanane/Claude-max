@@ -421,7 +421,7 @@ class EntityPanel extends PanelBase:
 				s.append("Contenu : %d / %d aiguilles" % [int(e.n) + int(e.h), Game.tremie_cap()])
 			"bras", "pelle":
 				s.append("Portée : %s m depuis le bord du tas" % Fmt.num(Game.dig_range(e.type), 1))
-				s.append("À portée du tas" if Game.digger_in_range(e.type, e.c) else "Trop loin du tas : déplace-le plus près !")
+				s.append("À portée du tas" if Game.digger_in_range(e.type, e.c, e.r) else "Trop loin du tas : déplace-le plus près !")
 				s.append("Vitesse : %s lots/s" % Fmt.num(float(m.dig) * Game.machine_speed(e.type) * int(m.get("lot_mult", 1)), 2))
 			"tampon":
 				s.append("Stock : %d / %d objets" % [e.q.size(), int(m.cap)])
@@ -522,6 +522,7 @@ class AchievementsPanel extends PanelBase:
 # ============================================================ réglages
 class SettingsPanel extends PanelBase:
 	var _sound: Button
+	var _day: Button
 	var _sens: HSlider
 
 	func title() -> String:
@@ -532,6 +533,7 @@ class SettingsPanel extends PanelBase:
 		content.add_child(top)
 		top.add_child(UI.button("Sauvegardes", func() -> void: hud.open_panel("sauvegardes"), "GoldButton"))
 		top.add_child(UI.button("Succès", func() -> void: hud.open_panel("succes"), "BlueButton"))
+		top.add_child(UI.button("Objectifs", func() -> void: hud.open_panel("objectifs"), "BlueButton"))
 		var save_now := UI.button("Sauvegarder maintenant", func() -> void:
 			Game.save_slot(Game.slot)
 			hud.toast("Partie enregistrée", true))
@@ -550,6 +552,8 @@ class SettingsPanel extends PanelBase:
 		h.add_child(_sens)
 		_sound = UI.button("", _toggle_sound)
 		content.add_child(_sound)
+		_day = UI.button("", _toggle_day)
+		content.add_child(_day)
 		section("Comment jouer")
 		var help := UI.card()
 		content.add_child(help)
@@ -564,14 +568,19 @@ class SettingsPanel extends PanelBase:
 			"• Arbre : achète les plans (droits de construction), puis leurs améliorations par niveaux.",
 			"• Bureau : contrats de livraison à prime et commande des tas. L'usine produit aussi hors ligne (8 h max).",
 		]), 19, Color(0.86, 0.88, 0.92), true))
-		content.add_child(UI.label("Trouve le Foin v1.1 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
+		content.add_child(UI.label("Trouve le Foin v1.2 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
 
 	func _toggle_sound() -> void:
 		Game.settings.sound = not Game.settings.sound
 		refresh()
 
+	func _toggle_day() -> void:
+		Game.settings.daynight = not Game.settings.get("daynight", true)
+		refresh()
+
 	func refresh() -> void:
 		_sound.text = "Son : " + ("activé" if Game.settings.sound else "coupé")
+		_day.text = "Cycle jour / nuit : " + ("activé" if Game.settings.get("daynight", true) else "toujours le jour")
 
 
 # ============================================================ message simple
@@ -587,3 +596,39 @@ class MessagePanel extends PanelBase:
 		content.add_child(c)
 		c.add_child(UI.label(body, 22, Color(0.92, 0.93, 0.96), true))
 		content.add_child(UI.button("C'est parti !", close, "GoldButton"))
+
+
+# ============================================================ objectifs
+class QuestPanel extends PanelBase:
+	func title() -> String:
+		return "Objectifs"
+
+	func sig() -> String:
+		return str(Game.quest)
+
+	func build() -> void:
+		content.add_child(UI.label("Suis les objectifs pour apprendre le jeu : chacun rapporte une prime.", 18, UI.MUTED, true))
+		for i in Data.QUESTS.size():
+			var q: Array = Data.QUESTS[i]
+			var done := i < Game.quest
+			var r := row(("✔ " if done else ("➜ " if i == Game.quest else "")) + q[1], "Prime : " + Fmt.eur(q[2]), null)
+			if i > Game.quest:
+				r.card.modulate = Color(1, 1, 1, 0.45)
+			if i == Game.quest:
+				var pr := Game.quest_progress(q[0])
+				r.extra.text = "Progression : %s / %s" % [Fmt.num(minf(pr.x, pr.y)), Fmt.num(pr.y)]
+
+
+# ============================================================ quitter
+class QuitPanel extends PanelBase:
+	func title() -> String:
+		return "Quitter le jeu ?"
+
+	func build() -> void:
+		content.add_child(UI.label("Ta partie est enregistrée. Ton usine continuera de produire pendant ton absence (jusqu'à 8 h).", 20, UI.MUTED, true))
+		var h := HBoxContainer.new()
+		content.add_child(h)
+		h.add_child(UI.button("Continuer à jouer", close, "BlueButton"))
+		h.add_child(UI.button("Quitter", func() -> void:
+			Game.save_slot(Game.slot)
+			get_tree().quit(), "RedButton"))

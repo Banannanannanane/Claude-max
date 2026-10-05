@@ -13,6 +13,7 @@ var _hand: Label
 var _pile: Label
 var _store: Label
 var _contract: Label
+var _quest: Label
 var _place_label: Label
 var _stamina: ProgressBar
 var _hay_bar: ProgressBar
@@ -108,6 +109,9 @@ func _build_info() -> void:
 	v.add_child(_hand)
 	_store = UI.label("", 18, UI.MUTED)
 	v.add_child(_store)
+	_quest = UI.label("", 17, UI.GOLD, true)
+	_quest.custom_minimum_size = Vector2(330, 0)
+	v.add_child(_quest)
 	_contract = UI.label("", 17, UI.BLUE, true)
 	_contract.custom_minimum_size = Vector2(330, 0)
 	v.add_child(_contract)
@@ -301,6 +305,13 @@ func _refresh() -> void:
 	_hand.text = "Main : %d / %d" % [held, Game.hand_cap()]
 	_hand.add_theme_color_override("font_color", UI.BAD if held >= Game.hand_cap() else Color(0.93, 0.94, 0.96))
 	_store.text = "Revenus : %s / min" % Fmt.eur(float(Game.rates.income) * 60.0)
+	if Game.quest < Data.QUESTS.size():
+		var q: Array = Data.QUESTS[Game.quest]
+		var pr := Game.quest_progress(q[0])
+		_quest.text = "Objectif : %s%s" % [q[1], "" if pr.y <= 1 else " (%s / %s)" % [Fmt.num(minf(pr.x, pr.y)), Fmt.num(pr.y)]]
+	else:
+		_quest.text = ""
+	_quest.visible = _quest.text != ""
 	_contract.visible = not Game.contract.is_empty()
 	if Game.contract.is_empty():
 		_contract.text = ""
@@ -422,6 +433,8 @@ func open_panel(name: String) -> void:
 			p = Panels.SavePanel.new()
 		"succes":
 			p = Panels.AchievementsPanel.new()
+		"objectifs":
+			p = Panels.QuestPanel.new()
 		"commandes":
 			p = Panels.OrderPanel.new()
 		"stock":
@@ -463,6 +476,20 @@ func close_panel() -> void:
 	if _panel and is_instance_valid(_panel):
 		_panel.queue_free()
 	_panel = null
+
+
+## Bouton retour d'Android : ferme la fenêtre, annule la construction, ou propose de quitter.
+func go_back() -> void:
+	if panel_open():
+		if _panel is Panels.QuitPanel:
+			close_panel()
+		else:
+			(_panel as PanelBase).close()
+		return
+	if player.build_type != "":
+		player.cancel_build()
+		return
+	_show(Panels.QuitPanel.new())
 
 
 func panel_open() -> bool:

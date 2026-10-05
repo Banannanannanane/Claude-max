@@ -34,7 +34,13 @@ Chaque push compile le jeu automatiquement (GitHub Actions → onglet **Releases
 | **Sauvegardes** | 3 emplacements avec sauvegarde automatique, sauvegarde manuelle et chargement. La production continue hors ligne (8 h maximum). Il y a aussi 12 **succès** à débloquer. |
 
 Chaque machine prend ce qui arrive par l'arrière (flèche verte) et rend sa production par
-l'avant (flèche bleue).
+l'avant (flèche bleue). La plupart des machines occupent 2×2 cases, et la zone constructible fait
+160×160 cases. Un voyant sur chaque machine indique son état : vert en marche, orange en attente,
+rouge si elle est bloquée (sortie pleine ou trop loin du tas).
+
+Il y a aussi des **objectifs guidés** avec primes pour apprendre le jeu, et un **cycle jour/nuit**
+avec lampadaires (désactivable). Le bouton Retour d'Android ferme les fenêtres et demande
+confirmation avant de quitter.
 
 Commandes tactiles : joystick flottant à gauche, glisser à droite pour regarder, boutons
 ACTION, Courir et Saut. En mode construction : PLACER, Pivoter et Annuler. Au clavier (pour
@@ -54,7 +60,18 @@ game/                Projet Godot (ouvrir game/project.godot dans l'éditeur God
 docs/STORE.md        Publier sur Google Play et l'App Store
 ```
 
-Tests en local : `godot --headless --path game -- --qa=logic`
+## Tests
+
+`tools/run_tests.sh /chemin/vers/godot` lance environ 150 vérifications automatiques. Le script
+échoue au moindre test raté ou à la moindre erreur du moteur. Il couvre :
+- la géométrie de chaque machine dans les 4 sens ;
+- les règles de construction, les tapis (virages, fusions, séparateurs, boucles, tampons) et
+  chaque recette de bout en bout ;
+- les bras, les pelleteuses, les drones et la détection du foin ;
+- les 5 tailles de tas, l'arbre, la boutique, les contrats, les objectifs et les succès ;
+- les sauvegardes (y compris les fichiers abîmés), un test de charge à 850 tapis ;
+- toutes les fenêtres et leurs boutons, le bouton Retour, et des gestes tactiles simulés
+  (joystick, regard, multitouche, ACTION, PLACER).
 
 ## Licence des fichiers
 

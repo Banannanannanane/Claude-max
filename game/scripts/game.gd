@@ -32,10 +32,11 @@ var tree := {"p_convoyeur": true} # nœuds achetés
 var ups := {} # niveaux des améliorations de plans
 var achievements := {}
 var stats := {}
-var settings := {"sound": true, "sens": 1.0, "music": true}
+var settings := {"sound": true, "sens": 1.0, "daynight": true}
 var contract := {} # contrat en cours
 var offers: Array = [] # contrats proposés
 var rates := {"income": 0.0, "dig": 0.0, "hay": 0.0}
+var quest := 0
 var slot := 1
 var last_save := 0
 
@@ -68,7 +69,7 @@ func _ready() -> void:
 # ============================================================ nouvelle partie
 func _blank_stats() -> Dictionary:
 	return {"needles": 0, "hay": 0, "piles": 0, "earned": 0.0, "ingots": 0, "time": 0.0, "belts": 0,
-		"contracts": 0, "sold": {}, "lost_hay": 0}
+		"contracts": 0, "sold": {}, "lost_hay": 0, "poured": 0, "ordered": {}}
 
 
 func new_game() -> void:
@@ -83,18 +84,19 @@ func new_game() -> void:
 	contract = {}
 	offers = []
 	rates = {"income": 0.0, "dig": 0.0, "hay": 0.0}
+	quest = 0
 	entities = {}
 	grid = {}
 	next_id = 1
 	_set_pile("petit")
 	# installation de départ : une trémie près du tas, un tapis jusqu'au trou de vente
 	_add("trou", Vector2i(12, -2), 0)
-	_add("bureau", Vector2i(-10, 4), 0)
+	_add("bureau", Vector2i(-6, 2), 2)
 	_add("tremie", Vector2i(0, -10), 1)
-	for x in range(2, 10):
+	for x in range(1, 12):
 		_add("convoyeur", Vector2i(x, -10), 1)
-	for z in range(-10, -4):
-		_add("convoyeur", Vector2i(10, z), 2)
+	for z in range(-10, -3):
+		_add("convoyeur", Vector2i(12, z), 2)
 	_roll_offers()
 	_order_dirty = true
 	entities_changed.emit()
@@ -257,25 +259,54 @@ static func world_to_cell(p: Vector3) -> Vector2i:
 	return Vector2i(floori(p.x), floori(p.z))
 
 
+## Bornes locales d'une emprise de n cases : [lo, hi] autour de la case d'ancrage.
+static func _span(n: int) -> Vector2i:
+	var lo := -((n - 1) / 2)
+	return Vector2i(lo, lo + n - 1)
+
+
 static func footprint(type: String, c: Vector2i, r: int) -> Array:
 	var s: Vector2i = Data.MACHINES[type].size
+	var sx := _span(s.x)
+	var sz := _span(s.y)
 	var out := []
-	for lx in range(-(s.x - 1) / 2, (s.x - 1) / 2 + 1):
-		for lz in range(-(s.y - 1) / 2, (s.y - 1) / 2 + 1):
+	for lx in range(sx.x, sx.y + 1):
+		for lz in range(sz.x, sz.y + 1):
 			out.append(c + rot_vec(Vector2i(lx, lz), r))
 	return out
 
 
-## Case devant la machine (où elle pose ce qu'elle produit).
-static func out_cell(type: String, c: Vector2i, r: int) -> Vector2i:
+## Centre visuel de la machine (au sol), utile pour les emprises paires.
+static func machine_center(type: String, c: Vector2i, r: int) -> Vector3:
 	var s: Vector2i = Data.MACHINES[type].size
-	return c + Data.DIRS[r] * ((s.y + 1) / 2)
+	var sx := _span(s.x)
+	var sz := _span(s.y)
+	var off := Vector2((sx.x + sx.y) * 0.5, (sz.x + sz.y) * 0.5)
+	for i in r % 4:
+		off = Vector2(-off.y, off.x)
+	return cell_center(c) + Vector3(off.x, 0, off.y)
 
 
-## Case derrière la machine (d'où arrive le tapis d'entrée).
-static func in_cell(type: String, c: Vector2i, r: int) -> Vector2i:
+## Cases devant la machine (où elle pose ce qu'elle produit), de gauche à droite.
+static func out_cells(type: String, c: Vector2i, r: int) -> Array:
 	var s: Vector2i = Data.MACHINES[type].size
-	return c - Data.DIRS[r] * ((s.y + 1) / 2)
+	var sx := _span(s.x)
+	var sz := _span(s.y)
+	var out := []
+	for lx in range(sx.x, sx.y + 1):
+		out.append(c + rot_vec(Vector2i(lx, sz.x - 1), r))
+	return out
+
+
+## Cases derrière la machine (d'où arrivent les tapis d'entrée).
+static func in_cells(type: String, c: Vector2i, r: int) -> Array:
+	var s: Vector2i = Data.MACHINES[type].size
+	var sx := _span(s.x)
+	var sz := _span(s.y)
+	var out := []
+	for lx in range(sx.x, sx.y + 1):
+		out.append(c + rot_vec(Vector2i(lx, sz.y + 1), r))
+	return out
 
 
 func _pile_blocks(cell: Vector2i) -> bool:
@@ -284,8 +315,13 @@ func _pile_blocks(cell: Vector2i) -> bool:
 	return Vector2(p.x - Data.PILE_POS.x, p.z - Data.PILE_POS.z).length() < R + 0.4
 
 
+var player_cells: Array = [] # cases occupées par le joueur (on ne construit pas sur lui)
+
+
 func placement_ok(type: String, c: Vector2i, r: int, ignore := -1) -> String:
 	for cell in footprint(type, c, r):
+		if cell in player_cells and type != "convoyeur":
+			return "Tu es dans le chemin !"
 		if absi(cell.x) > Data.FIELD or absi(cell.y) > Data.FIELD:
 			return "Hors du terrain"
 		if _pile_blocks(cell):
@@ -399,6 +435,7 @@ func move_entity(id: int, c: Vector2i, r: int) -> bool:
 		grid[cell] = id
 	if e.type == "drone":
 		e.pos = cell_center(c) + Vector3(0, 0.6, 0)
+		e.state = 0
 	_order_dirty = true
 	entities_changed.emit()
 	return true
@@ -545,6 +582,7 @@ func deposit_tremie(id: int) -> int:
 	hand_h -= mix.y
 	e.n += mix.x
 	e.h += mix.y
+	stats.poured += q
 	changed.emit()
 	return q
 
@@ -635,6 +673,7 @@ func order_pile(size: String) -> bool:
 	if can_order(size) != "":
 		return false
 	money -= order_cost(size)
+	stats.ordered[size] = int(stats.ordered.get(size, 0)) + 1
 	_set_pile(size)
 	_sfx("win")
 	_toast("%s livré ! 22 brins de foin y sont cachés." % Data.PILES[size].name, true)
@@ -719,6 +758,61 @@ func abandon_contract() -> void:
 	contract = {}
 	_roll_offers()
 	changed.emit()
+
+
+# ============================================================ objectifs guidés
+## (fait, but) pour l'objectif courant.
+func quest_progress(id: String) -> Vector2:
+	match id:
+		"grab30":
+			return Vector2(stats.needles, 30)
+		"tremie":
+			return Vector2(mini(int(stats.poured), 1), 1)
+		"sell10":
+			return Vector2(stats.earned, 10)
+		"plan_scan":
+			return Vector2(1 if tree.has("p_scanner") else 0, 1)
+		"scanner":
+			return Vector2(mini(count_type("scanner"), 1), 1)
+		"hay3":
+			return Vector2(stats.hay, 3)
+		"belts10":
+			return Vector2(stats.belts, 10)
+		"pile1":
+			return Vector2(stats.piles, 1)
+		"fonderie":
+			return Vector2(mini(count_type("fonderie"), 1), 1)
+		"ingot":
+			return Vector2(mini(int(stats.sold.get("brut", 0)), 1), 1)
+		"bras":
+			return Vector2(mini(count_type("bras"), 1), 1)
+		"moyen":
+			return Vector2(mini(int(stats.ordered.get("moyen", 0)), 1), 1)
+		"contrat":
+			return Vector2(mini(int(stats.contracts), 1), 1)
+		"purif":
+			return Vector2(mini(count_type("purif"), 1), 1)
+		"gros":
+			return Vector2(mini(int(stats.ordered.get("gros", 0)), 1), 1)
+		"presse":
+			return Vector2(mini(int(stats.sold.get("tole", 0)), 1), 1)
+		"boite":
+			return Vector2(mini(int(stats.sold.get("boite", 0)), 1), 1)
+		"montagne":
+			return Vector2(mini(int(stats.ordered.get("montagne", 0)), 1), 1)
+	return Vector2(0, 1)
+
+
+func _check_quest() -> void:
+	while quest < Data.QUESTS.size():
+		var q: Array = Data.QUESTS[quest]
+		var p := quest_progress(q[0])
+		if p.x < p.y:
+			return
+		gain(float(q[2]))
+		quest += 1
+		_toast("Objectif atteint : %s (+%s)" % [q[1], Fmt.eur(q[2])], true)
+		_sfx("win")
 
 
 # ============================================================ succès
@@ -893,17 +987,29 @@ func _step(dt: float) -> void:
 			"bras", "pelle":
 				_tick_digger(e, dt)
 			"tampon":
-				if e.q.size() > 0 and _insert(out_cell(e.type, e.c, e.r), e.q[0], e.r):
-					e.q.pop_front()
+				_emit_front(e, e.q)
 			"drone":
 				_tick_drone(e, dt)
 			_:
 				_tick_machine(e, dt)
 
 
+## Sert les cases de sortie à tour de rôle.
 func _push_out(e: Dictionary) -> void:
-	if e.outq.size() > 0 and _insert(out_cell(e.type, e.c, e.r), e.outq[0], e.r):
-		e.outq.pop_front()
+	_emit_front(e, e.outq)
+
+
+func _emit_front(e: Dictionary, q: Array) -> void:
+	if q.is_empty():
+		return
+	var cells := out_cells(e.type, e.c, e.r)
+	var k: int = int(e.get("oi", 0))
+	for i in cells.size():
+		var idx := (k + i) % cells.size()
+		if _insert(cells[idx], q[0], e.r):
+			q.pop_front()
+			e["oi"] = (idx + 1) % cells.size()
+			return
 
 
 func _tick_tremie(e: Dictionary, dt: float) -> void:
@@ -919,15 +1025,15 @@ func _tick_tremie(e: Dictionary, dt: float) -> void:
 	_push_out(e)
 
 
-func digger_in_range(type: String, c: Vector2i) -> bool:
-	var p := cell_center(c)
+func digger_in_range(type: String, c: Vector2i, r := 0) -> bool:
+	var p := machine_center(type, c, r)
 	var d := Vector2(p.x - Data.PILE_POS.x, p.z - Data.PILE_POS.z).length()
 	return pile_items() > 0 and d - pile_radius() <= dig_range(type)
 
 
 func _tick_digger(e: Dictionary, dt: float) -> void:
 	_push_out(e)
-	if not digger_in_range(e.type, e.c) or e.outq.size() >= 3:
+	if not digger_in_range(e.type, e.c, e.r) or e.outq.size() >= 3:
 		return
 	var m: Dictionary = Data.MACHINES[e.type]
 	e.acc += float(m.dig) * machine_speed(e.type) * dt
@@ -1023,7 +1129,7 @@ func _tick_drone(e: Dictionary, dt: float) -> void:
 			for id in entities:
 				var t: Dictionary = entities[id]
 				if t.type == "tremie" and int(t.n) + int(t.h) + int(e.carry_n) + int(e.carry_h) <= tremie_cap():
-					var dd: float = e.pos.distance_to(cell_center(t.c))
+					var dd: float = e.pos.distance_to(machine_center("tremie", t.c, t.r))
 					if dd < bd:
 						bd = dd
 						best = id
@@ -1031,7 +1137,7 @@ func _tick_drone(e: Dictionary, dt: float) -> void:
 				target = e.pos
 			else:
 				var tr: Dictionary = entities[best]
-				target = cell_center(tr.c) + Vector3(0, 2.4, 0)
+				target = machine_center("tremie", tr.c, tr.r) + Vector3(0, 2.6, 0)
 				if e.pos.distance_to(target) < 0.6:
 					tr.n += int(e.carry_n)
 					tr.h += int(e.carry_h)
@@ -1052,6 +1158,7 @@ func _process(delta: float) -> void:
 	if _sec_acc >= 1.0:
 		_sec_acc = 0.0
 		_check_achievements()
+		_check_quest()
 		if not contract.is_empty() and stats.time > float(contract.until):
 			_toast("Contrat expiré…")
 			contract = {}
@@ -1151,7 +1258,7 @@ func to_dict() -> Dictionary:
 		"pile_size": pile_size, "pile_total": pile_total, "pile_n": pile_n, "pile_h": pile_h,
 		"pile_found": pile_found, "pile_done": pile_done,
 		"shop": shop, "tree": tree, "ups": ups, "achievements": achievements, "stats": stats,
-		"settings": settings, "contract": contract, "offers": offers, "rates": rates,
+		"settings": settings, "contract": contract, "offers": offers, "rates": rates, "quest": quest,
 		"entities": ents, "next_id": next_id, "saved_at": Time.get_unix_time_from_system(),
 	}
 
@@ -1177,10 +1284,20 @@ func _last_slot() -> int:
 	return 1
 
 
+## Lit un fichier JSON sans message d'erreur dans la console s'il est abîmé.
+func _read_json(path: String):
+	if not FileAccess.file_exists(path):
+		return null
+	var j := JSON.new()
+	if j.parse(FileAccess.get_file_as_string(path)) != OK:
+		return null
+	return j.data
+
+
 func slot_info(s: int) -> Dictionary:
 	if not FileAccess.file_exists(slot_path(s)):
 		return {}
-	var d = JSON.parse_string(FileAccess.get_file_as_string(slot_path(s)))
+	var d = _read_json(slot_path(s))
 	if typeof(d) != TYPE_DICTIONARY:
 		return {}
 	return {"money": float(d.get("money", 0)), "pile": Data.PILES.get(d.get("pile_size", "petit"), Data.PILES.petit).name,
@@ -1196,7 +1313,7 @@ func delete_slot(s: int) -> void:
 func load_slot(s: int) -> bool:
 	if not FileAccess.file_exists(slot_path(s)):
 		return false
-	var d = JSON.parse_string(FileAccess.get_file_as_string(slot_path(s)))
+	var d = _read_json(slot_path(s))
 	if typeof(d) != TYPE_DICTIONARY or not from_dict(d):
 		return false
 	slot = s
@@ -1242,6 +1359,7 @@ func from_dict(d: Dictionary) -> bool:
 	for k in settings:
 		if se.has(k):
 			settings[k] = se[k]
+	quest = clampi(int(d.get("quest", 0)), 0, Data.QUESTS.size())
 	contract = d.get("contract", {})
 	offers = d.get("offers", [])
 	var ra: Dictionary = d.get("rates", {})
@@ -1251,10 +1369,11 @@ func from_dict(d: Dictionary) -> bool:
 	grid = {}
 	for raw in d.get("entities", []):
 		var e: Dictionary = _deser(raw)
-		if not Data.MACHINES.has(e.get("type", "")):
+		if not Data.MACHINES.has(e.get("type", "")) or not (e.get("c") is Vector2i):
 			continue
 		e.id = int(e.id)
 		e.r = int(e.r)
+		_normalize(e)
 		entities[e.id] = e
 		for cell in footprint(e.type, e.c, e.r):
 			grid[cell] = e.id
@@ -1269,6 +1388,25 @@ func from_dict(d: Dictionary) -> bool:
 	pile_changed.emit()
 	changed.emit()
 	return true
+
+
+## Après un passage par JSON, les entiers redeviennent des entiers.
+const _INT_KEYS := ["n", "h", "k", "oi", "state", "carry_n", "carry_h"]
+
+
+func _normalize(e: Dictionary) -> void:
+	for k in _INT_KEYS:
+		if e.has(k):
+			e[k] = int(e[k])
+	for k in ["acc", "prog"]:
+		if e.has(k):
+			e[k] = float(e[k])
+	if e.get("item") != null:
+		_normalize(e.item)
+	for k in ["outq", "inq", "q", "busy"]:
+		if e.has(k):
+			for it in e[k]:
+				_normalize(it)
 
 
 func new_game_in_slot(s: int) -> void:

@@ -29,7 +29,12 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--qa="):
 			var qa := Node.new()
-			qa.set_script(load("res://scripts/qa.gd"))
+			var qa_script = load("res://scripts/qa.gd")
+			if qa_script == null or not qa_script.can_instantiate():
+				printerr("Pilote de tests illisible")
+				get_tree().quit(2)
+				return
+			qa.set_script(qa_script)
 			qa.set("main", self)
 			add_child(qa)
 	if Game.last_save > 0:
@@ -67,6 +72,9 @@ func _catch_up() -> void:
 
 
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		hud.go_back()
+		return
 	if what == NOTIFICATION_APPLICATION_RESUMED or what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		if Game.last_save > 0 and is_inside_tree():
 			_catch_up()

@@ -151,6 +151,7 @@ func _physics_process(delta: float) -> void:
 
 	_grab_cd = maxf(0.0, _grab_cd - delta)
 	_drop_cd = maxf(0.0, _drop_cd - delta)
+	_update_player_cells()
 	ray.target_position = Vector3(0, 0, -(Game.reach() + 1.5))
 	_update_target()
 	if build_type != "":
@@ -164,6 +165,17 @@ func _physics_process(delta: float) -> void:
 		elif kind == "entity" and target.type == "convoyeur" and _drop_cd <= 0.0:
 			_drop_cd = 0.18
 			_drop_on_belt(false)
+
+
+## Cases recouvertes par la capsule du joueur : on n'y construit pas de machine.
+func _update_player_cells() -> void:
+	var cells: Array = []
+	for dx in [-0.4, 0.4]:
+		for dz in [-0.4, 0.4]:
+			var c := Game.world_to_cell(global_position + Vector3(dx, 0, dz))
+			if not c in cells:
+				cells.append(c)
+	Game.player_cells = cells
 
 
 func is_exhausted() -> bool:
@@ -333,7 +345,7 @@ func _update_ghost() -> void:
 			ghost_why = Game.can_build(build_type)
 		ghost_ok = ghost_why == ""
 		cells = Game.footprint(build_type, ghost_cell, ghost_r)
-		ghost.position = Game.cell_center(ghost_cell)
+		ghost.position = Game.machine_center(build_type, ghost_cell, ghost_r)
 		ghost.basis = world.basis_for(ghost_r)
 		if not ghost_ok:
 			tint = Color(1, 0.3, 0.3)
@@ -342,7 +354,7 @@ func _update_ghost() -> void:
 		if lbl:
 			var extra := ""
 			if build_type == "bras" or build_type == "pelle":
-				extra = "\nÀ portée du tas" if Game.digger_in_range(build_type, ghost_cell) else "\nTrop loin du tas !"
+				extra = "\nÀ portée du tas" if Game.digger_in_range(build_type, ghost_cell, ghost_r) else "\nTrop loin du tas !"
 			lbl.text = (Data.MACHINES[build_type].name if ghost_ok else ghost_why) + extra
 			lbl.modulate = tint
 	var mm := _cells.multimesh
@@ -388,6 +400,7 @@ func _place_now() -> bool:
 		_last_placed = ghost_cell
 		if build_type != "convoyeur":
 			hud.toast("%s construit !" % Data.MACHINES[build_type].name, true)
+			cancel_build()
 		return true
 	return false
 
