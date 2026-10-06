@@ -39,12 +39,19 @@ const BELT_SHADER := """
 shader_type spatial;
 render_mode diffuse_burley;
 uniform float speed = 1.6;
+varying float k;
+varying vec3 tint;
+void vertex() {
+	// tapis express : chevrons bleus qui défilent deux fois plus vite
+	k = INSTANCE_CUSTOM.r > 0.5 ? 2.0 : 1.0;
+	tint = COLOR.rgb;
+}
 void fragment() {
 	vec2 uv = UV;
-	float v = fract(uv.y * 2.0 + TIME * speed * 2.0 + abs(uv.x - 0.5) * 1.2);
+	float v = fract(uv.y * 2.0 + TIME * speed * k * 2.0 + abs(uv.x - 0.5) * 1.2);
 	float chevron = smoothstep(0.0, 0.08, v) * smoothstep(0.32, 0.24, v);
 	vec3 base = vec3(0.07, 0.075, 0.08);
-	ALBEDO = mix(base, vec3(0.9, 0.75, 0.15), chevron * 0.5);
+	ALBEDO = mix(base, tint, chevron * 0.5);
 	ROUGHNESS = 0.85;
 }
 """
@@ -437,6 +444,8 @@ func _make_belt_layers() -> void:
 	_belt_tops = MultiMeshInstance3D.new()
 	var mt := MultiMesh.new()
 	mt.transform_format = MultiMesh.TRANSFORM_3D
+	mt.use_colors = true
+	mt.use_custom_data = true
 	var top := PlaneMesh.new()
 	top.size = Vector2(0.84, 1.0)
 	mt.mesh = top
@@ -558,7 +567,7 @@ func rebuild() -> void:
 	var belts: Array = []
 	for id in Game.entities:
 		var e: Dictionary = Game.entities[id]
-		if e.type == "convoyeur":
+		if Game.is_belt(e.type):
 			belts.append(e)
 			continue
 		if nodes.has(id):
@@ -571,6 +580,11 @@ func rebuild() -> void:
 		Buildings.add_body(n, e.type, id)
 		add_child(n)
 		nodes[id] = n
+		if e.type == "ouvrier" and not drones.has(id):
+			var wk := Buildings.create_worker()
+			wk.position = e.pos
+			add_child(wk)
+			drones[id] = wk
 		if e.type == "drone" and not drones.has(id):
 			var dr := Buildings.create_drone()
 			dr.position = e.pos
@@ -584,6 +598,9 @@ func rebuild() -> void:
 		var o := Game.cell_center(e.c)
 		mm.set_instance_transform(i, Transform3D(basis_for(e.r), o))
 		_belt_tops.multimesh.set_instance_transform(i, Transform3D(basis_for(e.r), o + Vector3(0, 0.215, 0)))
+		var ex: bool = e.type == "express"
+		_belt_tops.multimesh.set_instance_color(i, Color(0.25, 0.75, 1.0) if ex else Color(0.9, 0.75, 0.15))
+		_belt_tops.multimesh.set_instance_custom_data(i, Color(1.0 if ex else 0.0, 0, 0, 0))
 
 
 func _sig(e: Dictionary) -> String:
@@ -619,7 +636,7 @@ func _draw_items() -> void:
 		var dir: Vector2i = Data.DIRS[e.r]
 		var prog: float = float(it.p) - 0.5
 		var pos := Game.cell_center(e.c) + Vector3(dir.x, 0, dir.y) * prog
-		pos.y = 0.22 if e.type == "convoyeur" else 0.24
+		pos.y = 0.22 if Game.is_belt(e.type) else 0.24
 		mm.set_instance_transform(n, Transform3D(basis_for(e.r), pos))
 		var col: Color = Data.ITEMS[t].color
 		if t == "vrac" and int(it.get("h", 0)) > 0 and Game.shop_lvl("oeil") >= 4:
@@ -647,8 +664,10 @@ func _animate_machines(delta: float) -> void:
 					state = 2
 			"tremie":
 				info["fill"] = clampf(float(int(e.n) + int(e.h)) / Game.tremie_cap(), 0.0, 1.0)
-			"tampon":
-				info["fill"] = clampf(float(e.q.size()) / float(Data.MACHINES.tampon.cap), 0.0, 1.0)
+			"tampon", "entrepot":
+				info["fill"] = clampf(float(e.q.size()) / float(Data.MACHINES[e.type].cap), 0.0, 1.0)
+			"batterie":
+				info["charge"] = clampf(float(e.get("charge", 0.0)) / Game.battery_cap(), 0.0, 1.0)
 			"scanner":
 				info["alert"] = _t - float(_alerts.get(id, -10.0)) < 2.0
 			"trou":
@@ -680,6 +699,19 @@ func _animate_machines(delta: float) -> void:
 			continue
 		var dn: Node3D = drones[id]
 		var e2: Dictionary = Game.entities[id]
+		if e2.type == "ouvrier":
+			var wd: Vector3 = e2.pos - dn.position
+			dn.position = dn.position.lerp(e2.pos, minf(1.0, delta * 10.0))
+			var wp: Dictionary = dn.get_meta("parts")
+			var walking := Vector2(wd.x, wd.z).length() > 0.005
+			if walking:
+				dn.rotation.y = lerp_angle(dn.rotation.y, atan2(-wd.x, -wd.z), minf(1.0, delta * 8.0))
+			var sw := sin(_t * 9.0 + id) * 0.5 if walking else 0.0
+			wp.legs[0].rotation.x = sw
+			wp.legs[1].rotation.x = -sw
+			wp.body.position.y = absf(sw) * 0.04
+			wp.load.visible = int(e2.carry_n) > 0
+			continue
 		var target: Vector3 = e2.pos + Vector3(0, sin(_t * 2.0 + id) * 0.06, 0)
 		var dir := target - dn.position
 		dn.position = dn.position.lerp(target, minf(1.0, delta * 10.0))

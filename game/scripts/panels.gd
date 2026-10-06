@@ -375,6 +375,8 @@ class OrderPanel extends PanelBase:
 # ============================================================ usine et production
 class StockPanel extends PanelBase:
 	var _market: Label
+	var _alerts: Label
+	var _chart: Control
 	var _lines: Label
 	var _machines: Label
 	var _sales: Label
@@ -383,6 +385,16 @@ class StockPanel extends PanelBase:
 		return "Usine et production"
 
 	func build() -> void:
+		section("Alertes")
+		var ca := UI.card()
+		content.add_child(ca)
+		_alerts = UI.label("", 19, UI.BAD, true)
+		ca.add_child(_alerts)
+		section("Revenus des 30 dernières minutes")
+		_chart = IncomeChart.new()
+		_chart.custom_minimum_size = Vector2(0, 150)
+		_chart.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		content.add_child(_chart)
 		var c := UI.card()
 		content.add_child(c)
 		_lines = UI.label("", 21, Color(0.9, 0.92, 0.95), true)
@@ -404,6 +416,10 @@ class StockPanel extends PanelBase:
 		c4.add_child(_market)
 
 	func refresh() -> void:
+		var al: Array = Game.alerts()
+		_alerts.text = "Tout va bien : aucune alerte." if al.is_empty() else "• " + "\n• ".join(al)
+		_alerts.add_theme_color_override("font_color", UI.GOOD if al.is_empty() else UI.BAD)
+		_chart.queue_redraw()
 		var mk := ["Les cours bougent avec le temps ; chaque vente fait baisser celui du produit vendu. Diversifie ta production !"]
 		for t in Game.available_items():
 			var f := Game.market_mult(t)
@@ -512,8 +528,16 @@ class EntityPanel extends PanelBase:
 				s.append("Portée : %s m depuis le bord du tas" % Fmt.num(Game.dig_range(e.type), 1))
 				s.append("À portée du tas" if Game.digger_in_range(e.type, e.c, e.r) else "Trop loin du tas : déplace-le plus près !")
 				s.append("Vitesse : %s lots/s" % Fmt.num(float(m.dig) * Game.machine_speed(e.type) * int(m.get("lot_mult", 1)), 2))
-			"tampon":
+			"tampon", "entrepot":
 				s.append("Stock : %d / %d objets" % [e.q.size(), int(m.cap)])
+			"batterie":
+				var bt: Vector2 = Game.battery_total()
+				s.append("Charge : %d %% · toutes les batteries : %s / %s kW·min" % [int(float(e.get("charge", 0.0)) / Game.battery_cap() * 100.0), Fmt.num(bt.x / 60.0), Fmt.num(bt.y / 60.0)])
+				s.append(("Rend %s kW au réseau" % Fmt.num(Game.battery_flow, 1)) if Game.battery_flow > 0.0 else ("Se charge (%s kW)" % Fmt.num(-Game.battery_flow, 1) if Game.battery_flow < 0.0 else "En attente"))
+			"ouvrier":
+				s.append("Salaire : %s par minute" % Fmt.eur(Data.SALARY * 60.0))
+				s.append("Charge : %s aiguilles par voyage" % Fmt.needles(12 + 10 * Game.up_lvl("u_ouv_charge")))
+				s.append("En route vers la trémie" if int(e.get("state", 0)) == 1 else "En route vers le tas")
 			"drone":
 				s.append("Charge : %s aiguilles par voyage" % Fmt.needles(30 + 20 * Game.up_lvl("u_drone_charge")))
 			"radar":
@@ -744,12 +768,14 @@ class SettingsPanel extends PanelBase:
 			"• Chaque brin de foin est enfoui à un endroit précis : suis les bips du DÉTECTEUR et creuse là où le cercle doré se resserre. Le RADAR à foin les révèle de loin.",
 			"• Tout rapporte de l'EXPÉRIENCE : les plans et la boutique demandent un niveau de fermier. Les machines S'USENT et tombent en panne : ACTION pour réparer, ou un atelier de maintenance.",
 			"• Les machines consomment de l'électricité : au-delà des 10 kW du réseau, construis groupes électrogènes, éoliennes (vent, pluie) et panneaux solaires (jour).",
+			"• Logistique : tapis EXPRESS (2× plus rapides), ENTREPÔT (2 000 places), OUVRIERS qui creusent et remplissent les trémies (salaire), BATTERIES qui stockent le surplus d'électricité.",
+			"• La fenêtre Usine signale les problèmes (pannes, machines bloquées, manque de courant) et trace tes revenus.",
 			"• Chaîne de valeur : vrac → scanner → fonderie → purificateur → presse / tréfileuse → aiguilleuse.",
 			"• Chaque machine prend par l'arrière (flèche verte) et sort par l'avant (flèche bleue). Les séparateurs répartissent.",
 			"• Arbre : achète les plans (droits de construction), puis leurs améliorations par niveaux.",
 			"• Bureau : contrats de livraison à prime et commande des tas. L'usine produit aussi hors ligne (8 h max).",
 		]), 19, Color(0.86, 0.88, 0.92), true))
-		content.add_child(UI.label("Trouve le Foin v1.9 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
+		content.add_child(UI.label("Trouve le Foin v2.0 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
 
 	func _toggle_sound() -> void:
 		Game.settings.sound = not Game.settings.sound
@@ -831,6 +857,25 @@ class QuitPanel extends PanelBase:
 			get_tree().quit(), "RedButton"))
 
 
+## Histogramme des revenus par minute.
+class IncomeChart extends Control:
+	func _draw() -> void:
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0.1, 0.11, 0.13))
+		var h: Array = Game.income_history
+		if h.is_empty():
+			draw_string(get_theme_default_font(), Vector2(12, size.y * 0.55), "Le graphique se remplit minute après minute.", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UI.MUTED)
+			return
+		var mx := 1.0
+		for v in h:
+			mx = maxf(mx, float(v))
+		var w := size.x / 30.0
+		for i in h.size():
+			var v := float(h[i]) / mx
+			var bh := v * (size.y - 30.0)
+			draw_rect(Rect2(Vector2(i * w + 2.0, size.y - 6.0 - bh), Vector2(w - 4.0, bh)), UI.GOLD if i == h.size() - 1 else Color(0.4, 0.6, 0.9))
+		draw_string(get_theme_default_font(), Vector2(8, 20), "max %s / min" % Fmt.eur(mx), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.85, 0.87, 0.9))
+
+
 # ============================================================ carte
 ## Vue de dessus de l'usine : machines, tapis (avec leur sens), tas, trou de vente et joueur.
 class MapPanel extends PanelBase:
@@ -858,7 +903,7 @@ class MapPanel extends PanelBase:
 		content.add_child(view)
 		var legend := HFlowContainer.new()
 		content.add_child(legend)
-		for t in ["tremie", "scanner", "bras", "pelle", "fonderie", "purif", "presse", "trefileuse", "aiguilleuse", "tampon", "separateur", "drone", "radar", "groupe", "eolienne", "solaire", "compacteuse", "trieur", "atelier", "affuteuse", "haut_fourneau", "epingles", "couture", "emballeuse"]:
+		for t in ["tremie", "scanner", "bras", "pelle", "fonderie", "purif", "presse", "trefileuse", "aiguilleuse", "tampon", "separateur", "drone", "radar", "groupe", "eolienne", "solaire", "compacteuse", "trieur", "atelier", "affuteuse", "haut_fourneau", "epingles", "couture", "emballeuse", "entrepot", "ouvrier", "batterie"]:
 			if not Game.entities.values().any(func(e: Dictionary) -> bool: return e.type == t):
 				continue
 			var l := UI.label("■ " + Data.MACHINES[t].name, 17, MapView.color_of(t))
@@ -882,6 +927,7 @@ class MapView extends Control:
 		"bureau": Color(0.3, 0.8, 0.45), "trou": Color(0.08, 0.08, 0.1),
 		"affuteuse": Color(0.35, 0.55, 0.3), "haut_fourneau": Color(0.55, 0.22, 0.12), "epingles": Color(0.95, 0.75, 0.2),
 		"couture": Color(0.55, 0.25, 0.65), "emballeuse": Color(0.72, 0.55, 0.33),
+		"entrepot": Color(0.55, 0.6, 0.62), "ouvrier": Color(0.95, 0.5, 0.1), "batterie": Color(0.3, 1.0, 0.4),
 		"compacteuse": Color(0.2, 0.42, 0.62), "trieur": Color(0.16, 0.6, 0.6), "atelier": Color(0.8, 0.3, 0.2),
 		"radar": Color(1.0, 0.85, 0.35), "groupe": Color(0.85, 0.62, 0.12), "eolienne": Color(0.95, 0.96, 0.98), "solaire": Color(0.15, 0.25, 0.6),
 	}
@@ -923,7 +969,7 @@ class MapView extends Control:
 		# tapis d'abord, machines par-dessus
 		for pass_belts in [true, false]:
 			for e: Dictionary in Game.entities.values():
-				var belt: bool = e.type == "convoyeur"
+				var belt: bool = Game.is_belt(e.type)
 				if belt != pass_belts:
 					continue
 				var col := Color(0.32, 0.34, 0.38) if belt else color_of(e.type)

@@ -444,8 +444,8 @@ func _update_prompt() -> void:
 		_place_label.text = "DÉMOLIR" if demo else "PLACER"
 		if demo:
 			_prompt.text = "Vise ce que tu veux démolir" if player.ghost_ok else player.ghost_why
-		elif player.build_type == "convoyeur":
-			_prompt.text = "Garde PLACER appuyé en marchant pour poser une ligne de tapis (%s)" % Fmt.eur(Game.build_cost("convoyeur"))
+		elif Game.is_belt(player.build_type):
+			_prompt.text = "Garde PLACER appuyé en marchant pour poser une ligne de tapis (%s)" % Fmt.eur(Game.build_cost(player.build_type))
 		else:
 			_prompt.text = "%s — %s" % [Data.MACHINES[player.build_type].name, Fmt.eur(Game.build_cost(player.build_type)) if player.move_id < 0 else "déplacement"]
 		return
@@ -470,7 +470,7 @@ func _update_prompt() -> void:
 			"tremie":
 				act = "Verser"
 				txt = "Trémie : %s / %s aiguilles" % [Fmt.needles(int(e.n) + int(e.h)), Fmt.needles(Game.tremie_cap())]
-			"convoyeur":
+			"convoyeur", "express":
 				act = "Poser"
 				txt = "Convoyeur — poser une poignée dessus" if Game.hand_n + Game.hand_h > 0 else "Convoyeur"
 			"bureau":
@@ -616,7 +616,7 @@ func begin_build(type: String) -> void:
 	player.start_build(type)
 	if type == "__demolir":
 		toast("Démolition : vise un objet et touche DÉMOLIR (remboursé en partie).")
-	elif type == "convoyeur":
+	elif Game.is_belt(type):
 		toast("Regarde dans la direction du tapis et garde PLACER appuyé en avançant.")
 	else:
 		toast("Vise un emplacement libre et touche PLACER. Pivoter change le sens.")

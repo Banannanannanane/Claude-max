@@ -300,7 +300,76 @@ func generator_output(type: String) -> float:
 	return 0.0
 
 
-func _update_power() -> void:
+var income_history: Array = [] # argent gagné par minute (30 dernières minutes)
+var _hist_acc := 0.0
+var _hist_base := -1.0
+
+
+func _history_tick(dt: float) -> void:
+	_hist_acc += dt
+	if _hist_base < 0.0:
+		_hist_base = float(stats.earned)
+	if _hist_acc < 60.0:
+		return
+	_hist_acc = 0.0
+	income_history.append(maxf(0.0, float(stats.earned) - _hist_base))
+	_hist_base = float(stats.earned)
+	while income_history.size() > 30:
+		income_history.pop_front()
+
+
+## Ce qui demande l'attention du joueur : pannes, sorties bloquées, trémies pleines, machines à sec, courant.
+func alerts() -> Array:
+	var out: Array = []
+	var broken := 0
+	var blocked := 0
+	var full := 0
+	var dry := 0
+	for id in entities:
+		var e: Dictionary = entities[id]
+		if bool(e.get("broken", false)):
+			broken += 1
+		elif e.has("outq") and e.outq.size() >= 4:
+			blocked += 1
+		if e.type == "tremie" and int(e.n) + int(e.h) >= tremie_cap():
+			full += 1
+		if (e.type == "bras" or e.type == "pelle") and not digger_in_range(e.type, e.c, e.r):
+			dry += 1
+	if broken > 0:
+		out.append("%d machine(s) en panne : répare-les ou construis un atelier." % broken)
+	if blocked > 0:
+		out.append("%d machine(s) bloquée(s) : leur sortie n'est reliée à rien ou le tapis est plein." % blocked)
+	if full > 0:
+		out.append("%d trémie(s) pleine(s)." % full)
+	if dry > 0:
+		out.append("%d bras ou pelleteuse(s) sans aiguilles à portée : rapproche-les du tas." % dry)
+	if power_factor < 0.999:
+		out.append("Manque de courant : les machines tournent à %d %%." % int(power_factor * 100))
+	if not contract.is_empty() and float(contract.until) - float(stats.time) < 60.0:
+		out.append("Le contrat en cours expire dans moins d'une minute !")
+	if money < 0.0:
+		out.append("Tu es à découvert : salaires et carburant ne sont plus payés.")
+	return out
+
+
+var battery_flow := 0.0 # kW : > 0 la batterie rend du courant, < 0 elle se charge
+
+
+func battery_cap() -> float:
+	return Data.BATTERY_CAP * (1.0 + 0.5 * up_lvl("u_batt_cap"))
+
+
+func battery_total() -> Vector2:
+	var c := 0.0
+	var n := 0
+	for id in entities:
+		if entities[id].type == "batterie":
+			c += float(entities[id].get("charge", 0.0))
+			n += 1
+	return Vector2(c, n * battery_cap())
+
+
+func _update_power(dt := 0.0) -> void:
 	var sup := 0.0 if event_id() == "coupure" else Data.GRID_POWER
 	var dem := 0.0
 	for id in entities:
@@ -311,6 +380,32 @@ func _update_power() -> void:
 			if out > 0.0:
 				_activity[id] = _clock
 		dem += float(m.get("power", 0.0))
+	# batteries : elles se chargent avec le surplus et rendent le courant qui manque
+	if dt > 0.0:
+		battery_flow = 0.0
+		var bats: Array = []
+		for id in entities:
+			if entities[id].type == "batterie" and not bool(entities[id].get("broken", false)):
+				bats.append(entities[id])
+		if not bats.is_empty():
+			var share := (sup - dem) / float(bats.size())
+			var cap := battery_cap()
+			for b: Dictionary in bats:
+				var ch := float(b.get("charge", 0.0))
+				if share > 0.0:
+					var inn := minf(minf(share, Data.BATTERY_RATE) * dt, cap - ch)
+					b.charge = ch + inn
+					battery_flow -= inn / dt
+					if b.charge >= cap - 0.01:
+						_unlock("battery_full")
+				else:
+					var outp := minf(minf(-share, Data.BATTERY_RATE) * dt, ch)
+					b.charge = ch - outp
+					battery_flow += outp / dt
+				if absf(float(b.charge) - ch) > 0.0:
+					_activity[b.id] = _clock
+	if battery_flow > 0.0:
+		sup += battery_flow
 	power_supply = sup
 	power_demand = dem
 	power_factor = 1.0 if free_power or dem <= sup else clampf(sup / dem, 0.0, 1.0)
@@ -320,8 +415,11 @@ func _burn_fuel(dt: float) -> void:
 	if money <= 0.0:
 		return
 	for id in entities:
-		if Data.MACHINES[entities[id].type].get("kind", "") == "fuel":
+		var t: String = entities[id].type
+		if Data.MACHINES[t].get("kind", "") == "fuel":
 			money -= Data.FUEL_COST * dt
+		elif t == "ouvrier":
+			money -= Data.SALARY * dt
 
 
 # ============================================================ radar et détecteur
@@ -523,7 +621,12 @@ func build_cost(type: String) -> float:
 
 ## Tapis et assimilés : une case, un objet à la fois (convoyeur, séparateur, trieur).
 static func belt_like(t: String) -> bool:
-	return t == "convoyeur" or t == "separateur" or t == "trieur"
+	return t == "convoyeur" or t == "express" or t == "separateur" or t == "trieur"
+
+
+## Tapis simple (convoyeur ou tapis express) : se pose en ligne, se remplace par une machine.
+static func is_belt(t: String) -> bool:
+	return t == "convoyeur" or t == "express"
 
 
 func count_type(t: String) -> int:
@@ -617,7 +720,7 @@ var player_cells: Array = [] # cases occupées par le joueur (on ne construit pa
 
 func placement_ok(type: String, c: Vector2i, r: int, ignore := -1) -> String:
 	for cell in footprint(type, c, r):
-		if cell in player_cells and type != "convoyeur":
+		if cell in player_cells and not is_belt(type):
 			return "Tu es dans le chemin !"
 		if absi(cell.x) > Data.FIELD or absi(cell.y) > Data.FIELD:
 			return "Hors du terrain"
@@ -626,7 +729,7 @@ func placement_ok(type: String, c: Vector2i, r: int, ignore := -1) -> String:
 		var o: int = grid.get(cell, -1)
 		if o >= 0 and o != ignore:
 			# un convoyeur peut être remplacé par une machine (il est remboursé)
-			if entities[o].type != "convoyeur" or type == "convoyeur":
+			if not is_belt(entities[o].type) or is_belt(type):
 				return "Emplacement occupé"
 	return ""
 
@@ -650,7 +753,7 @@ func _add(type: String, c: Vector2i, r: int) -> int:
 
 func _init_state(e: Dictionary) -> void:
 	match e.type:
-		"convoyeur", "separateur", "trieur":
+		"convoyeur", "express", "separateur", "trieur":
 			e["item"] = null
 			e["k"] = 0
 			if e.type == "trieur":
@@ -660,12 +763,14 @@ func _init_state(e: Dictionary) -> void:
 			e["h"] = 0
 			e["acc"] = 0.0
 			e["outq"] = []
-		"tampon":
+		"tampon", "entrepot":
 			e["q"] = []
+		"batterie":
+			e["charge"] = 0.0
 		"bras", "pelle":
 			e["acc"] = 0.0
 			e["outq"] = []
-		"drone":
+		"drone", "ouvrier":
 			e["state"] = 0
 			e["pos"] = cell_center(e.c) + Vector3(0, 0.6, 0)
 			e["carry_n"] = 0
@@ -705,13 +810,13 @@ func build(type: String, c: Vector2i, r: int) -> bool:
 	for cell in footprint(type, c, r):
 		var o: int = grid.get(cell, -1)
 		if o >= 0:
-			money += build_cost("convoyeur")
+			money += build_cost(entities[o].type)
 			_remove(o)
 	money -= build_cost(type)
 	_add(type, c, r)
-	if type == "convoyeur":
+	if is_belt(type):
 		stats.belts += 1
-	_sfx("buy" if type != "convoyeur" else "click")
+	_sfx("buy" if not is_belt(type) else "click")
 	entities_changed.emit()
 	changed.emit()
 	return true
@@ -751,7 +856,7 @@ func demolish(id: int) -> bool:
 	var e: Dictionary = entities.get(id, {})
 	if e.is_empty() or Data.MACHINES[e.type].get("fixed", false):
 		return false
-	var refund := build_cost(e.type) if e.type == "convoyeur" else build_cost(e.type) / 1.35 * 0.5
+	var refund := build_cost(e.type) if belt_like(e.type) else build_cost(e.type) / 1.35 * 0.5
 	# les aiguilles de la trémie retournent dans le tas, le foin reste trouvable
 	if e.type == "tremie":
 		var back := int(e.n) + int(e.h)
@@ -1304,6 +1409,8 @@ func quest_progress(id: String) -> Vector2:
 			return Vector2(mini(count_type("atelier"), 1), 1)
 		"kit":
 			return Vector2(mini(int(stats.sold.get("kit", 0)), 1), 1)
+		"ouvrier":
+			return Vector2(mini(count_type("ouvrier"), 1), 1)
 		"ingot":
 			return Vector2(mini(int(stats.sold.get("brut", 0)), 1), 1)
 		"bras":
@@ -1350,6 +1457,8 @@ func _unlock(id: String) -> void:
 
 
 func _check_achievements() -> void:
+	if count_type("ouvrier") >= 5:
+		_unlock("ouvriers_5")
 	if int(stats.belts) >= 1:
 		_unlock("first_belt")
 	if int(stats.belts) >= 100:
@@ -1376,7 +1485,7 @@ func _insert(cell: Vector2i, item: Dictionary, dir: int) -> bool:
 		return false
 	var e: Dictionary = entities[id]
 	match e.type:
-		"convoyeur":
+		"convoyeur", "express":
 			if e.item == null and e.r != (dir + 2) % 4:
 				item.p = 0.0
 				e.item = item
@@ -1389,8 +1498,8 @@ func _insert(cell: Vector2i, item: Dictionary, dir: int) -> bool:
 		"trou":
 			_sell(item, cell)
 			return true
-		"tampon":
-			if e.r == dir and e.q.size() < int(Data.MACHINES.tampon.cap):
+		"tampon", "entrepot":
+			if e.r == dir and e.q.size() < int(Data.MACHINES[e.type].cap):
 				e.q.append(item)
 				return true
 		"tremie":
@@ -1491,10 +1600,10 @@ func _step(dt: float) -> void:
 		var it = e.item
 		if it == null:
 			continue
-		it.p = minf(1.0, it.p + spd)
+		it.p = minf(1.0, it.p + spd * (2.0 if e.type == "express" else 1.0))
 		if it.p < 1.0:
 			continue
-		if e.type == "convoyeur":
+		if is_belt(e.type):
 			if _insert(e.c + Data.DIRS[e.r], it, e.r):
 				e.item = null
 		elif e.type == "trieur":
@@ -1516,7 +1625,7 @@ func _step(dt: float) -> void:
 		if bool(e.get("broken", false)):
 			continue
 		match e.type:
-			"convoyeur", "separateur", "trieur", "trou", "bureau", "groupe", "eolienne", "solaire", "atelier":
+			"convoyeur", "express", "separateur", "trieur", "trou", "bureau", "groupe", "eolienne", "solaire", "atelier":
 				pass
 			"radar":
 				if power_factor > 0.2:
@@ -1525,10 +1634,14 @@ func _step(dt: float) -> void:
 				_tick_tremie(e, dt)
 			"bras", "pelle":
 				_tick_digger(e, dt)
-			"tampon":
+			"tampon", "entrepot":
 				_emit_front(e, e.q)
 			"drone":
 				_tick_drone(e, dt)
+			"ouvrier":
+				_tick_worker(e, dt)
+			"batterie":
+				pass
 			_:
 				_tick_machine(e, dt)
 
@@ -1805,6 +1918,73 @@ func _tick_drone(e: Dictionary, dt: float) -> void:
 	e.pos = e.pos.move_toward(target, speed * dt)
 
 
+## Ouvrier : marche jusqu'au pied du tas, ramasse une brouettée, va la vider dans la trémie la plus proche.
+func _tick_worker(e: Dictionary, dt: float) -> void:
+	var speed := 2.6 * (1.0 + 0.2 * up_lvl("u_ouv_vitesse"))
+	var carry := 12 + 10 * up_lvl("u_ouv_charge")
+	var target: Vector3 = e.pos
+	match int(e.state):
+		0: # vers le pied du tas
+			if pile_items() <= 0:
+				target = cell_center(e.c)
+			else:
+				if not e.has("goal") or float(e.get("goal_t", 0.0)) < _clock:
+					e["goal"] = _foot_toward(e.pos)
+					e["goal_t"] = _clock + 5.0
+				target = e.goal
+				if Vector2(e.pos.x - target.x, e.pos.z - target.z).length() < 0.5:
+					var dir := Vector3(Data.PILE_POS.x - e.pos.x, 0, Data.PILE_POS.z - e.pos.z).normalized()
+					var at: Vector3 = e.pos + dir * 0.9
+					var mix := _dig(at.x, at.z, maxf(0.8, field.cell * 1.3), carry)
+					e["goal_t"] = 0.0
+					if mix.x + mix.y > 0:
+						stats.needles += mix.x
+						e.carry_n = mix.x
+						e.carry_h = mix.y
+						e.state = 1
+						_activity[e.id] = _clock
+						if not offline:
+							pile_changed.emit()
+		1: # vers la trémie la plus proche qui a de la place
+			var best := -1
+			var bd := 1e9
+			for id in entities:
+				var t: Dictionary = entities[id]
+				if t.type == "tremie" and int(t.n) + int(t.h) + int(e.carry_n) + int(e.carry_h) <= tremie_cap():
+					var dd: float = e.pos.distance_to(machine_center("tremie", t.c, t.r))
+					if dd < bd:
+						bd = dd
+						best = id
+			if best >= 0:
+				var tr: Dictionary = entities[best]
+				var tc := machine_center("tremie", tr.c, tr.r)
+				var away := Vector3(e.pos.x - tc.x, 0, e.pos.z - tc.z)
+				target = tc + (away.normalized() if away.length() > 0.01 else Vector3.RIGHT) * 1.4
+				if Vector2(e.pos.x - target.x, e.pos.z - target.z).length() < 0.5:
+					tr.n += int(e.carry_n)
+					tr.h += int(e.carry_h)
+					e.carry_n = 0
+					e.carry_h = 0
+					e.state = 0
+					_activity[e.id] = _clock
+	target.y = 0.0
+	e.pos = e.pos.move_toward(target, speed * dt)
+
+
+## Point au sol juste devant le pied du tas, en venant de `from`.
+func _foot_toward(from: Vector3) -> Vector3:
+	var c := Vector3(Data.PILE_POS.x, 0, Data.PILE_POS.z)
+	var dir := Vector3(from.x - c.x, 0, from.z - c.z)
+	dir = dir.normalized() if dir.length() > 0.01 else Vector3.RIGHT
+	var d := field.radius * PileField.WOBBLE
+	while d > 0.5:
+		var p := c + dir * d
+		if field.height_at(p.x, p.z) > 0.25:
+			return c + dir * (d + 0.7)
+		d -= 0.4
+	return c + dir * 1.0
+
+
 func _process(delta: float) -> void:
 	_acc += minf(delta, 0.25)
 	var n := 0
@@ -1819,11 +1999,12 @@ func _process(delta: float) -> void:
 			pile_changed.emit()
 	_burn_fuel(delta)
 	_market_tick(delta)
+	_history_tick(delta)
 	_sec_acc += delta
 	if _sec_acc >= 1.0:
 		_sec_acc = 0.0
 		_event_tick()
-		_update_power()
+		_update_power(1.0)
 		_wear_tick(1.0)
 		_check_achievements()
 		_check_quest()

@@ -42,6 +42,8 @@ const ITEM_ORDER := ["vrac", "acier", "affutee", "balle", "brut", "pur", "tole",
 const MACHINES := {
 	"convoyeur": {"name": "Convoyeur", "desc": "Tapis roulant : transporte les objets dans le sens des flèches.",
 		"size": Vector2i(1, 1), "cost": 5.0, "plan": "p_convoyeur", "h": 0.3},
+	"express": {"name": "Tapis express", "desc": "Un convoyeur deux fois plus rapide (chevrons bleus). Se pose en ligne comme un tapis.",
+		"size": Vector2i(1, 1), "cost": 25.0, "plan": "p_express", "h": 0.3},
 	"separateur": {"name": "Séparateur", "desc": "Répartit les objets à gauche, devant et à droite, chacun son tour.",
 		"size": Vector2i(1, 1), "cost": 60.0, "plan": "p_separateur", "h": 0.6},
 	"tremie": {"name": "Trémie", "desc": "Dépose tes aiguilles dedans : elle les envoie sur le tapis, lot par lot.",
@@ -98,6 +100,12 @@ const MACHINES := {
 	"emballeuse": {"name": "Emballeuse", "desc": "Met 4 kits de couture en carton d'expédition : le produit le plus cher du jeu.",
 		"size": Vector2i(2, 2), "cost": 150000.0, "plan": "p_emballeuse", "h": 2.2, "power": 10.0,
 		"in": {"kit": 4}, "out": {"carton": 1}, "time": 8.0, "speed": "u_emb_vitesse"},
+	"entrepot": {"name": "Entrepôt", "desc": "Grand hangar de stockage : garde jusqu'à 2 000 objets et les renvoie au rythme du tapis.",
+		"size": Vector2i(3, 3), "cost": 9000.0, "plan": "p_entrepot", "h": 3.2, "cap": 2000},
+	"ouvrier": {"name": "Cabane d'ouvrier", "desc": "Embauche un ouvrier : il ramasse à la main au pied du tas et va vider sa brouette dans la trémie la plus proche. Il touche un salaire.",
+		"size": Vector2i(1, 1), "cost": 800.0, "plan": "p_ouvrier", "h": 1.8},
+	"batterie": {"name": "Batterie", "desc": "Stocke l'électricité en trop (le solaire de midi, le vent de la tempête) et la rend quand il en manque.",
+		"size": Vector2i(1, 1), "cost": 3500.0, "plan": "p_batterie", "h": 1.5},
 	"trieur": {"name": "Trieur", "desc": "Envoie à gauche le type d'objet choisi (touche-le pour le régler), le reste continue tout droit.",
 		"size": Vector2i(1, 1), "cost": 150.0, "plan": "p_trieur", "h": 0.6},
 	"atelier": {"name": "Atelier de maintenance", "desc": "Répare tout seul les machines usées ou en panne autour de lui.",
@@ -107,8 +115,8 @@ const MACHINES := {
 	"bureau": {"name": "Borne des commandes", "desc": "Commande les tas d'aiguilles et accepte des contrats.",
 		"size": Vector2i(1, 1), "cost": 0.0, "plan": "", "h": 1.6, "fixed": true},
 }
-const BUILD_ORDER := ["convoyeur", "tremie", "scanner", "groupe", "separateur", "trieur", "radar", "bras", "compacteuse",
-	"fonderie", "affuteuse", "tampon", "eolienne", "atelier", "purif", "pelle", "solaire", "presse", "trefileuse", "drone",
+const BUILD_ORDER := ["convoyeur", "express", "ouvrier", "tremie", "scanner", "groupe", "separateur", "trieur", "radar", "bras", "compacteuse",
+	"fonderie", "affuteuse", "tampon", "entrepot", "batterie", "eolienne", "atelier", "purif", "pelle", "solaire", "presse", "trefileuse", "drone",
 	"haut_fourneau", "epingles", "aiguilleuse", "couture", "emballeuse"]
 ## Usure : secondes de travail avant la panne (les machines sans valeur ne s'usent pas).
 const LIFE := {"scanner": 1500.0, "bras": 1200.0, "pelle": 1500.0, "fonderie": 1500.0, "purif": 1800.0, "presse": 1500.0,
@@ -120,6 +128,9 @@ const MAX_LEVEL := 60
 const STAGE_LEVEL := [1, 1, 4, 9, 15, 22]
 const GRID_POWER := 10.0 # kW fournis gratuitement par le raccordement au réseau (la borne)
 const FUEL_COST := 0.05 # € par seconde et par groupe électrogène
+const SALARY := 0.04 # € par seconde et par ouvrier
+const BATTERY_CAP := 12000.0 # kW·s stockés par batterie (200 kW pendant une minute)
+const BATTERY_RATE := 12.0 # kW échangés au plus par batterie
 
 ## Arbre technologique par étapes : plans (droit de construire), contrats (tailles de tas) et bonus.
 ## Chaque plan a ses propres améliorations à niveaux (ups).
@@ -131,6 +142,10 @@ const TREE := {
 	"p_bras": {"stage": 2, "name": "Plan : Bras robot", "cost": 900.0, "req": ["p_scanner"], "ups": ["u_bras_vitesse", "u_bras_portee"]},
 	"p_fonderie": {"stage": 2, "name": "Plan : Fonderie", "cost": 1600.0, "req": ["p_scanner"], "ups": ["u_fond_vitesse", "u_fond_lot", "u_fond_qualite"]},
 	"p_tampon": {"stage": 2, "name": "Plan : Stockage tampon", "cost": 1000.0, "req": ["p_separateur"], "ups": []},
+	"p_ouvrier": {"stage": 2, "name": "Plan : Ouvriers", "cost": 900.0, "req": ["p_scanner"], "ups": ["u_ouv_vitesse", "u_ouv_charge"]},
+	"p_entrepot": {"stage": 3, "name": "Plan : Entrepôt", "cost": 9000.0, "req": ["p_tampon"], "ups": []},
+	"p_express": {"stage": 3, "name": "Plan : Tapis express", "cost": 7000.0, "req": ["p_separateur"], "ups": []},
+	"p_batterie": {"stage": 3, "name": "Plan : Batteries", "cost": 8000.0, "req": ["p_eolienne"], "ups": ["u_batt_cap"]},
 	"p_trieur": {"stage": 2, "name": "Plan : Trieur", "cost": 1400.0, "req": ["p_separateur"], "ups": []},
 	"p_compacteuse": {"stage": 2, "name": "Plan : Compacteuse", "cost": 3200.0, "req": ["p_scanner"], "lvl": 6, "ups": ["u_comp_vitesse"]},
 	"p_atelier": {"stage": 3, "name": "Plan : Atelier de maintenance", "cost": 10000.0, "req": ["p_bras"], "ups": ["u_atelier_portee", "u_fiabilite"]},
@@ -192,6 +207,9 @@ const TREE_UPS := {
 	"u_cou_qualite": {"name": "Kits de luxe", "base": 100000.0, "k": 1.9, "max": 5, "fx": "+10 % sur le prix des kits"},
 	"u_emb_vitesse": {"name": "Plieuse automatique", "base": 200000.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse d'emballage"},
 	"u_marche": {"name": "Carnet d'adresses", "base": 10000.0, "k": 2.0, "max": 5, "fx": "le marché sature 15 % moins vite"},
+	"u_ouv_vitesse": {"name": "Bottes de chantier", "base": 1500.0, "k": 1.7, "max": 8, "fx": "+20 % de vitesse des ouvriers"},
+	"u_ouv_charge": {"name": "Grandes brouettes", "base": 2000.0, "k": 1.8, "max": 8, "fx": "+10 000 aiguilles par voyage d'ouvrier"},
+	"u_batt_cap": {"name": "Cellules lithium", "base": 9000.0, "k": 1.8, "max": 6, "fx": "+50 % de capacité des batteries"},
 	"u_auto": {"name": "Usine optimisée", "base": 90000.0, "k": 2.0, "max": 5, "fx": "+10 % de vitesse pour toutes les machines"},
 }
 
@@ -229,6 +247,8 @@ const ACHIEVEMENTS := [
 	["level_30", "Maître des aiguilles", "Atteins le niveau 30."],
 	["repair_10", "Mécano", "Répare 10 machines en panne."],
 	["carton_1", "Expéditeur", "Vends un carton d'expédition."],
+	["ouvriers_5", "Chef de chantier", "Emploie 5 ouvriers en même temps."],
+	["battery_full", "Plein d'énergie", "Remplis entièrement une batterie."],
 	["events_10", "Imprévus maîtrisés", "Vis 10 événements."],
 ]
 
@@ -241,6 +261,7 @@ const QUESTS := [
 	["scanner", "Pose un scanner sur la ligne de tapis", 40.0],
 	["hay3", "Trouve 3 brins de foin", 60.0],
 	["belts10", "Pose 10 convoyeurs", 60.0],
+	["ouvrier", "Embauche un ouvrier (cabane d'ouvrier)", 120.0],
 	["pile1", "Termine ton premier tas (22 brins)", 150.0],
 	["fonderie", "Construis une fonderie", 150.0],
 	["energie", "Construis un générateur (groupe, éolienne ou solaire)", 150.0],

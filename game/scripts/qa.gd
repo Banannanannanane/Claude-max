@@ -214,6 +214,7 @@ func _logic() -> void:
 	_test_power()
 	_test_farm()
 	_test_market_events()
+	_test_logistics_workers()
 	await _test_weather_audio()
 	_test_stress()
 	_finish()
@@ -461,6 +462,82 @@ func _test_market_events() -> void:
 	Game._event_tick()
 	Game.events_frozen = true
 	check(Game.event.is_empty() and Game.money > mi, "inspection réussie : prime quand aucune machine n'est en panne")
+
+
+func _test_logistics_workers() -> void:
+	Game.new_game()
+	_rich()
+	# tapis express : deux fois plus rapide
+	for x in range(-70, -50):
+		Game.build("convoyeur", Vector2i(x, 70), 1)
+		Game.build("express", Vector2i(x, 72), 1)
+	_inject(Vector2i(-70, 70), {"t": "brut"})
+	var ex := Game.entity_at(Vector2i(-70, 72))
+	ex.item = {"t": "brut", "p": 0.0}
+	_run(3.0)
+	var far_c := -999
+	var far_e := -999
+	for x in range(-70, -50):
+		if Game.entity_at(Vector2i(x, 70)).get("item") != null:
+			far_c = x
+		if Game.entity_at(Vector2i(x, 72)).get("item") != null:
+			far_e = x
+	check(far_e - (-70) >= (far_c - (-70)) * 2 - 1 and far_e > far_c, "le tapis express va deux fois plus vite (%d cases contre %d)" % [far_e + 70, far_c + 70])
+	# entrepôt : bien plus de place qu'un tampon
+	Game.build("entrepot", Vector2i(-40, 72), 0)
+	var en: Dictionary = Game.entity_at(Vector2i(-40, 72))
+	var stored := 0
+	for i in 600:
+		if Game._insert(Vector2i(-40, 72), {"t": "vrac", "n": 10, "h": 0, "p": 0.0}, en.r):
+			stored += 1
+	check(stored == 600 and stored > int(Data.MACHINES.tampon.cap), "l'entrepôt stocke des centaines d'objets (%d)" % stored)
+	# ouvrier
+	Game.new_game()
+	_rich()
+	var tr := _tremie_id()
+	var tc := Game.machine_center("tremie", Game.entities[tr].c, Game.entities[tr].r)
+	check(Game.build("ouvrier", Vector2i(int(tc.x) - 3, int(tc.z) + 1), 0), "embaucher un ouvrier")
+	Game.entities[tr].n = 0
+	var m0 := Game.money
+	var n0 := Game.pile_n
+	_run(60.0)
+	var t2: Dictionary = Game.entities[tr]
+	check(Game.pile_n < n0, "l'ouvrier ramasse au pied du tas (%d)" % (n0 - Game.pile_n))
+	check(int(Game.stats.sold.get("vrac", 0)) > 0 or int(t2.n) > 0, "l'ouvrier vide sa brouette dans la trémie")
+	Game.money = 1000.0
+	Game._burn_fuel(10.0)
+	check(absf(1000.0 - Game.money - 10.0 * Data.SALARY) < 0.001, "l'ouvrier touche un salaire")
+	# batterie
+	Game.new_game()
+	_rich()
+	Game.free_power = false
+	Game.settings.daynight = true
+	Game.build("solaire", Vector2i(-40, 60), 0)
+	Game.build("batterie", Vector2i(-36, 60), 0)
+	var bat: Dictionary = Game.entity_at(Vector2i(-36, 60))
+	Game.stats.time = 0.0
+	for i in 30:
+		Game._update_power(1.0)
+	var charged := float(bat.charge)
+	check(charged > 100.0 and Game.battery_flow < 0.0, "la batterie se charge avec le surplus (%s kW·s)" % Fmt.num(charged))
+	for i in 6:
+		Game.build("fonderie", Vector2i(-60 + i * 3, 50), 0)
+	Game.stats.time = 0.8 * 900.0
+	Game._update_power(1.0)
+	check(Game.battery_flow > 0.0 and float(bat.charge) < charged and Game.power_supply > Data.GRID_POWER, "la nuit, la batterie rend le courant")
+	Game.free_power = true
+	# alertes et graphique
+	var fid: int = Game.grid[Vector2i(-60, 50)]
+	Game.entities[fid]["broken"] = true
+	var al: Array = Game.alerts()
+	check(al.size() > 0 and String(al[0]).contains("panne"), "les alertes signalent les pannes")
+	Game.income_history.clear()
+	Game.stats.earned = 0.0
+	Game._hist_base = 0.0
+	Game._hist_acc = 0.0
+	Game.stats.earned = 500.0
+	Game._history_tick(60.0)
+	check(Game.income_history.size() == 1 and absf(float(Game.income_history[0]) - 500.0) < 0.01, "le graphique note les revenus de chaque minute")
 
 
 func _test_power() -> void:
@@ -971,7 +1048,7 @@ func _test_contracts_quests() -> void:
 	check(Game.money >= 55.0, "les objectifs rapportent leur prime")
 	var all_known := true
 	for q in Data.QUESTS:
-		if Game.quest_progress(q[0]) == Vector2(0, 1) and not q[0] in ["plan_scan", "scanner", "pile1", "fonderie", "energie", "ingot", "bras", "radar", "moyen", "contrat", "balle", "purif", "atelier", "gros", "presse", "boite", "kit", "montagne"]:
+		if Game.quest_progress(q[0]) == Vector2(0, 1) and not q[0] in ["plan_scan", "scanner", "pile1", "fonderie", "energie", "ingot", "bras", "radar", "moyen", "contrat", "balle", "purif", "atelier", "gros", "presse", "boite", "kit", "montagne", "ouvrier"]:
 			all_known = false
 	check(all_known, "tous les objectifs ont une progression calculée")
 	Game.stats.belts = 1
@@ -1146,6 +1223,10 @@ func _ui() -> void:
 	Game.build("epingles", Vector2i(15, 40), 0)
 	Game.build("couture", Vector2i(18, 40), 0)
 	Game.build("emballeuse", Vector2i(21, 40), 0)
+	Game.build("express", Vector2i(24, 40), 0)
+	Game.build("entrepot", Vector2i(27, 41), 0)
+	Game.build("ouvrier", Vector2i(31, 40), 0)
+	Game.build("batterie", Vector2i(33, 40), 0)
 	await _frames(3)
 	var types_seen := {}
 	for id in Game.entities.keys():
@@ -1449,7 +1530,24 @@ func _pile_shots() -> void:
 	main.player.head.position.y = 3.0
 	_face(Vector3(nb.x + 7.5, 0, nb.y + 10.0), Vector3(nb.x + 7.5, 1.0, nb.y), -10)
 	await _shot("p3d_nouvelles_machines", 30)
+	# Logistique v2.0 : tapis express, entrepôt, cabane d'ouvrier, batterie.
+	var lb := Vector2i(int(P.x) - 22, int(P.z) + 14)
+	for i in 8:
+		Game.build("express", lb + Vector2i(i, 4), 1)
+	Game.build("entrepot", lb, 0)
+	Game.build("ouvrier", lb + Vector2i(4, 0), 0)
+	Game.build("batterie", lb + Vector2i(6, 0), 0)
+	Game.build("trieur", lb + Vector2i(8, 4), 1)
 	Game.event = {}
+	await _frames(90)
+	main.player.head.position.y = 3.0
+	_face(Vector3(lb.x + 4.0, 0, lb.y + 11.0), Vector3(lb.x + 4.0, 0.8, lb.y + 1), -12)
+	await _shot("p3e_logistique", 30)
+	for i in 30:
+		Game.income_history.append(200.0 + 150.0 * sin(i * 0.4) + i * 12.0)
+	main.hud.open_panel("stock")
+	await _shot("p3f_usine", 10)
+	main.hud.close_panel()
 	main.player.head.position.y = 1.62
 	Game.pile_done = true
 	Game.stats.piles = 10

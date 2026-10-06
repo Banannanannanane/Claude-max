@@ -22,7 +22,7 @@ static func create(type: String) -> Node3D:
 	var m: Dictionary = Data.MACHINES[type]
 	var sz: Vector2i = m.size
 	match type:
-		"convoyeur":
+		"convoyeur", "express":
 			_belt_ghost(root, p)
 		"separateur":
 			_separateur(root, p)
@@ -56,6 +56,12 @@ static func create(type: String) -> Node3D:
 			_radar(root, p)
 		"compacteuse":
 			_compacteuse(root, p)
+		"entrepot":
+			_entrepot(root, p)
+		"ouvrier":
+			_cabane(root, p)
+		"batterie":
+			_batterie(root, p)
 		"affuteuse":
 			_affuteuse(root, p)
 		"haut_fourneau":
@@ -76,11 +82,11 @@ static func create(type: String) -> Node3D:
 			_eolienne(root, p)
 		"solaire":
 			_solaire(root, p)
-	if m.has("in") or type in ["tremie", "tampon", "bras", "pelle"]:
+	if m.has("in") or type in ["tremie", "tampon", "entrepot", "bras", "pelle"]:
 		_ports(root, type, sz)
-	if not p.has("status") and type not in ["convoyeur", "separateur", "trieur", "trou", "bureau"]:
+	if not p.has("status") and type not in ["convoyeur", "express", "separateur", "trieur", "trou", "bureau"]:
 		p["status"] = _status_light(root, Vector3(sz.x * 0.5 - 0.15, float(m.h) + 0.05, sz.y * 0.5 - 0.15))
-	if type != "convoyeur" and type != "separateur" and type != "trieur" and type != "trou":
+	if not Game.belt_like(type) and type != "trou":
 		var lbl := Mk.label(root, m.name, Vector3(0, float(m.h) + 0.6, 0), 40)
 		lbl.visibility_range_end = 12.0
 		p["label"] = lbl
@@ -612,6 +618,66 @@ static func _emballeuse(r: Node3D, p: Dictionary) -> void:
 	p["h"] = 2.2
 
 
+## Entrepôt (3 × 3) : hangar en tôle ondulée, porte ouverte, caisses empilées qui se remplissent.
+static func _entrepot(r: Node3D, p: Dictionary) -> void:
+	_plinth(r, 3.0, 3.0, 0.1)
+	var tole := Mk.paint(Color(0.55, 0.6, 0.62), 0.5, 0.45)
+	for sx in [-1.42, 1.42]:
+		Mk.box(r, Vector3(0.1, 2.6, 2.9), Vector3(sx, 1.4, 0), tole)
+	Mk.box(r, Vector3(2.94, 2.6, 0.1), Vector3(0, 1.4, 1.42), tole)
+	var roof_l := Mk.box(r, Vector3(1.6, 0.08, 3.0), Vector3(-0.72, 2.95, 0), Mk.paint(C_RED, 0.3, 0.5))
+	roof_l.rotation.z = 0.35
+	var roof_r := Mk.box(r, Vector3(1.6, 0.08, 3.0), Vector3(0.72, 2.95, 0), Mk.paint(C_RED, 0.3, 0.5))
+	roof_r.rotation.z = -0.35
+	var crates: Array = []
+	var cm := Mk.paint(C_WOOD, 0.0, 0.85, 0.2)
+	for lvl in 3:
+		for i in 6:
+			crates.append(Mk.box(r, Vector3(0.75, 0.6, 0.75), Vector3(-0.85 + (i % 3) * 0.85, 0.45 + lvl * 0.65, 0.5 - (i / 3) * 0.85), cm))
+	Mk.label(r, "ENTREPÔT", Vector3(0, 2.4, -1.5), 30, Color(1, 0.9, 0.6))
+	p["crates"] = crates
+	p["h"] = 3.2
+
+
+## Cabane d'ouvrier : petite maison de chantier avec un panneau.
+static func _cabane(r: Node3D, p: Dictionary) -> void:
+	Mk.box(r, Vector3(0.95, 1.2, 0.95), Vector3(0, 0.6, 0), Mk.paint(Color(0.85, 0.75, 0.45), 0.0, 0.8))
+	var roof := Mk.box(r, Vector3(1.1, 0.1, 1.1), Vector3(0, 1.27, 0), Mk.paint(Color(0.25, 0.3, 0.45)))
+	roof.rotation.x = 0.15
+	Mk.box(r, Vector3(0.35, 0.65, 0.04), Vector3(0, 0.35, -0.49), Mk.paint(C_WOOD, 0.0, 0.8))
+	Mk.box(r, Vector3(0.3, 0.25, 0.04), Vector3(0.28, 0.85, -0.49), Mk.glass())
+	p["h"] = 1.6
+
+
+## Batterie : armoire avec une jauge de charge verte.
+static func _batterie(r: Node3D, p: Dictionary) -> void:
+	_cabinet(r, Vector3(0.8, 1.3, 0.7), Vector3(0, 0.65, 0), Color(0.22, 0.24, 0.28))
+	Mk.box(r, Vector3(0.18, 1.0, 0.04), Vector3(0, 0.7, -0.37), Mk.mat(Color(0.05, 0.05, 0.05)))
+	var gauge := Mk.pivot(r, Vector3(0, 0.22, -0.39))
+	Mk.box(gauge, Vector3(0.14, 1.0, 0.03), Vector3(0, 0.5, 0), Mk.glow(Color(0.3, 1.0, 0.4), 2.0))
+	Mk.box(r, Vector3(0.5, 0.08, 0.3), Vector3(0, 1.35, 0), Mk.paint(C_YELLOW))
+	p["gauge"] = gauge
+	p["h"] = 1.5
+
+
+## L'ouvrier lui-même (il marche, ajouté à part).
+static func create_worker() -> Node3D:
+	var w := Node3D.new()
+	var body := Mk.pivot(w, Vector3.ZERO)
+	Mk.cyl(body, 0.17, 0.6, Vector3(0, 0.95, 0), Mk.paint(Color(0.95, 0.5, 0.1), 0.0, 0.7), 0.15, 10)
+	Mk.sphere(body, 0.13, Vector3(0, 1.38, 0), Mk.mat(Color(0.9, 0.72, 0.58), 0.0, 0.7))
+	var hat := Mk.sphere(body, 0.15, Vector3(0, 1.45, 0), Mk.paint(C_YELLOW))
+	hat.scale = Vector3(1.0, 0.55, 1.0)
+	var legs: Array = []
+	for sx in [-0.08, 0.08]:
+		var leg := Mk.pivot(body, Vector3(sx, 0.65, 0))
+		Mk.box(leg, Vector3(0.1, 0.62, 0.12), Vector3(0, -0.31, 0), Mk.paint(Color(0.2, 0.25, 0.45)))
+		legs.append(leg)
+	var load := Mk.cyl(body, 0.16, 0.18, Vector3(0, 0.9, -0.3), Mk.needle_material(), 0.18, 10)
+	w.set_meta("parts", {"legs": legs, "load": load, "body": body})
+	return w
+
+
 ## Compacteuse : caisson, piston vertical, balle qui sort.
 static func _compacteuse(r: Node3D, p: Dictionary) -> void:
 	_plinth(r, 2.0, 2.0, 0.1)
@@ -912,6 +978,12 @@ static func animate(root: Node3D, type: String, t: float, state: int, info: Dict
 		"compacteuse":
 			p.ram.position.y = 1.5 - (pow(absf(sin(t * 1.8 + ph)), 4.0) * 0.6 if active else 0.0)
 			p.bale.visible = active
+		"entrepot":
+			var nn := int(ceil(float(info.get("fill", 0.0)) * p.crates.size()))
+			for i in p.crates.size():
+				p.crates[i].visible = i < nn
+		"batterie":
+			p.gauge.scale.y = maxf(0.02, float(info.get("charge", 0.0)))
 		"trieur":
 			var fc: Color = info.get("filter", Color.WHITE)
 			var fm: MeshInstance3D = p.flag

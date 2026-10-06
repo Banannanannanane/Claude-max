@@ -218,13 +218,13 @@ func _physics_process(delta: float) -> void:
 	_update_target()
 	if build_type != "":
 		_update_ghost()
-		if place_held and build_type == "convoyeur" and ghost_ok and ghost_cell != _last_placed:
+		if place_held and Game.is_belt(build_type) and ghost_ok and ghost_cell != _last_placed:
 			_place_now()
 	elif hud and hud.action_held:
 		var kind: String = target.get("kind", "")
 		if kind == "pile":
 			try_grab()
-		elif kind == "entity" and target.type == "convoyeur" and _drop_cd <= 0.0:
+		elif kind == "entity" and Game.is_belt(target.type) and _drop_cd <= 0.0:
 			_drop_cd = 0.18
 			_drop_on_belt(false)
 
@@ -319,7 +319,7 @@ func action_pressed() -> void:
 				Sfx.play("click")
 				_hand_kick = 1.0
 				hud.toast("%s aiguilles versées dans la trémie" % Fmt.needles(q))
-		"convoyeur":
+		"convoyeur", "express":
 			_drop_cd = 0.25
 			_drop_on_belt(true)
 		"bureau":
@@ -455,7 +455,7 @@ func place_released() -> void:
 
 func _place_now() -> bool:
 	if not ghost_ok:
-		if not place_held or build_type != "convoyeur":
+		if not place_held or not Game.is_belt(build_type):
 			hud.toast(ghost_why)
 			Sfx.play("prick")
 		return false
@@ -472,7 +472,7 @@ func _place_now() -> bool:
 		return false
 	if Game.build(build_type, ghost_cell, ghost_r):
 		_last_placed = ghost_cell
-		if build_type != "convoyeur":
+		if not Game.is_belt(build_type):
 			hud.toast("%s construit !" % Data.MACHINES[build_type].name, true)
 			cancel_build()
 		return true
