@@ -323,11 +323,11 @@ func _update_daynight(delta: float) -> void:
 		target = smoothstep(0.62, 0.72, ph) * (1.0 - smoothstep(0.9, 1.0, ph))
 	night = move_toward(night, target, delta * 0.2)
 	sun.rotation_degrees = Vector3(lerpf(-48.0, -12.0, night), -35.0 + night * 60.0, 0)
-	sun.light_energy = lerpf(1.1, 0.18, night)
+	sun.light_energy = lerpf(1.1, 0.34, night) # clair de lune : on voit encore où l'on marche
 	sun.light_color = Color(1, 0.96, 0.88).lerp(Color(0.6, 0.7, 1.0), night)
-	env.ambient_light_energy = lerpf(0.55, 0.3, night)
-	sky_mat.sky_top_color = Color(0.25, 0.48, 0.85).lerp(Color(0.04, 0.06, 0.16), night)
-	sky_mat.sky_horizon_color = Color(0.7, 0.8, 0.92).lerp(Color(0.2, 0.18, 0.3), night)
+	env.ambient_light_energy = lerpf(0.55, 0.62, night)
+	sky_mat.sky_top_color = Color(0.25, 0.48, 0.85).lerp(Color(0.06, 0.09, 0.22), night)
+	sky_mat.sky_horizon_color = Color(0.7, 0.8, 0.92).lerp(Color(0.24, 0.26, 0.42), night)
 	env.fog_light_color = Color(0.72, 0.8, 0.9).lerp(Color(0.12, 0.13, 0.2), night)
 	for l: OmniLight3D in lamps:
 		l.light_energy = smoothstep(0.3, 0.7, night) * 1.6

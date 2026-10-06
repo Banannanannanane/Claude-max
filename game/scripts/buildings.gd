@@ -88,7 +88,10 @@ static func create(type: String) -> Node3D:
 		p["status"] = _status_light(root, Vector3(sz.x * 0.5 - 0.15, float(m.h) + 0.05, sz.y * 0.5 - 0.15))
 	if not Game.belt_like(type) and type != "trou":
 		var lbl := Mk.label(root, m.name, Vector3(0, float(m.h) + 0.6, 0), 40)
-		lbl.visibility_range_end = 12.0
+		# les noms s'effacent en douceur au loin, pour ne pas se chevaucher en vue d'ensemble
+		lbl.visibility_range_end = 10.0
+		lbl.visibility_range_end_margin = 2.5
+		lbl.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 		p["label"] = lbl
 	root.set_meta("parts", p)
 	return root

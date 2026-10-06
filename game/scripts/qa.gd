@@ -963,6 +963,11 @@ func _test_hay_and_piles() -> void:
 		Game.grab()
 		if Game.deposit_tremie(tremie) == 0:
 			_run(1.0)
+	# la dernière poignée peut rester en main si la trémie était pleine : on la vide aussi
+	while Game.hand_n + Game.hand_h > 0 and guard < 40000:
+		guard += 1
+		if Game.deposit_tremie(tremie) == 0:
+			_run(1.0)
 	_run(200.0)
 	check(Game.pile_found == 22 and Game.pile_done, "le scanner retrouve les 22 brins (trouvés : %d, perdus : %d)" % [Game.pile_found, Game.stats.lost_hay])
 	var ok := true

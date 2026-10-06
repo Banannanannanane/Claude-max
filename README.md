@@ -49,6 +49,7 @@ Chaque push compile le jeu automatiquement (GitHub Actions → onglet **Releases
 | **Recyclage** | Au bureau, recycle toute l'usine pour gagner des **jetons** (+10 % sur les ventes et les primes par jeton, pour toujours). On repart de zéro en gardant succès et statistiques. Le premier jeton s'obtient après 50 000 € gagnés, le n-ième après n² × 50 000 €. |
 | **Ambiance** | Écran titre animé, musique d'accompagnement, vent et oiseaux, bruits de pas, averses de pluie avec ciel gris et brouillard, champ de vision qui s'élargit en courant. Musique et météo se coupent dans le Menu. |
 | **Carte** | Vue de dessus de l'usine : machines par couleur, sens des tapis, tas, trou de vente et ta position. |
+| **Interface** | Le panneau d'infos se replie d'un geste (bouton –). L'endurance et la jauge du détecteur n'apparaissent que lorsqu'elles servent. |
 | **Graphismes** | Qualité Basse, Moyenne ou Élevée (ombres, résolution, détail du tas), compteur d'images par seconde et vibrations désactivables. Ces réglages sont propres au téléphone. |
 
 Chaque machine prend ce qui arrive par l'arrière (flèche verte) et rend sa production par
