@@ -251,6 +251,9 @@ class OrderPanel extends PanelBase:
 	var _contract: Label
 	var _offers: Array = []
 	var _abandon: Button
+	var _recycle: Button
+	var _recycle_info: Label
+	var _confirm := false
 
 	func title() -> String:
 		return "Bureau des commandes"
@@ -288,6 +291,28 @@ class OrderPanel extends PanelBase:
 			var r2 := row(p.name, "%s aiguilles · 22 brins de foin cachés · %s le brin" % [Fmt.num(p.needles), Fmt.eur(p.hay_value)], b2)
 			r2["button"] = b2
 			_rows[id] = r2
+		section("Recyclage de l'usine")
+		var rc := UI.card()
+		content.add_child(rc)
+		var rv := VBoxContainer.new()
+		rc.add_child(rv)
+		_recycle_info = UI.label("", 19, Color(0.86, 0.88, 0.92), true)
+		rv.add_child(_recycle_info)
+		_confirm = false
+		_recycle = UI.button("", _on_recycle, "RedButton")
+		_recycle.custom_minimum_size = Vector2(0, 60)
+		rv.add_child(_recycle)
+
+	func _on_recycle() -> void:
+		if Game.tokens_pending() < 1:
+			Sfx.play("prick")
+			return
+		if not _confirm:
+			_confirm = true
+			refresh()
+			return
+		if Game.recycle():
+			close()
 
 	func _accept(i: int) -> void:
 		Game.accept_offer(i)
@@ -320,6 +345,22 @@ class OrderPanel extends PanelBase:
 				var c2 := Game.order_cost(id)
 				b.text = "Commander\n" + (Fmt.eur(c2) if c2 > 0 else "gratuit")
 				b.disabled = why != ""
+		var t := Game.tokens_pending()
+		var next := pow(float(t + 1), 2.0) * Game.RECYCLE_BASE
+		_recycle_info.text = "\n".join([
+			"Jetons de recyclage : %d — tes ventes et tes primes de foin rapportent +%d %%." % [Game.prestige, int(round((Game.prestige_mult() - 1.0) * 100))],
+			"Recycler, c'est repartir de zéro (argent, machines, arbre, boutique, tas) en gardant tes succès, tes statistiques et tous tes jetons.",
+			"Gagné depuis le dernier recyclage : %s. Jetons obtenus maintenant : %d (le suivant à %s)." % [Fmt.eur(Game.run_earned), t, Fmt.eur(next)],
+		])
+		if t < 1:
+			_recycle.text = "Recycler (il faut gagner %s)" % Fmt.eur(Game.RECYCLE_BASE)
+			_recycle.disabled = true
+		elif _confirm:
+			_recycle.text = "Sûr ? Touche encore pour TOUT recommencer avec +%d jeton%s" % [t, "s" if t > 1 else ""]
+			_recycle.disabled = false
+		else:
+			_recycle.text = "Recycler l'usine : +%d jeton%s" % [t, "s" if t > 1 else ""]
+			_recycle.disabled = false
 
 
 # ============================================================ usine et production
@@ -548,6 +589,8 @@ class SettingsPanel extends PanelBase:
 	var _day: Button
 	var _vib: Button
 	var _fps: Button
+	var _music: Button
+	var _weather: Button
 	var _sens: HSlider
 	var _quality: Array = []
 
@@ -578,6 +621,17 @@ class SettingsPanel extends PanelBase:
 		h.add_child(_sens)
 		_sound = UI.button("", _toggle_sound)
 		content.add_child(_sound)
+		_music = UI.button("", func() -> void:
+			Game.settings.music = not bool(Game.settings.get("music", true))
+			Game.save_device()
+			Sfx.refresh()
+			refresh())
+		content.add_child(_music)
+		_weather = UI.button("", func() -> void:
+			Game.settings.weather = not bool(Game.settings.get("weather", true))
+			Game.save_device()
+			refresh())
+		content.add_child(_weather)
 		_day = UI.button("", _toggle_day)
 		content.add_child(_day)
 		_vib = UI.button("", func() -> void:
@@ -614,10 +668,12 @@ class SettingsPanel extends PanelBase:
 			"• Arbre : achète les plans (droits de construction), puis leurs améliorations par niveaux.",
 			"• Bureau : contrats de livraison à prime et commande des tas. L'usine produit aussi hors ligne (8 h max).",
 		]), 19, Color(0.86, 0.88, 0.92), true))
-		content.add_child(UI.label("Trouve le Foin v1.3 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
+		content.add_child(UI.label("Trouve le Foin v1.4 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
 
 	func _toggle_sound() -> void:
 		Game.settings.sound = not Game.settings.sound
+		Game.save_device()
+		Sfx.refresh()
 		refresh()
 
 	func _set_quality(q: int) -> void:
@@ -634,6 +690,8 @@ class SettingsPanel extends PanelBase:
 	func refresh() -> void:
 		_sound.text = "Son : " + ("activé" if Game.settings.sound else "coupé")
 		_day.text = "Cycle jour / nuit : " + ("activé" if Game.settings.get("daynight", true) else "toujours le jour")
+		_music.text = "Musique : " + ("activée" if Game.settings.get("music", true) else "coupée")
+		_weather.text = "Météo (averses de pluie) : " + ("activée" if Game.settings.get("weather", true) else "toujours beau")
 		_vib.text = "Vibrations : " + ("activées" if Game.settings.get("vibrate", true) else "coupées")
 		_fps.text = "Compteur d'images par seconde : " + ("affiché" if Game.settings.get("fps", false) else "masqué")
 		var q := int(Game.settings.get("quality", 1))

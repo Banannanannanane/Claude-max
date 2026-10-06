@@ -53,6 +53,25 @@ func _ready() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.theme = UI.theme()
 	add_child(root)
+	# vignette : bords de l'image légèrement assombris
+	var vg := TextureRect.new()
+	var g := Gradient.new()
+	g.set_offset(0, 0.55)
+	g.set_color(0, Color(0, 0, 0, 0))
+	g.set_offset(1, 1.0)
+	g.set_color(1, Color(0, 0, 0, 0.38))
+	var gt := GradientTexture2D.new()
+	gt.gradient = g
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.5)
+	gt.fill_to = Vector2(1.05, 0.5)
+	gt.width = 256
+	gt.height = 256
+	vg.texture = gt
+	vg.stretch_mode = TextureRect.STRETCH_SCALE
+	vg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(vg)
 	_build_info()
 	_build_menu()
 	_build_center()
@@ -85,6 +104,7 @@ func _ready() -> void:
 	root.add_child(_fps)
 	Game.toast.connect(toast)
 	Game.hay_found.connect(_on_hay)
+	Game.golden_found.connect(_on_golden)
 	Game.changed.connect(_refresh)
 	get_viewport().size_changed.connect(_layout)
 	_layout()
@@ -249,7 +269,7 @@ func _over_ui(p: Vector2) -> bool:
 
 
 func _input(event: InputEvent) -> void:
-	if _panel and is_instance_valid(_panel):
+	if not visible or (_panel and is_instance_valid(_panel)):
 		return
 	if event is InputEventScreenTouch:
 		var s := root.get_viewport_rect().size
@@ -311,6 +331,8 @@ func _refresh() -> void:
 	_hand.text = "Main : %d / %d" % [held, Game.hand_cap()]
 	_hand.add_theme_color_override("font_color", UI.BAD if held >= Game.hand_cap() else Color(0.93, 0.94, 0.96))
 	_store.text = "Revenus : %s / min" % Fmt.eur(float(Game.rates.income) * 60.0)
+	if Game.prestige > 0:
+		_store.text += "  ·  ★ %d jeton%s" % [Game.prestige, "s" if Game.prestige > 1 else ""]
 	if Game.quest < Data.QUESTS.size():
 		var q: Array = Data.QUESTS[Game.quest]
 		var pr := Game.quest_progress(q[0])
@@ -418,6 +440,16 @@ func _on_hay(count: int, by_hand: bool) -> void:
 	_big.text = "BRIN DE FOIN !" if by_hand else "Foin détecté !"
 	_big.modulate.a = 1.0
 	if by_hand and main:
+		main.hay_fx()
+
+
+func _on_golden() -> void:
+	_flash.color = Color(1, 0.8, 0.15, 0.55)
+	Game.vibrate(200)
+	_big.text = "BRIN DORÉ !"
+	_big.modulate.a = 1.4
+	if main:
+		main.hay_fx()
 		main.hay_fx()
 
 

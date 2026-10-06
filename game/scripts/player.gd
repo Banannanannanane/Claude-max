@@ -33,6 +33,9 @@ var _cells: MultiMeshInstance3D
 var _drop_cd := 0.0
 var _grab_cd := 0.0
 var _bob := 0.0
+var _step_phase := 0.0
+var _land := 0.0
+var _airborne := false
 var _hand_kick := 0.0
 var _exhausted := false
 
@@ -149,7 +152,22 @@ func _physics_process(delta: float) -> void:
 	# balancement de la tête et de la main
 	var moving := input.length() > 0.1 and is_on_floor()
 	_bob += delta * (12.0 if sprinting else 8.0) * (1.0 if moving else 0.0)
-	cam.position.y = sin(_bob) * 0.035 if moving else lerpf(cam.position.y, 0.0, delta * 8.0)
+	# un pas à chaque creux du balancement
+	if moving and floori(_bob / PI) != floori(_step_phase / PI):
+		Sfx.play("step", randf_range(0.85, 1.15))
+	_step_phase = _bob
+	# petit tassement à l'atterrissage
+	if not is_on_floor():
+		_airborne = true
+	elif _airborne:
+		_airborne = false
+		_land = 1.0
+		Sfx.play("step", 0.7)
+	_land = maxf(0.0, _land - delta * 5.0)
+	var bob_y := sin(_bob) * 0.035 if moving else lerpf(cam.position.y + _land * 0.07, 0.0, delta * 8.0)
+	cam.position.y = bob_y - _land * 0.07
+	# le champ de vision s'élargit en courant
+	cam.fov = lerpf(cam.fov, 72.0 + (7.0 if sprinting else 0.0), delta * 6.0)
 	_hand_kick = maxf(0.0, _hand_kick - delta * 4.0)
 	hand.position = Vector3(0.3 + cos(_bob * 0.5) * 0.01, -0.27 + sin(_bob) * 0.012 - _hand_kick * 0.08, -0.55 + _hand_kick * 0.12)
 	var fill := float(Game.hand_n + Game.hand_h) / float(Game.hand_cap())

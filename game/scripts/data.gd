@@ -149,6 +149,8 @@ const ACHIEVEMENTS := [
 	["boite_1", "La boucle est bouclée", "Vends une boîte d'aiguilles neuves."],
 	["money_1m", "Millionnaire", "Gagne 1 000 000 € au total."],
 	["mountain", "Au sommet", "Termine une montagne d'aiguilles."],
+	["golden", "De l'or dans les aiguilles", "Trouve un brin de foin doré."],
+	["recycle", "Nouveau départ", "Recycle ton usine une première fois."],
 ]
 
 ## Objectifs guidés : [identifiant, texte, récompense]. La progression est calculée par Game.quest_progress().

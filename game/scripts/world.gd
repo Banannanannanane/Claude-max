@@ -69,6 +69,12 @@ var _last_cash := 0.0
 var _cash_timer := 0.0
 var _alerts := {} # id du scanner -> horloge de la dernière détection
 var night := 0.0
+var rain := 0.0 # intensité de l'averse en cours (0 à 1)
+var _rain_target := 0.0
+var _weather_timer := 240.0 # secondes avant le prochain changement de temps
+var _rain_fx: CPUParticles3D
+var _rain_mat: StandardMaterial3D
+var _rain_amount := -1
 
 
 func _ready() -> void:
@@ -318,6 +324,83 @@ func _update_daynight(delta: float) -> void:
 		l.light_energy = smoothstep(0.3, 0.7, night) * 1.6
 
 
+# ============================================================ météo
+## Averses de temps en temps : ciel gris, brouillard, pluie autour du joueur et bruit de pluie.
+func _update_weather(delta: float) -> void:
+	if not Game.settings.get("weather", true):
+		_rain_target = 0.0
+		_weather_timer = 240.0
+	else:
+		_weather_timer -= delta
+		if _weather_timer <= 0.0:
+			if _rain_target > 0.0:
+				_rain_target = 0.0
+				_weather_timer = randf_range(360.0, 720.0)
+			else:
+				_rain_target = randf_range(0.55, 1.0)
+				_weather_timer = randf_range(90.0, 180.0)
+	rain = move_toward(rain, _rain_target, delta * 0.05)
+	Sfx.set_rain(rain)
+	var g := rain * 0.75
+	if g > 0.001:
+		sun.light_energy *= 1.0 - 0.55 * g
+		env.ambient_light_energy *= 1.0 - 0.25 * g
+		var grey := Color(0.42, 0.45, 0.5).lerp(Color(0.05, 0.06, 0.1), night)
+		sky_mat.sky_top_color = sky_mat.sky_top_color.lerp(grey, g)
+		sky_mat.sky_horizon_color = sky_mat.sky_horizon_color.lerp(grey.lightened(0.15), g)
+		env.fog_light_color = env.fog_light_color.lerp(grey, g)
+	env.fog_density = 0.0018 + 0.012 * g
+	_update_rain_fx()
+
+
+func _update_rain_fx() -> void:
+	var want := clampi(int(Game.settings.get("quality", 1)), 0, 2)
+	var amount: int = [160, 420, 800][want]
+	if rain < 0.03:
+		if _rain_fx:
+			_rain_fx.emitting = false
+		return
+	if _rain_fx == null or _rain_amount != amount:
+		if _rain_fx:
+			_rain_fx.queue_free()
+		_rain_amount = amount
+		_rain_fx = CPUParticles3D.new()
+		_rain_fx.amount = amount
+		_rain_fx.lifetime = 0.9
+		_rain_fx.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		_rain_fx.emission_box_extents = Vector3(14, 0.5, 14)
+		_rain_fx.direction = Vector3(0.08, -1, 0.04)
+		_rain_fx.spread = 2.0
+		_rain_fx.initial_velocity_min = 16.0
+		_rain_fx.initial_velocity_max = 20.0
+		_rain_fx.gravity = Vector3(0, -6, 0)
+		_rain_fx.particle_flag_align_y = true
+		_rain_fx.local_coords = false
+		var m := BoxMesh.new()
+		m.size = Vector3(0.006, 0.5, 0.006)
+		_rain_fx.mesh = m
+		_rain_mat = StandardMaterial3D.new()
+		_rain_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_rain_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_rain_mat.albedo_color = Color(0.75, 0.8, 0.88, 0.28)
+		_rain_fx.material_override = _rain_mat
+		_rain_fx.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_rain_fx.visibility_aabb = AABB(Vector3(-16, -20, -16), Vector3(32, 24, 32))
+		add_child(_rain_fx)
+	var cam := get_viewport().get_camera_3d()
+	if cam:
+		_rain_fx.global_position = cam.global_position + Vector3(0, 9, 0)
+	_rain_fx.emitting = true
+	_rain_mat.albedo_color.a = 0.28 * clampf(rain * 1.4, 0.0, 1.0)
+
+
+## Pour les tests et les captures : impose une averse (ou le beau temps).
+func force_rain(v: float) -> void:
+	_rain_target = v
+	rain = v
+	_weather_timer = 600.0
+
+
 # ============================================================ tapis et objets
 func _make_belt_layers() -> void:
 	_belts = MultiMeshInstance3D.new()
@@ -490,6 +573,7 @@ func _process(delta: float) -> void:
 	_fall_budget = minf(_fall_budget + delta * 6.0, 6.0)
 	_belt_mat.set_shader_parameter("speed", Game.belt_speed())
 	_update_daynight(delta)
+	_update_weather(delta)
 	_draw_items()
 	_animate_machines(delta)
 

@@ -8,6 +8,8 @@ signal hay_found(count: int, by_hand: bool)
 signal entities_changed
 signal pile_changed
 signal sold(cell: Vector2i, item_type: String)
+signal golden_found
+signal recycled
 
 const STEP := 1.0 / 30.0
 const MAX_OFFLINE := 8.0 * 3600.0
@@ -25,6 +27,9 @@ var pile_n := 600
 var pile_h := 22
 var pile_found := 0
 var pile_done := false
+var pile_gold := 0 # rang du brin doré dans ce tas (0 = aucun)
+var prestige := 0 # jetons de recyclage (bonus permanent)
+var run_earned := 0.0 # argent gagné depuis le dernier recyclage
 
 # --- progression
 var shop := {} # niveaux de la boutique
@@ -32,7 +37,7 @@ var tree := {"p_convoyeur": true} # nœuds achetés
 var ups := {} # niveaux des améliorations de plans
 var achievements := {}
 var stats := {}
-var settings := {"sound": true, "sens": 1.0, "daynight": true, "quality": 1, "fps": false, "vibrate": true}
+var settings := {"sound": true, "music": true, "weather": true, "sens": 1.0, "daynight": true, "quality": 1, "fps": false, "vibrate": true}
 var contract := {} # contrat en cours
 var offers: Array = [] # contrats proposés
 var rates := {"income": 0.0, "dig": 0.0, "hay": 0.0}
@@ -68,7 +73,7 @@ func _ready() -> void:
 
 
 ## Réglages propres à l'appareil (qualité, vibration, compteur) : communs à toutes les sauvegardes.
-const DEVICE_KEYS := ["quality", "fps", "vibrate"]
+const DEVICE_KEYS := ["quality", "fps", "vibrate", "sound", "music", "weather"]
 const DEVICE_PATH := "user://device.json"
 
 
@@ -81,7 +86,8 @@ func _load_device() -> void:
 			settings[k] = d[k]
 	settings.quality = clampi(int(settings.quality), 0, 2)
 	settings.fps = bool(settings.fps)
-	settings.vibrate = bool(settings.vibrate)
+	for k in ["fps", "vibrate", "sound", "music", "weather"]:
+		settings[k] = bool(settings[k])
 
 
 func save_device() -> void:
@@ -96,18 +102,22 @@ func save_device() -> void:
 # ============================================================ nouvelle partie
 func _blank_stats() -> Dictionary:
 	return {"needles": 0, "hay": 0, "piles": 0, "earned": 0.0, "ingots": 0, "time": 0.0, "belts": 0,
-		"contracts": 0, "sold": {}, "lost_hay": 0, "poured": 0, "ordered": {}}
+		"contracts": 0, "sold": {}, "lost_hay": 0, "poured": 0, "ordered": {}, "golden": 0, "recycles": 0}
 
 
-func new_game() -> void:
+## keep_meta : recyclage — on garde succès, statistiques et jetons.
+func new_game(keep_meta := false) -> void:
 	money = 0.0
 	hand_n = 0
 	hand_h = 0
 	shop = {}
 	tree = {"p_convoyeur": true}
 	ups = {}
-	achievements = {}
-	stats = _blank_stats()
+	run_earned = 0.0
+	if not keep_meta:
+		achievements = {}
+		stats = _blank_stats()
+		prestige = 0
 	contract = {}
 	offers = []
 	rates = {"income": 0.0, "dig": 0.0, "hay": 0.0}
@@ -211,7 +221,7 @@ func dig_range(type: String) -> float:
 
 
 func sell_mult() -> float:
-	return (1.1 if tree.has("b_trou") else 1.0) * (1.0 + 0.05 * up_lvl("u_trou_prix"))
+	return (1.1 if tree.has("b_trou") else 1.0) * (1.0 + 0.05 * up_lvl("u_trou_prix")) * prestige_mult()
 
 
 func quality_mult(item: String) -> float:
@@ -238,7 +248,7 @@ func item_price(item: Dictionary) -> float:
 
 
 func hay_unit_value() -> float:
-	return Data.PILES[pile_size].hay_value
+	return Data.PILES[pile_size].hay_value * prestige_mult()
 
 
 func pile_radius() -> float:
@@ -547,8 +557,19 @@ func _draw_mix(k: int, n: int, h: int) -> Vector2i:
 func _found(count: int, by_hand: bool) -> void:
 	if count <= 0:
 		return
+	var before := pile_found
 	pile_found += count
 	stats.hay += count
+	if pile_gold > before and pile_gold <= pile_found:
+		# le brin doré : rare, il vaut dix brins
+		var gold := hay_unit_value() * 10.0
+		gain(gold)
+		stats.golden += 1
+		_unlock("golden")
+		if not offline:
+			golden_found.emit()
+			_sfx("golden")
+			_toast("BRIN DORÉ ! Il vaut dix brins : +%s" % Fmt.eur(gold), true)
 	var reward := count * hay_unit_value()
 	gain(reward)
 	if not offline:
@@ -573,6 +594,38 @@ func _found(count: int, by_hand: bool) -> void:
 func gain(x: float) -> void:
 	money += x
 	stats.earned += x
+	run_earned += x
+
+
+# ============================================================ recyclage (prestige)
+## Bonus permanent des jetons : +10 % sur toutes les ventes et les primes de foin, par jeton.
+func prestige_mult() -> float:
+	return 1.0 + 0.1 * prestige
+
+
+## Jetons gagnés si l'on recycle maintenant : racine de l'argent gagné depuis le dernier recyclage.
+func tokens_pending() -> int:
+	return int(floor(sqrt(run_earned / RECYCLE_BASE)))
+
+
+const RECYCLE_BASE := 50000.0
+
+
+## Recycle toute l'usine : on repart de zéro avec les jetons en plus.
+func recycle() -> bool:
+	var t := tokens_pending()
+	if t < 1:
+		return false
+	new_game(true)
+	prestige += t
+	stats.recycles += 1
+	_unlock("recycle")
+	_sfx("recycle")
+	_toast("Usine recyclée ! +%d jeton%s : toutes tes ventes rapportent %d %% de plus." % [t, "s" if t > 1 else "", int(round((prestige_mult() - 1.0) * 100))], true)
+	recycled.emit()
+	changed.emit()
+	save_slot(slot)
+	return true
 
 
 func grab() -> int:
@@ -703,7 +756,7 @@ func order_pile(size: String) -> bool:
 	stats.ordered[size] = int(stats.ordered.get(size, 0)) + 1
 	_set_pile(size)
 	_sfx("win")
-	_toast("%s livré ! 22 brins de foin y sont cachés." % Data.PILES[size].name, true)
+	_toast("%s livré ! 22 brins de foin y sont cachés%s" % [Data.PILES[size].name, "… et on murmure qu'un brin DORÉ s'y trouve !" if pile_gold > 0 else "."], true)
 	changed.emit()
 	return true
 
@@ -715,6 +768,8 @@ func _set_pile(size: String) -> void:
 	pile_h = Data.HAY_PER_PILE
 	pile_found = 0
 	pile_done = false
+	# 40 % des tas cachent un brin doré parmi leurs 22 brins
+	pile_gold = randi_range(1, Data.HAY_PER_PILE) if randf() < 0.4 else 0
 	hand_h = 0
 	# le foin caché de l'ancien tas ne compte plus ; ce que le nouveau tas recouvre est remboursé
 	var removed := 0
@@ -1283,7 +1338,8 @@ func to_dict() -> Dictionary:
 	return {
 		"v": 2, "money": money, "hand_n": hand_n, "hand_h": hand_h,
 		"pile_size": pile_size, "pile_total": pile_total, "pile_n": pile_n, "pile_h": pile_h,
-		"pile_found": pile_found, "pile_done": pile_done,
+		"pile_found": pile_found, "pile_done": pile_done, "pile_gold": pile_gold,
+		"prestige": prestige, "run_earned": run_earned,
 		"shop": shop, "tree": tree, "ups": ups, "achievements": achievements, "stats": stats,
 		"settings": settings, "contract": contract, "offers": offers, "rates": rates, "quest": quest,
 		"entities": ents, "next_id": next_id, "saved_at": Time.get_unix_time_from_system(),
@@ -1359,6 +1415,8 @@ func from_dict(d: Dictionary) -> bool:
 	pile_h = int(d.pile_h)
 	pile_found = int(d.pile_found)
 	pile_done = bool(d.pile_done)
+	pile_gold = clampi(int(d.get("pile_gold", 0)), 0, Data.HAY_PER_PILE)
+	prestige = maxi(0, int(d.get("prestige", 0)))
 	shop = {}
 	for k in d.get("shop", {}):
 		if Data.SHOP.has(k):
@@ -1386,6 +1444,7 @@ func from_dict(d: Dictionary) -> bool:
 	for k in settings:
 		if se.has(k) and k not in DEVICE_KEYS:
 			settings[k] = se[k]
+	run_earned = maxf(0.0, float(d.get("run_earned", stats.earned)))
 	quest = clampi(int(d.get("quest", 0)), 0, Data.QUESTS.size())
 	contract = d.get("contract", {})
 	offers = d.get("offers", [])

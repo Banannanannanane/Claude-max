@@ -180,8 +180,72 @@ func _logic() -> void:
 	_test_progression()
 	_test_contracts_quests()
 	_test_save()
+	_test_golden_recycle()
+	await _test_weather_audio()
 	_test_stress()
 	_finish()
+
+
+func _test_golden_recycle() -> void:
+	Game.new_game()
+	Game.pile_gold = 3
+	Game.pile_found = 2
+	var m0 := Game.money
+	Game._found(1, true)
+	var base := Game.hay_unit_value()
+	check(absf(Game.money - m0 - base * 11.0) < 0.01 and int(Game.stats.golden) == 1 and Game.achievements.has("golden"), "le brin doré rapporte dix brins de plus")
+	Game._found(1, true)
+	check(int(Game.stats.golden) == 1, "un seul brin doré par tas")
+	var golden_seen := 0
+	for i in 400:
+		Game._set_pile("petit")
+		if Game.pile_gold > 0:
+			golden_seen += 1
+			if Game.pile_gold < 1 or Game.pile_gold > Data.HAY_PER_PILE:
+				golden_seen = -9999
+	check(golden_seen > 100 and golden_seen < 220, "environ 40 %% des tas cachent un brin doré (%d / 400)" % golden_seen)
+	Game.new_game()
+	Game.run_earned = 30000.0
+	check(Game.tokens_pending() == 0 and not Game.recycle(), "pas de recyclage avant %s" % Fmt.eur(Game.RECYCLE_BASE))
+	Game.money = 123456.0
+	Game.run_earned = 200000.0
+	Game.tree["p_scanner"] = true
+	Game.shop["main"] = 3
+	Game.build("convoyeur", Vector2i(-20, 20), 0)
+	Game.achievements["first_hay"] = true
+	var sm0 := Game.sell_mult()
+	check(Game.recycle(), "recyclage de l'usine")
+	check(Game.prestige == 2 and Game.money == 0.0 and Game.entities.size() == 21 and not Game.tree.has("p_scanner") and Game.shop_lvl("main") == 0,
+		"le recyclage repart de zéro avec 2 jetons")
+	check(Game.achievements.has("first_hay") and Game.achievements.has("recycle") and int(Game.stats.recycles) == 1, "succès et statistiques conservés")
+	check(absf(Game.sell_mult() - sm0 * 1.2) < 0.001 and Game.run_earned == 0.0, "les jetons augmentent les ventes de 20 %")
+	Game.save_slot(2)
+	Game.prestige = 0
+	Game.load_slot(2)
+	check(Game.prestige == 2, "les jetons sont sauvegardés")
+	Game.new_game()
+	check(Game.prestige == 0, "une nouvelle partie remet les jetons à zéro")
+
+
+func _test_weather_audio() -> void:
+	var w: Node = main.world
+	w.force_rain(1.0)
+	await _frames(5)
+	check(w.env.fog_density > 0.008 and w._rain_fx != null and w._rain_fx.emitting, "l'averse assombrit et fait tomber la pluie")
+	w.force_rain(0.0)
+	await _frames(5)
+	check(w.env.fog_density < 0.003 and not w._rain_fx.emitting, "retour du beau temps")
+	Game.settings.weather = false
+	w._weather_timer = 0.0
+	await _frames(3)
+	check(w._rain_target == 0.0, "météo désactivable")
+	Game.settings.weather = true
+	var loops := true
+	for n in ["_music", "_ambiance", "_rain"]:
+		var st: AudioStreamWAV = Sfx.get(n).stream
+		if st == null or st.loop_mode != AudioStreamWAV.LOOP_FORWARD:
+			loops = false
+	check(loops, "musique, ambiance et pluie bouclent")
 
 
 func _test_geometry() -> void:
@@ -647,6 +711,23 @@ func _ui() -> void:
 	var pl: CharacterBody3D = main.player
 	hud.close_panel()
 	await _frames(2)
+	# écran titre : jeu figé derrière, puis fondu vers le jeu (ou vers une fenêtre)
+	for dest in ["", "sauvegardes"]:
+		var t := CanvasLayer.new()
+		t.set_script(load("res://scripts/title.gd"))
+		t.set("main", main)
+		main.title = t
+		main.add_child(t)
+		await _frames(3)
+		check(not hud.visible and pl.process_mode == Node.PROCESS_MODE_DISABLED and main.title_open(), "écran titre affiché, jeu figé derrière")
+		t.start(dest)
+		await get_tree().create_timer(1.2).timeout
+		var ok_t: bool = hud.visible and pl.process_mode == Node.PROCESS_MODE_INHERIT and get_viewport().get_camera_3d() == pl.cam and not is_instance_valid(t)
+		if dest != "":
+			ok_t = ok_t and hud.panel_open()
+		check(ok_t, "l'écran titre s'ouvre sur %s" % ("le jeu" if dest == "" else "la fenêtre " + dest))
+		hud.close_panel()
+	await _frames(2)
 	_rich()
 	for p in ["boutique", "arbre", "construire", "commandes", "stock", "carte", "reglages", "sauvegardes", "succes", "objectifs"]:
 		hud.open_panel(p)
@@ -856,6 +937,13 @@ func _face(pos: Vector3, look: Vector3, pitch := -8.0) -> void:
 func _shots() -> void:
 	Game.new_game()
 	Game.settings.daynight = false
+	var t := CanvasLayer.new()
+	t.set_script(load("res://scripts/title.gd"))
+	t.set("main", main)
+	main.add_child(t)
+	await _shot("00_titre", 60)
+	t.start("")
+	await get_tree().create_timer(1.2).timeout
 	await _shot("01_intro", 20)
 	main.hud.close_panel()
 	_face(Vector3(-3, 0, -3), Vector3(6, 0, -9), -16)
@@ -907,6 +995,13 @@ func _shots() -> void:
 	main.player.head.position.y = 6.0
 	_face(Vector3(18, 0, 6), Vector3(4, 0, -12), -14)
 	await _shot("11_nuit", 30)
+	main.world.night = 0.0
+	Game.stats.time = 0.0
+	main.world.force_rain(1.0)
+	main.player.head.position.y = 1.62
+	_face(Vector3(10, 0, 4), Data.PILE_POS, -6)
+	await _shot("11b_pluie", 40)
+	main.world.force_rain(0.0)
 	main.player.head.position.y = 1.62
 	Game.pile_done = true
 	Game.order_pile("montagne")
@@ -931,6 +1026,7 @@ func _icon() -> void:
 	p.global_position = Data.PILE_POS + Vector3(0, 0.3, 6.2)
 	p.rotation.y = 0
 	p.head.rotation.x = deg_to_rad(-9)
+	p.set_physics_process(false)
 	p.cam.fov = 30
 	var straw := Node3D.new()
 	main.add_child(straw)

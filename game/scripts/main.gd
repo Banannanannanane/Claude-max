@@ -6,6 +6,8 @@ var player: CharacterBody3D
 var hud: CanvasLayer
 var _spark_mat: StandardMaterial3D
 var _hay_mat: StandardMaterial3D
+var title: CanvasLayer
+var _away_at_start := 0.0
 
 
 func _ready() -> void:
@@ -27,8 +29,13 @@ func _ready() -> void:
 	apply_quality()
 	# regarde vers le tas au démarrage
 	player.look_at_from_position(player.position, Vector3(Data.PILE_POS.x, player.position.y, Data.PILE_POS.z))
+	# absence mesurée tout de suite : la sauvegarde automatique tourne pendant l'écran titre
+	if Game.last_save > 0:
+		_away_at_start = Time.get_unix_time_from_system() - float(Game.last_save)
+	var qa_run := false
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--qa="):
+			qa_run = true
 			var qa := Node.new()
 			var qa_script = load("res://scripts/qa.gd")
 			if qa_script == null or not qa_script.can_instantiate():
@@ -38,10 +45,26 @@ func _ready() -> void:
 			qa.set_script(qa_script)
 			qa.set("main", self)
 			add_child(qa)
+	if qa_run:
+		_after_title()
+		return
+	title = CanvasLayer.new()
+	title.set_script(load("res://scripts/title.gd"))
+	title.set("main", self)
+	title.started.connect(_after_title)
+	add_child(title)
+
+
+## Après l'écran titre : message d'accueil ou bilan de l'absence.
+func _after_title() -> void:
 	if Game.last_save > 0:
-		_catch_up.call_deferred()
+		_catch_up.call_deferred(_away_at_start)
 	else:
 		_intro.call_deferred()
+
+
+func title_open() -> bool:
+	return title != null and is_instance_valid(title) and not title.is_closing()
 
 
 ## Qualité graphique : 0 = Bas (téléphones modestes), 1 = Moyen, 2 = Élevé.
@@ -70,8 +93,9 @@ func _intro() -> void:
 	]))
 
 
-func _catch_up() -> void:
-	var away := Time.get_unix_time_from_system() - float(Game.last_save)
+func _catch_up(away := -1.0) -> void:
+	if away < 0.0:
+		away = Time.get_unix_time_from_system() - float(Game.last_save)
 	if away < 30.0:
 		return
 	var r := Game.simulate_offline(away)
@@ -88,10 +112,13 @@ func _catch_up() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
-		hud.go_back()
+		if title_open():
+			get_tree().quit()
+		else:
+			hud.go_back()
 		return
 	if what == NOTIFICATION_APPLICATION_RESUMED or what == NOTIFICATION_APPLICATION_FOCUS_IN:
-		if Game.last_save > 0 and is_inside_tree():
+		if Game.last_save > 0 and is_inside_tree() and not title_open():
 			_catch_up()
 
 
