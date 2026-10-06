@@ -76,6 +76,7 @@ func _rich() -> void:
 	for id in Data.TREE:
 		Game.tree[id] = true
 	Game.stats.piles = 10
+	Game.xp = Game.xp_for(Data.MAX_LEVEL)
 	Game.free_power = true # les tests de production ne dépendent pas du réseau électrique
 	Game._update_power()
 
@@ -208,6 +209,7 @@ func _logic() -> void:
 	_test_relief()
 	_test_hay_spots_detector()
 	_test_power()
+	_test_farm()
 	await _test_weather_audio()
 	_test_stress()
 	_finish()
@@ -282,6 +284,94 @@ func _test_hay_spots_detector() -> void:
 	check(same, "les positions du foin sont sauvegardées")
 	Game.shop.erase("detecteur")
 	Game.shop.erase("poignee")
+
+
+func _test_farm() -> void:
+	# niveaux de fermier
+	Game.new_game()
+	check(Game.level() == 1 and Game.xp == 0.0, "on commence au niveau 1")
+	var m0 := Game.money
+	Game.add_xp(Game.xp_for(5))
+	check(Game.level() == 5 and Game.money > m0, "l'expérience fait monter de niveau, avec une prime")
+	check(Game.xp_for(30) > Game.xp_for(10) * 5.0, "les niveaux deviennent de plus en plus longs à atteindre")
+	var x0 := Game.xp
+	Game.grab()
+	check(Game.xp > x0, "ramasser rapporte de l'expérience")
+	Game.xp = 12345.0
+	Game.money = 1e9
+	Game.run_earned = 2e5
+	Game.recycle()
+	check(Game.xp == 12345.0, "le niveau est gardé au recyclage")
+	# usure, pannes, réparations
+	Game.new_game()
+	_rich()
+	var sc := Vector2i(-40, 50)
+	Game.build("scanner", sc, 1)
+	var sid: int = Game.grid[sc]
+	Game._activity[sid] = Game._clock
+	Game._wear_tick(Game.machine_life("scanner") * 0.5)
+	check(absf(float(Game.entities[sid].wear) - 0.5) < 0.01 and not Game.is_broken(sid), "une machine qui travaille s'use")
+	Game._activity[sid] = Game._clock
+	Game._wear_tick(Game.machine_life("scanner"))
+	check(Game.is_broken(sid), "à 100 % d'usure, elle tombe en panne")
+	var e: Dictionary = Game.entities[sid]
+	e.inq = [{"t": "vrac", "n": 10, "h": 0, "p": 0.0}]
+	_run(5.0)
+	check(e.outq.is_empty(), "une machine en panne ne produit plus")
+	var mr := Game.money
+	check(Game.repair(sid) and not Game.is_broken(sid) and float(e.wear) == 0.0 and Game.money < mr, "réparer coûte de l'argent et remet la machine en route")
+	Game._activity[sid] = Game._clock
+	Game._wear_tick(Game.machine_life("scanner"))
+	Game.build("atelier", sc + Vector2i(4, 0), 0)
+	for i in 70:
+		Game._wear_tick(1.0)
+	check(not Game.is_broken(sid) and float(e.wear) < 0.2, "l'atelier de maintenance répare tout seul les machines proches")
+	Game.ups["u_fiabilite"] = 2
+	check(Game.machine_life("scanner") > float(Data.LIFE.scanner) * 1.5, "les pièces renforcées allongent la durée de vie")
+	# trieur
+	Game.new_game()
+	_rich()
+	var tc := Vector2i(-40, 60)
+	Game.build("convoyeur", tc, 1)
+	Game.build("trieur", tc + Vector2i(1, 0), 1)
+	Game.build("convoyeur", tc + Vector2i(2, 0), 1)
+	Game.build("convoyeur", tc + Vector2i(1, -1), 0)
+	var tid: int = Game.grid[tc + Vector2i(1, 0)]
+	Game.entities[tid]["f"] = "brut"
+	_inject(tc, {"t": "brut"})
+	_run(1.5)
+	var left := Game.entity_at(tc + Vector2i(1, -1))
+	var straight := Game.entity_at(tc + Vector2i(2, 0))
+	var sorted_ok: bool = left.item != null and left.item.t == "brut" and straight.item == null
+	_inject(tc, {"t": "pur"})
+	_run(1.5)
+	straight = Game.entity_at(tc + Vector2i(2, 0))
+	check(sorted_ok and straight.item != null and straight.item.t == "pur", "le trieur envoie le type choisi à gauche, le reste tout droit")
+	# compacteuse
+	var ch := _chain(Vector2i(-20, 60), 1, ["belt:1", "compacteuse", "belt:1"])
+	_route_to_hole(ch.end, 1)
+	for i in 10:
+		_inject(Vector2i(-20, 60), {"t": "acier", "n": 10})
+		_run(1.0)
+	_run(15.0)
+	var bales := 0
+	for bid in Game.entities:
+		var be: Dictionary = Game.entities[bid]
+		if be.get("item") != null and be.item.t == "balle":
+			bales += 1
+		for k in ["outq"]:
+			for it in be.get(k, []):
+				if it.t == "balle":
+					bales += 1
+	_run(120.0)
+	bales += int(Game.stats.sold.get("balle", 0))
+	check(bales >= 2, "la compacteuse fait des balles qui partent vers le trou (%d)" % bales)
+	check(Game.item_price({"t": "balle"}) > Game.item_price({"t": "acier", "n": 10}) * 5.0, "une balle vaut plus que les 5 lots qui la composent")
+	# contenants, crampons, aspirateur
+	check(Game.container_name(0) == "Mains" and Game.container_name(2) == "Seau" and Game.container_name(20) == "Benne", "contenants : mains, seau… benne")
+	Game.shop["crampons"] = 3
+	check(Game.climb_angle() > 65.0, "les crampons permettent de grimper sur le tas")
+	Game.shop.erase("crampons")
 
 
 func _test_power() -> void:
@@ -378,6 +468,7 @@ func _test_relief() -> void:
 
 func _test_golden_recycle() -> void:
 	Game.new_game()
+	Game.xp = Game.xp_for(Data.MAX_LEVEL) # pas de prime de niveau qui fausserait les comptes
 	Game.pile_gold = 3
 	Game.pile_found = 2
 	var m0 := Game.money
@@ -732,11 +823,14 @@ func _test_progression() -> void:
 	check(not Game.buy_tree("p_scanner"), "pas d'achat sans argent")
 	Game.money = 1e9
 	check(not Game.buy_tree("p_fonderie"), "pas d'achat d'un plan verrouillé")
-	check(Game.buy_tree("p_scanner") and Game.buy_tree("p_fonderie"), "achat des plans dans l'ordre")
+	check(Game.buy_tree("p_scanner") and Game.tree_state("p_fonderie") == 0 and not Game.buy_tree("p_fonderie"), "la fonderie demande le niveau de fermier %d" % Game.tree_level("p_fonderie"))
+	Game.xp = Game.xp_for(Game.tree_level("p_fonderie"))
+	check(Game.level() == Game.tree_level("p_fonderie") and Game.buy_tree("p_fonderie"), "achat des plans dans l'ordre, une fois le niveau atteint")
 	check(not Game.buy_up("u_purif_vitesse"), "pas d'amélioration sans son plan")
 	check(Game.tree_state("c_moyen") == 0, "contrat verrouillé tant qu'aucun tas n'est terminé")
 	Game.stats.piles = 1
-	check(Game.tree_state("c_moyen") == 1, "contrat débloqué après un tas terminé")
+	Game.xp = Game.xp_for(Game.tree_level("c_moyen"))
+	check(Game.tree_state("c_moyen") == 1, "contrat débloqué après un tas terminé (et au bon niveau)")
 	for id in Data.TREE:
 		Game.tree[id] = true
 	var all_ok := true
@@ -749,6 +843,10 @@ func _test_progression() -> void:
 			all_ok = false
 	check(all_ok, "chaque amélioration de plan s'achète jusqu'à son maximum, pas au-delà")
 	check(Game.belt_speed() > 4.0 and Game.machine_speed("scanner") > 3.0, "les améliorations accélèrent tapis et machines")
+	Game.xp = 0.0
+	check(Game.shop_level_req("main") == 1 and Game.buy_shop("main") and not Game.buy_shop("main") or Game.level() >= Game.shop_level_req("main"), "la boutique demande un niveau de fermier croissant")
+	Game.shop.erase("main")
+	Game.xp = Game.xp_for(Data.MAX_LEVEL)
 	var shop_ok := true
 	for id in Data.SHOP:
 		for i in int(Data.SHOP[id].max):
@@ -784,7 +882,7 @@ func _test_contracts_quests() -> void:
 	check(Game.money >= 55.0, "les objectifs rapportent leur prime")
 	var all_known := true
 	for q in Data.QUESTS:
-		if Game.quest_progress(q[0]) == Vector2(0, 1) and not q[0] in ["plan_scan", "scanner", "pile1", "fonderie", "energie", "ingot", "bras", "radar", "moyen", "contrat", "purif", "gros", "presse", "boite", "montagne"]:
+		if Game.quest_progress(q[0]) == Vector2(0, 1) and not q[0] in ["plan_scan", "scanner", "pile1", "fonderie", "energie", "ingot", "bras", "radar", "moyen", "contrat", "balle", "purif", "atelier", "gros", "presse", "boite", "montagne"]:
 			all_known = false
 	check(all_known, "tous les objectifs ont une progression calculée")
 	Game.stats.belts = 1
@@ -951,6 +1049,9 @@ func _ui() -> void:
 	Game.build("groupe", Vector2i(-12, 40), 0)
 	Game.build("eolienne", Vector2i(-8, 40), 0)
 	Game.build("solaire", Vector2i(-5, 40), 0)
+	Game.build("compacteuse", Vector2i(-2, 40), 0)
+	Game.build("trieur", Vector2i(1, 40), 0)
+	Game.build("atelier", Vector2i(4, 40), 0)
 	await _frames(3)
 	var types_seen := {}
 	for id in Game.entities.keys():
@@ -1230,6 +1331,19 @@ func _pile_shots() -> void:
 	main.player.head.position.y = 5.0
 	_face(P + Vector3(-15, 0, 9), P + Vector3(-4, 1, -1), -16)
 	await _shot("p3b_radar_energie", 40)
+	var fb := Vector2i(int(P.x) - 4, int(P.z) + 12)
+	Game.build("compacteuse", fb, 0)
+	Game.build("trieur", fb + Vector2i(3, 0), 0)
+	Game.build("atelier", fb + Vector2i(6, 0), 0)
+	Game.build("fonderie", fb + Vector2i(-3, 0), 0)
+	var fid2: int = Game.grid[fb + Vector2i(-3, 0)]
+	Game.entities[fid2]["wear"] = 1.0
+	Game.entities[fid2]["broken"] = true
+	Game.xp = Game.xp_for(17) + 300.0
+	await _frames(5)
+	main.player.head.position.y = 2.5
+	_face(Vector3(fb.x + 1.5, 0, fb.y + 7.5), Vector3(fb.x + 1.5, 0.8, fb.y), -10)
+	await _shot("p3c_ferme", 30)
 	main.player.head.position.y = 1.62
 	Game.pile_done = true
 	Game.stats.piles = 10

@@ -494,6 +494,12 @@ func item_mesh(t: String) -> Mesh:
 			var lid := BoxMesh.new()
 			lid.size = Vector3(0.36, 0.04, 0.3)
 			m = Mk.merge([[bx, Transform3D(Basis(), Vector3(0, 0.09, 0))], [lid, Transform3D(Basis(), Vector3(0, 0.19, 0))]])
+		"balle":
+			var bb := BoxMesh.new()
+			bb.size = Vector3(0.42, 0.28, 0.32)
+			var strap := BoxMesh.new()
+			strap.size = Vector3(0.44, 0.3, 0.03)
+			m = Mk.merge([[bb, Transform3D(Basis(), Vector3(0, 0.14, 0))], [strap, Transform3D(Basis(), Vector3(0, 0.14, -0.09))], [strap, Transform3D(Basis(), Vector3(0, 0.14, 0.09))]])
 		_:
 			var d := BoxMesh.new()
 			d.size = Vector3(0.3, 0.2, 0.3)
@@ -586,7 +592,7 @@ func _draw_items() -> void:
 	for id in Game.entities:
 		var e: Dictionary = Game.entities[id]
 		var it = e.get("item")
-		if it == null or not (e.type == "convoyeur" or e.type == "separateur"):
+		if it == null or not Game.belt_like(e.type):
 			continue
 		var t: String = it.t
 		if not _items.has(t):
@@ -634,11 +640,25 @@ func _animate_machines(delta: float) -> void:
 				info["cash"] = ("+" + Fmt.eur(_last_cash)) if _cash_timer > 0.0 else ""
 			"eolienne":
 				info["wind"] = Game.wind()
+			"trieur":
+				info["filter"] = Data.ITEMS.get(str(e.get("f", "")), {}).get("color", Color.WHITE)
+			"atelier":
+				info["repairing"] = Game.atelier_busy()
 			"radar":
 				if Game.power_factor < 0.2:
 					state = 2
 		if e.has("outq") and e.outq.size() >= 4:
 			state = 2
+		if bool(e.get("broken", false)):
+			state = 3
+		var parts: Dictionary = node.get_meta("parts")
+		if parts.has("label"):
+			var broken := state == 3
+			var lb: Label3D = parts.label
+			if lb.get_meta("broken", false) != broken:
+				lb.set_meta("broken", broken)
+				lb.text = ("EN PANNE — " if broken else "") + Data.MACHINES[e.type].name
+				lb.modulate = Color(1, 0.35, 0.3) if broken else Color.WHITE
 		Buildings.animate(node, e.type, _t, state, info)
 	for id in drones:
 		if not Game.entities.has(id):

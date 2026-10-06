@@ -36,6 +36,9 @@ class ShopPanel extends PanelBase:
 			if maxed:
 				b.text = "Maximum"
 				b.disabled = true
+			elif Game.level() < Game.shop_level_req(id):
+				b.text = "Niveau %d requis" % Game.shop_level_req(id)
+				b.disabled = true
 			else:
 				var c := Game.shop_cost(id)
 				b.text = Fmt.eur(c)
@@ -44,7 +47,9 @@ class ShopPanel extends PanelBase:
 	func _effect(id: String, l: int) -> String:
 		match id:
 			"main":
-				return "%s aiguilles" % Fmt.needles(15 + 10 * l)
+				return "%s : %s aiguilles" % [Game.container_name(l), Fmt.needles(15 + 10 * l)]
+			"crampons":
+				return "pentes jusqu'à %d°" % int(45 + 8 * l)
 			"poignee":
 				return "%s : %s aiguilles par geste" % [Game.tool_name(l), Fmt.needles(3 + 2 * l)]
 			"detecteur":
@@ -76,7 +81,7 @@ class TreePanel extends PanelBase:
 		return ScrollContainer.SCROLL_MODE_AUTO
 
 	func sig() -> String:
-		var s := ""
+		var s := str(Game.level())
 		for id in Data.TREE:
 			s += str(Game.tree_state(id))
 		return s
@@ -117,6 +122,8 @@ class TreePanel extends PanelBase:
 			cond = "Après : " + ", ".join(req)
 		if int(n.get("piles", 0)) > 0:
 			cond += ("\n" if cond != "" else "") + "Tas terminés : %d" % n.piles
+		if Game.tree_level(id) > 1:
+			cond += ("\n" if cond != "" else "") + "Niveau de fermier : %d" % Game.tree_level(id)
 		if cond != "":
 			v.add_child(UI.label(cond, 14, UI.MUTED, true))
 		var b := UI.button("", _buy.bind(id))
@@ -166,7 +173,7 @@ class TreePanel extends PanelBase:
 					b.theme_type_variation = "GoldButton"
 					b.disabled = Game.money < c
 				_:
-					b.text = "Verrouillé"
+					b.text = "Niveau %d requis" % Game.tree_level(id) if Game.level() < Game.tree_level(id) else "Verrouillé"
 					b.theme_type_variation = ""
 					b.disabled = true
 		for up in _ups:
@@ -430,6 +437,14 @@ class StockPanel extends PanelBase:
 class EntityPanel extends PanelBase:
 	var id := -1
 	var _info: Label
+	var _repair: Button
+	var _filters := {}
+
+	func _set_filter(t: String) -> void:
+		if Game.entities.has(id):
+			Game.entities[id]["f"] = t
+			Sfx.play("click")
+			refresh()
 
 	func title() -> String:
 		return Data.MACHINES[Game.entities[id].type].name if Game.entities.has(id) else ""
@@ -445,6 +460,20 @@ class EntityPanel extends PanelBase:
 		content.add_child(UI.label(m.desc, 20, UI.MUTED, true))
 		_info = UI.label("", 21, Color(0.9, 0.92, 0.95), true)
 		content.add_child(_info)
+		if e.type == "trieur":
+			content.add_child(UI.label("Objet envoyé à gauche :", 19, UI.GOLD))
+			var fl := HFlowContainer.new()
+			content.add_child(fl)
+			for t in Data.ITEM_ORDER:
+				var fb := UI.button(Data.ITEMS[t].name, _set_filter.bind(t))
+				fb.add_theme_font_size_override("font_size", 16)
+				fl.add_child(fb)
+				_filters[t] = fb
+		if Game.wears(e.type):
+			_repair = UI.button("", func() -> void:
+				if not Game.repair(id):
+					Sfx.play("prick"), "GoldButton")
+			content.add_child(_repair)
 		if not m.get("fixed", false):
 			var h := HBoxContainer.new()
 			content.add_child(h)
@@ -494,7 +523,22 @@ class EntityPanel extends PanelBase:
 			s.append("En attente à l'entrée : %d · prêts en sortie : %d" % [e.inq.size(), e.outq.size()])
 			if e.outq.size() >= 4:
 				s.append("Sortie bloquée : pose un convoyeur devant la flèche bleue !")
-		s.append("État : " + ("en marche" if Game.is_active(id) else "en attente"))
+		if e.type == "trieur":
+			s.append("Trie : %s (à gauche) · le reste continue tout droit" % Data.ITEMS.get(str(e.get("f", "")), {"name": "?"}).name)
+			for t in _filters:
+				(_filters[t] as Button).theme_type_variation = "GoldButton" if str(e.get("f", "")) == t else ""
+		if e.type == "atelier":
+			s.append("Rayon de réparation : %s m%s" % [Fmt.num(Game.atelier_range(), 1), " · répare en ce moment" if Game.atelier_busy() else ""])
+		if Game.wears(e.type):
+			var w := float(e.get("wear", 0.0))
+			s.append("Usure : %d %% (durée de vie : %s de travail)" % [int(w * 100), Fmt.duration(Game.machine_life(e.type))])
+			if _repair:
+				_repair.visible = w > 0.05
+				_repair.text = ("RÉPARER LA PANNE" if Game.is_broken(id) else "Entretenir") + " — " + Fmt.eur(Game.repair_cost(e.type))
+		if Game.is_broken(id):
+			s.append("EN PANNE : la machine est arrêtée !")
+		else:
+			s.append("État : " + ("en marche" if Game.is_active(id) else "en attente"))
 		_info.text = "\n".join(s)
 
 
@@ -684,13 +728,14 @@ class SettingsPanel extends PanelBase:
 			"• Le foin non détecté qui tombe dans le trou retourne dans le tas : place des SCANNERS sur tes tapis.",
 			"• Bras robots et pelleteuses ne creusent que dans leur rayon d'action : quand leur voyant passe au rouge, déplace-les plus près du tas.",
 			"• Chaque brin de foin est enfoui à un endroit précis : suis les bips du DÉTECTEUR et creuse là où le cercle doré se resserre. Le RADAR à foin les révèle de loin.",
+			"• Tout rapporte de l'EXPÉRIENCE : les plans et la boutique demandent un niveau de fermier. Les machines S'USENT et tombent en panne : ACTION pour réparer, ou un atelier de maintenance.",
 			"• Les machines consomment de l'électricité : au-delà des 10 kW du réseau, construis groupes électrogènes, éoliennes (vent, pluie) et panneaux solaires (jour).",
 			"• Chaîne de valeur : vrac → scanner → fonderie → purificateur → presse / tréfileuse → aiguilleuse.",
 			"• Chaque machine prend par l'arrière (flèche verte) et sort par l'avant (flèche bleue). Les séparateurs répartissent.",
 			"• Arbre : achète les plans (droits de construction), puis leurs améliorations par niveaux.",
 			"• Bureau : contrats de livraison à prime et commande des tas. L'usine produit aussi hors ligne (8 h max).",
 		]), 19, Color(0.86, 0.88, 0.92), true))
-		content.add_child(UI.label("Trouve le Foin v1.7 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
+		content.add_child(UI.label("Trouve le Foin v1.8 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
 
 	func _toggle_sound() -> void:
 		Game.settings.sound = not Game.settings.sound
@@ -799,7 +844,7 @@ class MapPanel extends PanelBase:
 		content.add_child(view)
 		var legend := HFlowContainer.new()
 		content.add_child(legend)
-		for t in ["tremie", "scanner", "bras", "pelle", "fonderie", "purif", "presse", "trefileuse", "aiguilleuse", "tampon", "separateur", "drone", "radar", "groupe", "eolienne", "solaire"]:
+		for t in ["tremie", "scanner", "bras", "pelle", "fonderie", "purif", "presse", "trefileuse", "aiguilleuse", "tampon", "separateur", "drone", "radar", "groupe", "eolienne", "solaire", "compacteuse", "trieur", "atelier"]:
 			if not Game.entities.values().any(func(e: Dictionary) -> bool: return e.type == t):
 				continue
 			var l := UI.label("■ " + Data.MACHINES[t].name, 17, MapView.color_of(t))
@@ -821,6 +866,7 @@ class MapView extends Control:
 		"presse": Color(0.25, 0.45, 0.95), "trefileuse": Color(0.65, 0.45, 0.95), "aiguilleuse": Color(0.95, 0.45, 0.7),
 		"tampon": Color(0.6, 0.62, 0.66), "separateur": Color(0.5, 0.65, 0.8), "drone": Color(0.95, 0.95, 0.95),
 		"bureau": Color(0.3, 0.8, 0.45), "trou": Color(0.08, 0.08, 0.1),
+		"compacteuse": Color(0.2, 0.42, 0.62), "trieur": Color(0.16, 0.6, 0.6), "atelier": Color(0.8, 0.3, 0.2),
 		"radar": Color(1.0, 0.85, 0.35), "groupe": Color(0.85, 0.62, 0.12), "eolienne": Color(0.95, 0.96, 0.98), "solaire": Color(0.15, 0.25, 0.6),
 	}
 

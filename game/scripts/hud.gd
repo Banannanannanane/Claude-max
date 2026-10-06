@@ -25,6 +25,8 @@ var _big: Label
 var _panel: Control
 var _fps: Label
 var _power: Label
+var _level: Label
+var _xp_bar: ProgressBar
 var _det_bar: ProgressBar
 var _det_label: Label
 var _det_signal := 0.0
@@ -129,6 +131,13 @@ func _build_info() -> void:
 	p.add_child(v)
 	_money = UI.label("", 30, UI.GOLD)
 	v.add_child(_money)
+	_level = UI.label("", 17, UI.BLUE)
+	v.add_child(_level)
+	_xp_bar = UI.bar()
+	_xp_bar.max_value = 1.0
+	_xp_bar.step = 0.001
+	_xp_bar.custom_minimum_size = Vector2(0, 8)
+	v.add_child(_xp_bar)
 	_hay = UI.label("", 21)
 	v.add_child(_hay)
 	_hay_bar = UI.bar("HayBar")
@@ -341,6 +350,9 @@ func consume_jump() -> bool:
 # ============================================================ affichage
 func _refresh() -> void:
 	_money.text = Fmt.eur(Game.money)
+	var lv := Game.level()
+	_level.text = "Niveau %d%s" % [lv, "" if lv >= Data.MAX_LEVEL else " — %s / %s XP" % [Fmt.num(Game.xp), Fmt.num(Game.xp_for(lv + 1))]]
+	_xp_bar.value = Game.level_progress()
 	_hay.text = "Foin trouvé : %d / %d" % [Game.pile_found, Data.HAY_PER_PILE]
 	_hay_bar.value = Game.pile_found
 	_pile.text = "%s · %s aiguilles" % [Data.PILES[Game.pile_size].name, Fmt.needles(Game.pile_n)]
@@ -441,6 +453,9 @@ func _update_prompt() -> void:
 			txt = "Le tas est vide"
 		else:
 			txt = "Ramasser des aiguilles (garde le bouton appuyé)"
+	elif kind == "entity" and Game.entities.has(t.id) and Game.is_broken(t.id):
+		act = "Réparer"
+		txt = "%s EN PANNE — réparer : %s" % [Data.MACHINES[Game.entities[t.id].type].name, Fmt.eur(Game.repair_cost(Game.entities[t.id].type))]
 	elif kind == "entity" and Game.entities.has(t.id):
 		var e: Dictionary = Game.entities[t.id]
 		match e.type:

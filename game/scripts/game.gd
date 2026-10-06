@@ -9,6 +9,7 @@ signal entities_changed
 signal pile_changed
 signal sold(cell: Vector2i, item_type: String)
 signal golden_found
+signal level_up(level: int)
 signal recycled
 
 const STEP := 1.0 / 30.0
@@ -33,6 +34,7 @@ var hay_spots: Array = [] # position (monde) de chaque brin encore caché ; auta
 var _take_carry := 0.0
 var _relax_acc := 0.0
 var prestige := 0 # jetons de recyclage (bonus permanent)
+var xp := 0.0 # expérience de fermier (gardée au recyclage)
 var run_earned := 0.0 # argent gagné depuis le dernier recyclage
 
 # --- progression
@@ -107,7 +109,7 @@ func save_device() -> void:
 # ============================================================ nouvelle partie
 func _blank_stats() -> Dictionary:
 	return {"needles": 0, "hay": 0, "piles": 0, "earned": 0.0, "ingots": 0, "time": 0.0, "belts": 0,
-		"contracts": 0, "sold": {}, "lost_hay": 0, "poured": 0, "ordered": {}, "golden": 0, "recycles": 0}
+		"contracts": 0, "sold": {}, "lost_hay": 0, "poured": 0, "ordered": {}, "golden": 0, "recycles": 0, "repairs": 0, "breakdowns": 0}
 
 
 const START_TREMIE := Vector2i(0, -28) # trémie de départ, au pied du petit tas
@@ -126,6 +128,7 @@ func new_game(keep_meta := false) -> void:
 		achievements = {}
 		stats = _blank_stats()
 		prestige = 0
+		xp = 0.0
 	contract = {}
 	offers = []
 	rates = {"income": 0.0, "dig": 0.0, "hay": 0.0}
@@ -183,6 +186,26 @@ func grab_amount() -> int:
 ## Rayon de la poignée : l'outil creuse plus large à mesure qu'il grandit.
 func grab_radius() -> float:
 	return 0.4 + 0.06 * shop_lvl("poignee")
+
+
+## Contenant selon le niveau de la boutique : on porte de plus en plus d'aiguilles.
+func container_name(lvl := -1) -> String:
+	if lvl < 0:
+		lvl = shop_lvl("main")
+	if lvl <= 0:
+		return "Mains"
+	if lvl <= 3:
+		return "Seau"
+	if lvl <= 7:
+		return "Brouette"
+	if lvl <= 13:
+		return "Chariot"
+	return "Benne"
+
+
+## Pente maximale sur laquelle on marche (crampons : on grimpe sur le tas).
+func climb_angle() -> float:
+	return 45.0 + 8.0 * shop_lvl("crampons")
 
 
 ## Outil de fouille selon le niveau de la boutique (comme la pelle, la fourche… de Find the Needle).
@@ -277,7 +300,7 @@ func _update_power() -> void:
 	for id in entities:
 		var m: Dictionary = Data.MACHINES[entities[id].type]
 		if m.has("gen"):
-			var out := generator_output(entities[id].type)
+			var out := 0.0 if bool(entities[id].get("broken", false)) else generator_output(entities[id].type)
 			sup += out
 			if out > 0.0:
 				_activity[id] = _clock
@@ -311,7 +334,7 @@ func revealed_hay() -> Array:
 		return out
 	var radars: Array = []
 	for id in entities:
-		if entities[id].type == "radar":
+		if entities[id].type == "radar" and not bool(entities[id].get("broken", false)):
 			radars.append(machine_center("radar", entities[id].c, entities[id].r))
 	if radars.is_empty():
 		return out
@@ -375,10 +398,15 @@ func pile_items() -> int:
 
 func build_cost(type: String) -> float:
 	var base: float = Data.MACHINES[type].cost
-	if type == "convoyeur" or type == "separateur":
+	if belt_like(type):
 		return base
 	var n := count_type(type)
 	return round(base * pow(1.35, n))
+
+
+## Tapis et assimilés : une case, un objet à la fois (convoyeur, séparateur, trieur).
+static func belt_like(t: String) -> bool:
+	return t == "convoyeur" or t == "separateur" or t == "trieur"
 
 
 func count_type(t: String) -> int:
@@ -505,9 +533,11 @@ func _add(type: String, c: Vector2i, r: int) -> int:
 
 func _init_state(e: Dictionary) -> void:
 	match e.type:
-		"convoyeur", "separateur":
+		"convoyeur", "separateur", "trieur":
 			e["item"] = null
 			e["k"] = 0
+			if e.type == "trieur":
+				e["f"] = "acier"
 		"tremie":
 			e["n"] = 0
 			e["h"] = 0
@@ -680,6 +710,7 @@ func _found(count: int, by_hand: bool) -> void:
 	var before := pile_found
 	pile_found += count
 	stats.hay += count
+	add_xp((60.0 if by_hand else 40.0) * count)
 	if pile_gold > before and pile_gold <= pile_found:
 		# le brin doré : rare, il vaut dix brins
 		var gold := hay_unit_value() * 10.0
@@ -702,6 +733,7 @@ func _found(count: int, by_hand: bool) -> void:
 	if pile_found >= Data.HAY_PER_PILE and not pile_done:
 		pile_done = true
 		stats.piles += 1
+		add_xp(250.0 * float(Data.PILE_ORDER.find(pile_size) + 1))
 		var bonus := Data.HAY_PER_PILE * hay_unit_value() * 0.5
 		gain(bonus)
 		_sfx("win")
@@ -715,6 +747,149 @@ func gain(x: float) -> void:
 	money += x
 	stats.earned += x
 	run_earned += x
+
+
+# ============================================================ niveaux de fermier
+## Expérience totale pour atteindre un niveau (le niveau 1 est gratuit).
+static func xp_for(lvl: int) -> float:
+	return round(50.0 * pow(float(maxi(0, lvl - 1)), 1.8))
+
+
+func level() -> int:
+	var l := 1
+	while l < Data.MAX_LEVEL and xp >= xp_for(l + 1):
+		l += 1
+	return l
+
+
+## Progression vers le niveau suivant (0 à 1).
+func level_progress() -> float:
+	var l := level()
+	if l >= Data.MAX_LEVEL:
+		return 1.0
+	var a := xp_for(l)
+	return clampf((xp - a) / maxf(1.0, xp_for(l + 1) - a), 0.0, 1.0)
+
+
+func add_xp(x: float) -> void:
+	if x <= 0.0:
+		return
+	var before := level()
+	xp += x
+	var after := level()
+	if after > before and not offline:
+		var bonus := 25.0 * after * after
+		money += bonus
+		_toast("NIVEAU %d ! Prime de %s%s" % [after, Fmt.eur(bonus), _unlocked_at(after)], true)
+		_sfx("win")
+		level_up.emit(after)
+	if after >= 10:
+		_unlock("level_10")
+	if after >= 30:
+		_unlock("level_30")
+
+
+func _unlocked_at(lvl: int) -> String:
+	var names := []
+	for id in Data.TREE:
+		if tree_level(id) == lvl:
+			names.append(Data.TREE[id].name.replace("Plan : ", "").replace("Contrat : ", "contrat "))
+	return "" if names.is_empty() else " — nouveau dans l'arbre : " + ", ".join(names)
+
+
+## Niveau de fermier requis pour un nœud de l'arbre.
+func tree_level(id: String) -> int:
+	var n: Dictionary = Data.TREE[id]
+	return int(n.get("lvl", Data.STAGE_LEVEL[int(n.stage)]))
+
+
+## Niveau de fermier requis pour acheter le niveau suivant d'un objet de la boutique.
+func shop_level_req(id: String) -> int:
+	return 1 + int(floor(float(shop_lvl(id) + 1) * 1.2)) if shop_lvl(id) >= 1 else 1
+
+
+# ============================================================ usure et réparations
+func wears(type: String) -> bool:
+	return Data.LIFE.has(type)
+
+
+func machine_life(type: String) -> float:
+	return float(Data.LIFE.get(type, 1e9)) * (1.0 + 0.3 * up_lvl("u_fiabilite"))
+
+
+func is_broken(id: int) -> bool:
+	return entities.has(id) and bool(entities[id].get("broken", false))
+
+
+func repair_cost(type: String) -> float:
+	return round(float(Data.MACHINES[type].cost) * 0.08) + 5.0
+
+
+## Réparation à la main (ACTION sur la machine) : remet l'usure à zéro.
+func repair(id: int) -> bool:
+	if not entities.has(id) or not wears(entities[id].type):
+		return false
+	var e: Dictionary = entities[id]
+	var c := repair_cost(e.type)
+	if money < c:
+		return false
+	money -= c
+	var was_broken := bool(e.get("broken", false))
+	e["wear"] = 0.0
+	e["broken"] = false
+	if was_broken:
+		stats.repairs += 1
+		if int(stats.repairs) >= 10:
+			_unlock("repair_10")
+	add_xp(10.0)
+	_sfx("buy")
+	changed.emit()
+	return true
+
+
+func atelier_range() -> float:
+	return 10.0 + 3.0 * up_lvl("u_atelier_portee")
+
+
+## Chaque seconde : les machines qui travaillent s'usent ; les ateliers réparent autour d'eux.
+func _wear_tick(dt: float) -> void:
+	var ateliers: Array = []
+	for id in entities:
+		var e: Dictionary = entities[id]
+		if e.type == "atelier" and not bool(e.get("broken", false)) and power_factor > 0.3:
+			ateliers.append(machine_center("atelier", e.c, e.r))
+	for id in entities:
+		var e: Dictionary = entities[id]
+		if not wears(e.type):
+			continue
+		if not e.has("wear"):
+			e["wear"] = 0.0
+			e["broken"] = false
+		if not bool(e.broken) and is_active(id):
+			e.wear = float(e.wear) + dt / machine_life(e.type)
+			if float(e.wear) >= 1.0:
+				e.wear = 1.0
+				e.broken = true
+				stats.breakdowns += 1
+				_toast("PANNE : %s ! Va la réparer (ACTION) ou construis un atelier de maintenance." % Data.MACHINES[e.type].name)
+				_sfx("prick")
+		# atelier à portée : il répare (une panne complète en une minute environ)
+		if float(e.wear) > 0.0 and not ateliers.is_empty():
+			var c := machine_center(e.type, e.c, e.r)
+			for a: Vector3 in ateliers:
+				if Vector2(a.x - c.x, a.z - c.z).length() <= atelier_range():
+					e.wear = maxf(0.0, float(e.wear) - dt / 60.0 * power_factor)
+					if e.wear < 0.2:
+						e.broken = false
+					_activity_atelier = _clock
+					break
+
+
+var _activity_atelier := -10.0
+
+
+func atelier_busy() -> bool:
+	return _clock - _activity_atelier < 1.5
 
 
 # ============================================================ recyclage (prestige)
@@ -767,6 +942,7 @@ func grab(at := Vector3.INF) -> int:
 		else:
 			hand_h += 1
 	_found(seen, true)
+	add_xp(1.0)
 	pile_changed.emit()
 	changed.emit()
 	return got.x + got.y
@@ -804,7 +980,7 @@ func drop_on_belt(id: int) -> int:
 func buy_shop(id: String) -> bool:
 	var u: Dictionary = Data.SHOP[id]
 	var c := shop_cost(id)
-	if shop_lvl(id) >= int(u.max) or money < c:
+	if shop_lvl(id) >= int(u.max) or money < c or level() < shop_level_req(id):
 		return false
 	money -= c
 	shop[id] = shop_lvl(id) + 1
@@ -822,6 +998,8 @@ func tree_state(id: String) -> int:
 		if not tree.has(r):
 			return 0
 	if int(stats.piles) < int(n.get("piles", 0)):
+		return 0
+	if level() < tree_level(id):
 		return 0
 	return 1
 
@@ -912,7 +1090,7 @@ func _set_pile(size: String) -> void:
 			continue
 		for cell in footprint(e.type, e.c, e.r):
 			if _pile_blocks(cell):
-				money += build_cost(e.type) / (1.35 if e.type != "convoyeur" and e.type != "separateur" else 1.0)
+				money += build_cost(e.type) / (1.35 if not belt_like(e.type) else 1.0)
 				_remove(id)
 				removed += 1
 				break
@@ -927,6 +1105,8 @@ func available_items() -> Array:
 	var out := ["vrac"]
 	if tree.has("p_scanner"):
 		out.append("acier")
+	if tree.has("p_compacteuse"):
+		out.append("balle")
 	if tree.has("p_fonderie"):
 		out.append("brut")
 	if tree.has("p_purif"):
@@ -993,6 +1173,10 @@ func quest_progress(id: String) -> Vector2:
 			return Vector2(mini(count_type("groupe") + count_type("eolienne") + count_type("solaire"), 1), 1)
 		"radar":
 			return Vector2(mini(count_type("radar"), 1), 1)
+		"balle":
+			return Vector2(mini(int(stats.sold.get("balle", 0)), 1), 1)
+		"atelier":
+			return Vector2(mini(count_type("atelier"), 1), 1)
 		"ingot":
 			return Vector2(mini(int(stats.sold.get("brut", 0)), 1), 1)
 		"bras":
@@ -1021,6 +1205,7 @@ func _check_quest() -> void:
 		if p.x < p.y:
 			return
 		gain(float(q[2]))
+		add_xp(30.0)
 		quest += 1
 		_toast("Objectif atteint : %s (+%s)" % [q[1], Fmt.eur(q[2])], true)
 		_sfx("win")
@@ -1069,7 +1254,7 @@ func _insert(cell: Vector2i, item: Dictionary, dir: int) -> bool:
 				item.p = 0.0
 				e.item = item
 				return true
-		"separateur":
+		"separateur", "trieur":
 			if e.item == null and e.r == dir:
 				item.p = 0.0
 				e.item = item
@@ -1104,6 +1289,7 @@ func _sell(item: Dictionary, cell: Vector2i) -> void:
 	var t: String = item.t
 	var value := item_price(item)
 	gain(value)
+	add_xp(value * 0.05)
 	stats.sold[t] = int(stats.sold.get(t, 0)) + 1
 	if t == "vrac" and int(item.get("h", 0)) > 0:
 		# du foin non détecté tombe dans le trou : il est recraché dans le tas
@@ -1118,6 +1304,7 @@ func _sell(item: Dictionary, cell: Vector2i) -> void:
 		contract.done += 1
 		if contract.done >= contract.qty:
 			gain(contract.reward)
+			add_xp(float(contract.reward) * 0.15)
 			stats.contracts += 1
 			_toast("Contrat rempli ! Prime : %s" % Fmt.eur(contract.reward), true)
 			_sfx("win")
@@ -1132,7 +1319,7 @@ func _rebuild_order() -> void:
 	var dist := {}
 	for id in entities:
 		var e: Dictionary = entities[id]
-		if e.type != "convoyeur" and e.type != "separateur":
+		if not belt_like(e.type):
 			continue
 		if dist.has(id):
 			continue
@@ -1151,7 +1338,7 @@ func _rebuild_order() -> void:
 			on_path[cur] = true
 			var ce: Dictionary = entities[cur]
 			var nid: int = grid.get(ce.c + Data.DIRS[ce.r], -1)
-			if nid < 0 or (entities[nid].type != "convoyeur" and entities[nid].type != "separateur"):
+			if nid < 0 or not belt_like(entities[nid].type):
 				base = 0
 				break
 			cur = nid
@@ -1180,6 +1367,11 @@ func _step(dt: float) -> void:
 		if e.type == "convoyeur":
 			if _insert(e.c + Data.DIRS[e.r], it, e.r):
 				e.item = null
+		elif e.type == "trieur":
+			# le type choisi part à gauche, le reste tout droit ; on attend si la sortie est occupée
+			var d2: int = (e.r + 3) % 4 if str(it.t) == str(e.get("f", "")) else e.r
+			if _insert(e.c + Data.DIRS[d2], it, d2):
+				e.item = null
 		else:
 			for k in 3:
 				var d: int = [(e.r + 3) % 4, e.r, (e.r + 1) % 4][(e.k + k) % 3]
@@ -1191,8 +1383,10 @@ func _step(dt: float) -> void:
 		if not entities.has(id):
 			continue
 		var e: Dictionary = entities[id]
+		if bool(e.get("broken", false)):
+			continue
 		match e.type:
-			"convoyeur", "separateur", "trou", "bureau", "groupe", "eolienne", "solaire":
+			"convoyeur", "separateur", "trieur", "trou", "bureau", "groupe", "eolienne", "solaire", "atelier":
 				pass
 			"radar":
 				if power_factor > 0.2:
@@ -1498,6 +1692,7 @@ func _process(delta: float) -> void:
 	if _sec_acc >= 1.0:
 		_sec_acc = 0.0
 		_update_power()
+		_wear_tick(1.0)
 		_check_achievements()
 		_check_quest()
 		if not contract.is_empty() and stats.time > float(contract.until):
@@ -1602,7 +1797,7 @@ func to_dict() -> Dictionary:
 		"v": 3, "money": money, "field": field.to_save(), "hand_n": hand_n, "hand_h": hand_h,
 		"pile_size": pile_size, "pile_total": pile_total, "pile_n": pile_n, "pile_h": pile_h,
 		"pile_found": pile_found, "pile_done": pile_done, "pile_gold": pile_gold, "hay_spots": _ser(hay_spots),
-		"prestige": prestige, "run_earned": run_earned,
+		"prestige": prestige, "run_earned": run_earned, "xp": xp,
 		"shop": shop, "tree": tree, "ups": ups, "achievements": achievements, "stats": stats,
 		"settings": settings, "contract": contract, "offers": offers, "rates": rates, "quest": quest,
 		"entities": ents, "next_id": next_id, "saved_at": Time.get_unix_time_from_system(),
@@ -1707,6 +1902,7 @@ func from_dict(d: Dictionary) -> bool:
 	pile_done = bool(d.pile_done)
 	pile_gold = clampi(int(d.get("pile_gold", 0)), 0, Data.HAY_PER_PILE)
 	prestige = maxi(0, int(d.get("prestige", 0)))
+	xp = maxf(0.0, float(d.get("xp", 0.0)))
 	shop = {}
 	for k in d.get("shop", {}):
 		if Data.SHOP.has(k):

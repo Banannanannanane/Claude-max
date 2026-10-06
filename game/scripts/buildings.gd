@@ -54,6 +54,12 @@ static func create(type: String) -> Node3D:
 			_bureau(root, p)
 		"radar":
 			_radar(root, p)
+		"compacteuse":
+			_compacteuse(root, p)
+		"trieur":
+			_trieur(root, p)
+		"atelier":
+			_atelier(root, p)
 		"groupe":
 			_groupe(root, p)
 		"eolienne":
@@ -62,9 +68,9 @@ static func create(type: String) -> Node3D:
 			_solaire(root, p)
 	if m.has("in") or type in ["tremie", "tampon", "bras", "pelle"]:
 		_ports(root, type, sz)
-	if not p.has("status") and type not in ["convoyeur", "separateur", "trou", "bureau"]:
+	if not p.has("status") and type not in ["convoyeur", "separateur", "trieur", "trou", "bureau"]:
 		p["status"] = _status_light(root, Vector3(sz.x * 0.5 - 0.15, float(m.h) + 0.05, sz.y * 0.5 - 0.15))
-	if type != "convoyeur" and type != "separateur" and type != "trou":
+	if type != "convoyeur" and type != "separateur" and type != "trieur" and type != "trou":
 		var lbl := Mk.label(root, m.name, Vector3(0, float(m.h) + 0.6, 0), 40)
 		lbl.visibility_range_end = 12.0
 		p["label"] = lbl
@@ -504,6 +510,65 @@ static func _drone_pad(r: Node3D, p: Dictionary) -> void:
 	p["h"] = 0.3
 
 
+## Compacteuse : caisson, piston vertical, balle qui sort.
+static func _compacteuse(r: Node3D, p: Dictionary) -> void:
+	_plinth(r, 2.0, 2.0, 0.1)
+	var body := Mk.paint(Color(0.2, 0.42, 0.62), 0.3, 0.45)
+	for sx in [-0.85, 0.85]:
+		Mk.box(r, Vector3(0.2, 1.8, 1.7), Vector3(sx, 0.95, 0), body)
+	Mk.box(r, Vector3(1.9, 0.25, 1.7), Vector3(0, 1.75, 0), body)
+	Mk.box(r, Vector3(1.5, 0.12, 1.5), Vector3(0, 0.2, 0), Mk.dark_steel())
+	var ram := Mk.pivot(r, Vector3(0, 1.5, 0))
+	Mk.cyl(ram, 0.12, 0.6, Vector3(0, 0.1, 0), Mk.steel(), -1.0, 12)
+	Mk.box(ram, Vector3(1.3, 0.12, 1.3), Vector3(0, -0.25, 0), Mk.paint(C_YELLOW))
+	var bale := Mk.box(r, Vector3(1.1, 0.5, 1.0), Vector3(0, 0.51, 0), Mk.needle_material())
+	for z in [-0.3, 0.3]:
+		Mk.box(bale, Vector3(1.12, 0.52, 0.04), Vector3(0, 0, z), Mk.mat(Color(0.15, 0.15, 0.17)))
+	_chute(r, -0.9, 0.3, 1.0, true)
+	p["ram"] = ram
+	p["bale"] = bale
+	p["h"] = 1.9
+
+
+## Trieur : comme un séparateur, avec un cube de la couleur du type trié et une flèche à gauche.
+static func _trieur(r: Node3D, p: Dictionary) -> void:
+	Mk.box(r, Vector3(0.98, 0.22, 0.98), Vector3(0, 0.11, 0), Mk.paint(C_TEAL, 0.3, 0.5))
+	Mk.box(r, Vector3(0.8, 0.02, 0.8), Vector3(0, 0.225, 0), Mk.rubber())
+	var ar := _arrow(r, Vector3(0, 0.24, 0) + Vector3(0, 0, -0.28).rotated(Vector3.UP, PI / 2), Color(0.3, 1, 0.5), 0.22)
+	ar.rotation.y = PI / 2
+	var ar2 := _arrow(r, Vector3(0, 0.24, -0.28), Color(1, 1, 1), 0.18)
+	ar2.rotation.y = 0.0
+	Mk.box(r, Vector3(0.06, 0.4, 0.06), Vector3(0.38, 0.42, 0.38), Mk.steel())
+	var flag := Mk.box(r, Vector3(0.2, 0.2, 0.2), Vector3(0.38, 0.72, 0.38), Mk.mat(Color.WHITE))
+	p["flag"] = flag
+	p["h"] = 0.6
+
+
+## Atelier de maintenance : cabane, établi, outils, gyrophare qui tourne quand il répare.
+static func _atelier(r: Node3D, p: Dictionary) -> void:
+	_plinth(r, 2.0, 2.0, 0.1)
+	var wall := Mk.paint(Color(0.75, 0.3, 0.2), 0.1, 0.6)
+	Mk.box(r, Vector3(1.9, 1.7, 0.12), Vector3(0, 0.95, 0.85), wall)
+	for sx in [-0.9, 0.9]:
+		Mk.box(r, Vector3(0.12, 1.7, 1.8), Vector3(sx, 0.95, 0), wall)
+	var roof := Mk.box(r, Vector3(2.1, 0.1, 2.1), Vector3(0, 1.85, 0), Mk.paint(Color(0.3, 0.3, 0.32)))
+	roof.rotation.x = 0.08
+	Mk.box(r, Vector3(1.4, 0.08, 0.6), Vector3(0, 0.85, 0.4), Mk.paint(C_WOOD, 0.0, 0.8))
+	Mk.box(r, Vector3(0.5, 0.35, 0.3), Vector3(-0.35, 1.07, 0.45), Mk.paint(C_RED, 0.3, 0.4))
+	Mk.cyl(r, 0.06, 0.5, Vector3(0.4, 1.15, 0.45), Mk.steel(), -1.0, 8)
+	var beacon := Mk.pivot(r, Vector3(0, 2.05, 0))
+	Mk.cyl(beacon, 0.14, 0.2, Vector3.ZERO, Mk.glow(Color(1, 0.6, 0.1), 2.5), -1.0, 12)
+	var lamp := OmniLight3D.new()
+	lamp.light_color = Color(1, 0.6, 0.15)
+	lamp.omni_range = 4.0
+	lamp.light_energy = 0.0
+	lamp.position = Vector3(0.3, 0.1, 0)
+	beacon.add_child(lamp)
+	p["beacon"] = beacon
+	p["lamp"] = lamp
+	p["h"] = 2.4
+
+
 ## Radar à foin : mât, parabole qui tourne, voyant doré au sommet.
 static func _radar(r: Node3D, p: Dictionary) -> void:
 	Mk.cyl(r, 0.45, 0.12, Vector3(0, 0.06, 0), Mk.dark_steel(), -1.0, 20)
@@ -659,6 +724,8 @@ static func animate(root: Node3D, type: String, t: float, state: int, info: Dict
 	var active := state == 1
 	if p.has("status"):
 		var want := LIGHT_ON if state == 1 else (LIGHT_BAD if state == 2 else LIGHT_IDLE)
+		if state == 3: # en panne : rouge qui clignote
+			want = LIGHT_BAD if fmod(t, 0.6) < 0.3 else LIGHT_IDLE
 		var lamp: MeshInstance3D = p.status
 		if lamp.get_meta("c", Color.BLACK) != want:
 			lamp.set_meta("c", want)
@@ -725,6 +792,19 @@ static func animate(root: Node3D, type: String, t: float, state: int, info: Dict
 		"radar":
 			if active:
 				p.head.rotation.y = t * 1.6 + ph
+		"compacteuse":
+			p.ram.position.y = 1.5 - (pow(absf(sin(t * 1.8 + ph)), 4.0) * 0.6 if active else 0.0)
+			p.bale.visible = active
+		"trieur":
+			var fc: Color = info.get("filter", Color.WHITE)
+			var fm: MeshInstance3D = p.flag
+			if fm.get_meta("c", Color.BLACK) != fc:
+				fm.set_meta("c", fc)
+				fm.material_override = Mk.mat(fc, 0.2, 0.5)
+		"atelier":
+			var working: bool = info.get("repairing", false)
+			p.beacon.rotation.y = t * 6.0 if working else 0.0
+			p.lamp.light_energy = 1.5 if working else 0.0
 		"groupe":
 			p.smoke.emitting = active
 			p.engine.position.y = sin(t * 60.0) * 0.006 if active else 0.0

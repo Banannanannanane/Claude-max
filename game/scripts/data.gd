@@ -14,22 +14,23 @@ const PILE_ORDER := ["petit", "moyen", "gros", "montagne"]
 ## needles : en unités (× NEEDLE_UNIT aiguilles). radius : rayon au sol du tas neuf (m), hauteur ≈ 1,3 × rayon.
 const PILES := {
 	"petit": {"name": "Petit tas", "needles": 10000, "radius": 4.5, "hay_value": 30.0, "order": 0.0, "right": ""},
-	"moyen": {"name": "Tas moyen", "needles": 25000, "radius": 6.5, "hay_value": 90.0, "order": 1000.0, "right": "c_moyen"},
-	"gros": {"name": "Grand tas", "needles": 100000, "radius": 11.0, "hay_value": 320.0, "order": 20000.0, "right": "c_gros"},
-	"montagne": {"name": "Montagne d'aiguilles", "needles": 300000, "radius": 24.0, "hay_value": 1500.0, "order": 150000.0, "right": "c_montagne"},
+	"moyen": {"name": "Tas moyen", "needles": 25000, "radius": 6.5, "hay_value": 90.0, "order": 2500.0, "right": "c_moyen"},
+	"gros": {"name": "Grand tas", "needles": 100000, "radius": 11.0, "hay_value": 320.0, "order": 40000.0, "right": "c_gros"},
+	"montagne": {"name": "Montagne d'aiguilles", "needles": 300000, "radius": 24.0, "hay_value": 1500.0, "order": 400000.0, "right": "c_montagne"},
 }
 
 ## Objets qui circulent sur les tapis (prix = vente dans le trou, pour un lot / une pièce).
 const ITEMS := {
 	"vrac": {"name": "Aiguilles en vrac", "price": 2.0, "color": Color(0.55, 0.56, 0.58), "scale": Vector3(0.5, 0.12, 0.2)},
 	"acier": {"name": "Aiguilles vérifiées", "price": 4.0, "color": Color(0.78, 0.8, 0.84), "scale": Vector3(0.5, 0.12, 0.2)},
+	"balle": {"name": "Balle d'aiguilles compressées", "price": 28.0, "color": Color(0.6, 0.62, 0.66), "scale": Vector3(0.45, 0.3, 0.35)},
 	"brut": {"name": "Lingot brut", "price": 10.0, "color": Color(0.42, 0.38, 0.35), "scale": Vector3(0.36, 0.14, 0.2)},
 	"pur": {"name": "Lingot pur", "price": 22.0, "color": Color(0.9, 0.92, 0.95), "scale": Vector3(0.36, 0.14, 0.2)},
 	"tole": {"name": "Tôle d'acier", "price": 55.0, "color": Color(0.55, 0.62, 0.72), "scale": Vector3(0.55, 0.04, 0.5)},
 	"fil": {"name": "Bobine de fil", "price": 28.0, "color": Color(0.85, 0.55, 0.3), "scale": Vector3(0.3, 0.3, 0.3)},
 	"boite": {"name": "Boîte d'aiguilles neuves", "price": 80.0, "color": Color(0.85, 0.2, 0.25), "scale": Vector3(0.36, 0.22, 0.3)},
 }
-const ITEM_ORDER := ["vrac", "acier", "brut", "pur", "tole", "fil", "boite"]
+const ITEM_ORDER := ["vrac", "acier", "balle", "brut", "pur", "tole", "fil", "boite"]
 
 ## Machines. size = (largeur, profondeur) en cases ; l'entrée est à l'arrière (toute la largeur),
 ## la sortie à l'avant (la machine sert à tour de rôle chaque case de devant). plan = nœud de l'arbre qui donne le droit de construire.
@@ -75,13 +76,27 @@ const MACHINES := {
 		"size": Vector2i(1, 1), "cost": 2500.0, "plan": "p_eolienne", "h": 7.5, "gen": 8.0, "kind": "wind"},
 	"solaire": {"name": "Panneaux solaires", "desc": "Jusqu'à 14 kW gratuits en plein jour ; beaucoup moins sous la pluie, rien la nuit.",
 		"size": Vector2i(2, 2), "cost": 4000.0, "plan": "p_solaire", "h": 1.5, "gen": 14.0, "kind": "solar"},
+	"compacteuse": {"name": "Compacteuse", "desc": "Compresse 5 lots d'aiguilles vérifiées en une balle, qui se vend 40 % plus cher.",
+		"size": Vector2i(2, 2), "cost": 1500.0, "plan": "p_compacteuse", "h": 1.9, "power": 5.0,
+		"in": {"acier": 5}, "out": {"balle": 1}, "time": 4.0, "speed": "u_comp_vitesse"},
+	"trieur": {"name": "Trieur", "desc": "Envoie à gauche le type d'objet choisi (touche-le pour le régler), le reste continue tout droit.",
+		"size": Vector2i(1, 1), "cost": 150.0, "plan": "p_trieur", "h": 0.6},
+	"atelier": {"name": "Atelier de maintenance", "desc": "Répare tout seul les machines usées ou en panne autour de lui.",
+		"size": Vector2i(2, 2), "cost": 2500.0, "plan": "p_atelier", "h": 2.4, "power": 4.0},
 	"trou": {"name": "Trou de vente", "desc": "Le seul endroit où l'on vend : tout ce qui y tombe est payé.",
 		"size": Vector2i(4, 4), "cost": 0.0, "plan": "", "h": 0.4, "fixed": true},
 	"bureau": {"name": "Borne des commandes", "desc": "Commande les tas d'aiguilles et accepte des contrats.",
 		"size": Vector2i(1, 1), "cost": 0.0, "plan": "", "h": 1.6, "fixed": true},
 }
-const BUILD_ORDER := ["convoyeur", "tremie", "scanner", "groupe", "separateur", "radar", "bras", "fonderie", "tampon",
-	"eolienne", "purif", "pelle", "solaire", "presse", "trefileuse", "drone", "aiguilleuse"]
+const BUILD_ORDER := ["convoyeur", "tremie", "scanner", "groupe", "separateur", "trieur", "radar", "bras", "compacteuse",
+	"fonderie", "tampon", "eolienne", "atelier", "purif", "pelle", "solaire", "presse", "trefileuse", "drone", "aiguilleuse"]
+## Usure : secondes de travail avant la panne (les machines sans valeur ne s'usent pas).
+const LIFE := {"scanner": 1500.0, "bras": 1200.0, "pelle": 1500.0, "fonderie": 1500.0, "purif": 1800.0, "presse": 1500.0,
+	"trefileuse": 1500.0, "aiguilleuse": 1800.0, "drone": 1500.0, "radar": 3000.0, "groupe": 1200.0, "eolienne": 3600.0,
+	"solaire": 4800.0, "compacteuse": 1500.0}
+const MAX_LEVEL := 60
+## Niveau de fermier requis par étape de l'arbre (sauf si le nœud en précise un).
+const STAGE_LEVEL := [1, 1, 4, 9, 15, 22]
 const GRID_POWER := 10.0 # kW fournis gratuitement par le raccordement au réseau (la borne)
 const FUEL_COST := 0.05 # € par seconde et par groupe électrogène
 
@@ -90,58 +105,64 @@ const FUEL_COST := 0.05 # € par seconde et par groupe électrogène
 const TREE := {
 	"p_convoyeur": {"stage": 1, "name": "Plan : Convoyeur et trémie", "cost": 0.0, "req": [], "ups": ["u_conv_vitesse"]},
 	"p_scanner": {"stage": 1, "name": "Plan : Scanner", "cost": 120.0, "req": [], "ups": ["u_scan_vitesse"]},
-	"c_moyen": {"stage": 1, "name": "Contrat : tas moyen", "cost": 200.0, "req": ["p_scanner"], "piles": 1, "ups": []},
-	"p_separateur": {"stage": 2, "name": "Plan : Séparateur", "cost": 250.0, "req": ["p_scanner"], "ups": []},
-	"p_bras": {"stage": 2, "name": "Plan : Bras robot", "cost": 450.0, "req": ["p_scanner"], "ups": ["u_bras_vitesse", "u_bras_portee"]},
-	"p_fonderie": {"stage": 2, "name": "Plan : Fonderie", "cost": 800.0, "req": ["p_scanner"], "ups": ["u_fond_vitesse", "u_fond_lot", "u_fond_qualite"]},
-	"p_tampon": {"stage": 2, "name": "Plan : Stockage tampon", "cost": 500.0, "req": ["p_separateur"], "ups": []},
+	"c_moyen": {"stage": 1, "name": "Contrat : tas moyen", "cost": 200.0, "req": ["p_scanner"], "piles": 1, "lvl": 3, "ups": []},
+	"p_separateur": {"stage": 2, "name": "Plan : Séparateur", "cost": 500.0, "req": ["p_scanner"], "ups": []},
+	"p_bras": {"stage": 2, "name": "Plan : Bras robot", "cost": 900.0, "req": ["p_scanner"], "ups": ["u_bras_vitesse", "u_bras_portee"]},
+	"p_fonderie": {"stage": 2, "name": "Plan : Fonderie", "cost": 1600.0, "req": ["p_scanner"], "ups": ["u_fond_vitesse", "u_fond_lot", "u_fond_qualite"]},
+	"p_tampon": {"stage": 2, "name": "Plan : Stockage tampon", "cost": 1000.0, "req": ["p_separateur"], "ups": []},
+	"p_trieur": {"stage": 2, "name": "Plan : Trieur", "cost": 1400.0, "req": ["p_separateur"], "ups": []},
+	"p_compacteuse": {"stage": 2, "name": "Plan : Compacteuse", "cost": 3200.0, "req": ["p_scanner"], "lvl": 6, "ups": ["u_comp_vitesse"]},
+	"p_atelier": {"stage": 3, "name": "Plan : Atelier de maintenance", "cost": 10000.0, "req": ["p_bras"], "ups": ["u_atelier_portee", "u_fiabilite"]},
 	"p_energie": {"stage": 1, "name": "Plan : Groupe électrogène", "cost": 150.0, "req": ["p_scanner"], "ups": ["u_energie"]},
-	"p_radar": {"stage": 2, "name": "Plan : Radar à foin", "cost": 900.0, "req": ["p_scanner"], "ups": ["u_radar_portee"]},
-	"p_eolienne": {"stage": 2, "name": "Plan : Éolienne", "cost": 1800.0, "req": ["p_energie"], "ups": []},
-	"p_solaire": {"stage": 3, "name": "Plan : Panneaux solaires", "cost": 4500.0, "req": ["p_eolienne"], "ups": []},
-	"c_gros": {"stage": 3, "name": "Contrat : grand tas", "cost": 2500.0, "req": ["c_moyen", "p_bras"], "piles": 2, "ups": []},
-	"p_purif": {"stage": 3, "name": "Plan : Purificateur", "cost": 3000.0, "req": ["p_fonderie"], "ups": ["u_purif_vitesse", "u_purif_qualite"]},
-	"p_pelle": {"stage": 3, "name": "Plan : Pelleteuse", "cost": 6000.0, "req": ["p_bras"], "ups": ["u_pelle_vitesse", "u_pelle_portee"]},
-	"p_presse": {"stage": 4, "name": "Plan : Presse à tôles", "cost": 12000.0, "req": ["p_purif"], "ups": ["u_presse_vitesse", "u_presse_qualite"]},
-	"p_trefileuse": {"stage": 4, "name": "Plan : Tréfileuse", "cost": 10000.0, "req": ["p_purif"], "ups": ["u_tref_vitesse", "u_tref_qualite"]},
-	"p_drone": {"stage": 4, "name": "Plan : Drone collecteur", "cost": 15000.0, "req": ["p_pelle"], "ups": ["u_drone_vitesse", "u_drone_charge"]},
-	"p_aiguilleuse": {"stage": 5, "name": "Plan : Aiguilleuse", "cost": 40000.0, "req": ["p_trefileuse"], "ups": ["u_aig_vitesse", "u_aig_qualite"]},
-	"b_trou": {"stage": 5, "name": "Trou de vente élargi", "cost": 25000.0, "req": ["p_presse"], "ups": ["u_trou_prix"]},
-	"b_auto": {"stage": 5, "name": "Automatisation avancée", "cost": 80000.0, "req": ["p_drone", "p_presse"], "ups": ["u_auto"]},
-	"c_montagne": {"stage": 5, "name": "Contrat : montagne", "cost": 120000.0, "req": ["c_gros", "p_pelle", "p_aiguilleuse"], "piles": 3, "ups": []},
+	"p_radar": {"stage": 2, "name": "Plan : Radar à foin", "cost": 1800.0, "req": ["p_scanner"], "ups": ["u_radar_portee"]},
+	"p_eolienne": {"stage": 2, "name": "Plan : Éolienne", "cost": 3600.0, "req": ["p_energie"], "ups": []},
+	"p_solaire": {"stage": 3, "name": "Plan : Panneaux solaires", "cost": 9000.0, "req": ["p_eolienne"], "ups": []},
+	"c_gros": {"stage": 3, "lvl": 10, "name": "Contrat : grand tas", "cost": 5000.0, "req": ["c_moyen", "p_bras"], "piles": 2, "ups": []},
+	"p_purif": {"stage": 3, "name": "Plan : Purificateur", "cost": 6000.0, "req": ["p_fonderie"], "ups": ["u_purif_vitesse", "u_purif_qualite"]},
+	"p_pelle": {"stage": 3, "name": "Plan : Pelleteuse", "cost": 12000.0, "req": ["p_bras"], "ups": ["u_pelle_vitesse", "u_pelle_portee"]},
+	"p_presse": {"stage": 4, "name": "Plan : Presse à tôles", "cost": 24000.0, "req": ["p_purif"], "ups": ["u_presse_vitesse", "u_presse_qualite"]},
+	"p_trefileuse": {"stage": 4, "name": "Plan : Tréfileuse", "cost": 20000.0, "req": ["p_purif"], "ups": ["u_tref_vitesse", "u_tref_qualite"]},
+	"p_drone": {"stage": 4, "name": "Plan : Drone collecteur", "cost": 30000.0, "req": ["p_pelle"], "ups": ["u_drone_vitesse", "u_drone_charge"]},
+	"p_aiguilleuse": {"stage": 5, "name": "Plan : Aiguilleuse", "cost": 80000.0, "req": ["p_trefileuse"], "ups": ["u_aig_vitesse", "u_aig_qualite"]},
+	"b_trou": {"stage": 5, "name": "Trou de vente élargi", "cost": 50000.0, "req": ["p_presse"], "ups": ["u_trou_prix"]},
+	"b_auto": {"stage": 5, "name": "Automatisation avancée", "cost": 160000.0, "req": ["p_drone", "p_presse"], "ups": ["u_auto"]},
+	"c_montagne": {"stage": 5, "lvl": 26, "name": "Contrat : montagne", "cost": 240000.0, "req": ["c_gros", "p_pelle", "p_aiguilleuse"], "piles": 3, "ups": []},
 }
 const STAGES := 5
 
 ## Améliorations des plans (achetées dans l'arbre, par niveaux).
 const TREE_UPS := {
-	"u_conv_vitesse": {"name": "Tapis plus rapides", "base": 40.0, "k": 1.75, "max": 10, "fx": "+20 % de vitesse des convoyeurs"},
-	"u_scan_vitesse": {"name": "Scanner plus rapide", "base": 90.0, "k": 1.7, "max": 10, "fx": "+30 % de lots scannés"},
-	"u_bras_vitesse": {"name": "Moteurs de bras", "base": 250.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse des bras"},
-	"u_bras_portee": {"name": "Bras télescopique", "base": 300.0, "k": 2.0, "max": 5, "fx": "+1 m de portée"},
-	"u_fond_vitesse": {"name": "Fonte plus rapide", "base": 400.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse de fonte"},
-	"u_fond_lot": {"name": "Grand creuset", "base": 900.0, "k": 2.2, "max": 4, "fx": "+1 lingot coulé par fournée"},
-	"u_fond_qualite": {"name": "Lingots de qualité", "base": 700.0, "k": 1.9, "max": 5, "fx": "+10 % sur le prix des lingots bruts"},
-	"u_purif_vitesse": {"name": "Électrolyse rapide", "base": 2000.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse"},
-	"u_purif_qualite": {"name": "Pureté 99,9 %", "base": 2500.0, "k": 1.9, "max": 5, "fx": "+10 % sur le prix des lingots purs"},
-	"u_pelle_vitesse": {"name": "Moteur diesel", "base": 4000.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse de creusage"},
-	"u_pelle_portee": {"name": "Flèche longue", "base": 5000.0, "k": 2.0, "max": 5, "fx": "+1,5 m de portée"},
-	"u_presse_vitesse": {"name": "Presse hydraulique", "base": 8000.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse"},
-	"u_presse_qualite": {"name": "Tôles polies", "base": 9000.0, "k": 1.9, "max": 5, "fx": "+10 % sur le prix des tôles"},
-	"u_tref_vitesse": {"name": "Filière diamant", "base": 7000.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse"},
-	"u_tref_qualite": {"name": "Fil recuit", "base": 8000.0, "k": 1.9, "max": 5, "fx": "+10 % sur le prix du fil"},
-	"u_aig_vitesse": {"name": "Aiguilleuse rapide", "base": 25000.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse"},
-	"u_aig_qualite": {"name": "Aiguilles de couture fine", "base": 30000.0, "k": 1.9, "max": 5, "fx": "+10 % sur le prix des boîtes"},
-	"u_drone_vitesse": {"name": "Hélices carbone", "base": 9000.0, "k": 1.7, "max": 8, "fx": "+25 % de vitesse de vol"},
-	"u_drone_charge": {"name": "Soute du drone", "base": 12000.0, "k": 1.8, "max": 8, "fx": "+20 000 aiguilles par voyage"},
-	"u_trou_prix": {"name": "Acheteurs exigeants", "base": 20000.0, "k": 1.8, "max": 10, "fx": "+5 % sur toutes les ventes"},
-	"u_energie": {"name": "Rendement électrique", "base": 600.0, "k": 1.8, "max": 6, "fx": "+15 % d'électricité produite"},
-	"u_radar_portee": {"name": "Antenne longue portée", "base": 1200.0, "k": 1.9, "max": 5, "fx": "+3 m de portée du radar"},
-	"u_auto": {"name": "Usine optimisée", "base": 60000.0, "k": 2.0, "max": 5, "fx": "+10 % de vitesse pour toutes les machines"},
+	"u_conv_vitesse": {"name": "Tapis plus rapides", "base": 60.0, "k": 1.75, "max": 10, "fx": "+20 % de vitesse des convoyeurs"},
+	"u_scan_vitesse": {"name": "Scanner plus rapide", "base": 135.0, "k": 1.7, "max": 10, "fx": "+30 % de lots scannés"},
+	"u_bras_vitesse": {"name": "Moteurs de bras", "base": 375.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse des bras"},
+	"u_bras_portee": {"name": "Bras télescopique", "base": 450.0, "k": 2.0, "max": 5, "fx": "+1 m de portée"},
+	"u_fond_vitesse": {"name": "Fonte plus rapide", "base": 600.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse de fonte"},
+	"u_fond_lot": {"name": "Grand creuset", "base": 1350.0, "k": 2.2, "max": 4, "fx": "+1 lingot coulé par fournée"},
+	"u_fond_qualite": {"name": "Lingots de qualité", "base": 1050.0, "k": 1.9, "max": 5, "fx": "+10 % sur le prix des lingots bruts"},
+	"u_purif_vitesse": {"name": "Électrolyse rapide", "base": 3000.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse"},
+	"u_purif_qualite": {"name": "Pureté 99,9 %", "base": 3750.0, "k": 1.9, "max": 5, "fx": "+10 % sur le prix des lingots purs"},
+	"u_pelle_vitesse": {"name": "Moteur diesel", "base": 6000.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse de creusage"},
+	"u_pelle_portee": {"name": "Flèche longue", "base": 7500.0, "k": 2.0, "max": 5, "fx": "+1,5 m de portée"},
+	"u_presse_vitesse": {"name": "Presse hydraulique", "base": 12000.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse"},
+	"u_presse_qualite": {"name": "Tôles polies", "base": 13500.0, "k": 1.9, "max": 5, "fx": "+10 % sur le prix des tôles"},
+	"u_tref_vitesse": {"name": "Filière diamant", "base": 10500.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse"},
+	"u_tref_qualite": {"name": "Fil recuit", "base": 12000.0, "k": 1.9, "max": 5, "fx": "+10 % sur le prix du fil"},
+	"u_aig_vitesse": {"name": "Aiguilleuse rapide", "base": 37500.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse"},
+	"u_aig_qualite": {"name": "Aiguilles de couture fine", "base": 45000.0, "k": 1.9, "max": 5, "fx": "+10 % sur le prix des boîtes"},
+	"u_drone_vitesse": {"name": "Hélices carbone", "base": 13500.0, "k": 1.7, "max": 8, "fx": "+25 % de vitesse de vol"},
+	"u_drone_charge": {"name": "Soute du drone", "base": 18000.0, "k": 1.8, "max": 8, "fx": "+20 000 aiguilles par voyage"},
+	"u_trou_prix": {"name": "Acheteurs exigeants", "base": 30000.0, "k": 1.8, "max": 10, "fx": "+5 % sur toutes les ventes"},
+	"u_energie": {"name": "Rendement électrique", "base": 900.0, "k": 1.8, "max": 6, "fx": "+15 % d'électricité produite"},
+	"u_radar_portee": {"name": "Antenne longue portée", "base": 1800.0, "k": 1.9, "max": 5, "fx": "+3 m de portée du radar"},
+	"u_comp_vitesse": {"name": "Compactage rapide", "base": 3750.0, "k": 1.7, "max": 10, "fx": "+25 % de balles par minute"},
+	"u_atelier_portee": {"name": "Atelier mobile", "base": 9000.0, "k": 1.8, "max": 5, "fx": "+3 m de rayon de réparation"},
+	"u_fiabilite": {"name": "Pièces renforcées", "base": 12000.0, "k": 1.9, "max": 6, "fx": "+30 % de durée de vie des machines"},
+	"u_auto": {"name": "Usine optimisée", "base": 90000.0, "k": 2.0, "max": 5, "fx": "+10 % de vitesse pour toutes les machines"},
 }
 
 ## Boutique : améliorations du joueur.
 const SHOP := {
-	"main": {"name": "Capacité de la main", "desc": "Porte plus d'aiguilles à la fois.", "base": 40.0, "k": 1.6, "max": 20},
+	"main": {"name": "Contenant", "desc": "Seau, brouette, chariot puis benne : porte plus d'aiguilles à la fois.", "base": 40.0, "k": 1.6, "max": 20},
 	"poignee": {"name": "Outils de fouille", "desc": "Pelle, fourche, brouette puis aspirateur : plus d'aiguilles et un creux plus large à chaque geste.", "base": 35.0, "k": 1.7, "max": 15},
 	"detecteur": {"name": "Détecteur de foin", "desc": "Il bipe quand un brin est caché près de l'endroit visé, de plus en plus vite en s'approchant.", "base": 60.0, "k": 1.7, "max": 8},
 	"endurance": {"name": "Endurance", "desc": "Plus d'endurance pour courir et ramasser.", "base": 50.0, "k": 1.5, "max": 15},
@@ -149,9 +170,10 @@ const SHOP := {
 	"vitesse": {"name": "Bottes de course", "desc": "Tu te déplaces plus vite.", "base": 80.0, "k": 1.6, "max": 10},
 	"portee": {"name": "Longs bras", "desc": "Ramasse, dépose et place les objets plus loin.", "base": 70.0, "k": 1.7, "max": 10},
 	"oeil": {"name": "Œil de lynx", "desc": "Plus de chances de repérer le foin directement à la main.", "base": 120.0, "k": 1.8, "max": 8},
+	"crampons": {"name": "Crampons", "desc": "Grimpe sur les flancs du tas pour aller creuser là où le détecteur bipe.", "base": 400.0, "k": 3.0, "max": 3},
 	"tremie_cap": {"name": "Trémies géantes", "desc": "+300 aiguilles dans chaque trémie.", "base": 150.0, "k": 1.6, "max": 10},
 }
-const SHOP_ORDER := ["main", "poignee", "detecteur", "endurance", "recup", "vitesse", "portee", "oeil", "tremie_cap"]
+const SHOP_ORDER := ["main", "poignee", "detecteur", "endurance", "recup", "vitesse", "portee", "oeil", "crampons", "tremie_cap"]
 
 const ACHIEVEMENTS := [
 	["first_hay", "Premier brin", "Trouve ton premier brin de foin."],
@@ -168,6 +190,9 @@ const ACHIEVEMENTS := [
 	["mountain", "Au sommet", "Termine une montagne d'aiguilles."],
 	["golden", "De l'or dans les aiguilles", "Trouve un brin de foin doré."],
 	["recycle", "Nouveau départ", "Recycle ton usine une première fois."],
+	["level_10", "Fermier confirmé", "Atteins le niveau 10."],
+	["level_30", "Maître des aiguilles", "Atteins le niveau 30."],
+	["repair_10", "Mécano", "Répare 10 machines en panne."],
 ]
 
 ## Objectifs guidés : [identifiant, texte, récompense]. La progression est calculée par Game.quest_progress().
@@ -187,7 +212,9 @@ const QUESTS := [
 	["radar", "Construis un radar à foin", 400.0],
 	["moyen", "Commande un tas moyen", 400.0],
 	["contrat", "Remplis un contrat de livraison", 600.0],
+	["balle", "Vends une balle d'aiguilles compressées", 800.0],
 	["purif", "Construis un purificateur", 1000.0],
+	["atelier", "Construis un atelier de maintenance", 1500.0],
 	["gros", "Commande un grand tas", 2500.0],
 	["presse", "Vends une tôle d'acier", 5000.0],
 	["boite", "Vends une boîte d'aiguilles neuves", 20000.0],

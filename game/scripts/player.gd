@@ -17,6 +17,10 @@ var cam: Camera3D
 var ray: RayCast3D
 const HAND_NEEDLES := 70
 var hand: MultiMeshInstance3D
+var bucket: Node3D
+var _bucket_fill: MeshInstance3D
+var _bucket_mat: StandardMaterial3D
+var _bucket_tier := ""
 var stamina := 100.0
 var target := {}
 var build_type := "" # mode construction ("__demolir" = démolition)
@@ -102,6 +106,27 @@ func _make_hand() -> void:
 	hand.position = Vector3(0.3, -0.27, -0.55)
 	hand.rotation = Vector3(0.35, 0.55, 0.25)
 	cam.add_child(hand)
+	# contenant (seau, brouette, chariot, benne) : on y voit le niveau d'aiguilles
+	bucket = Node3D.new()
+	bucket.position = Vector3(0.32, -0.36, -0.62)
+	bucket.rotation = Vector3(0.45, 0.35, 0.0)
+	cam.add_child(bucket)
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.14
+	cm.bottom_radius = 0.11
+	cm.height = 0.2
+	cm.cap_top = false
+	cm.radial_segments = 16
+	var shell := MeshInstance3D.new()
+	shell.mesh = cm
+	_bucket_mat = Mk.mat(Color(0.55, 0.6, 0.66), 0.5, 0.4)
+	_bucket_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	shell.material_override = _bucket_mat
+	shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	bucket.add_child(shell)
+	Mk.torus(bucket, 0.135, 0.15, Vector3(0, 0.1, 0), Mk.mat(Color(0.3, 0.3, 0.32), 0.6, 0.4))
+	_bucket_fill = Mk.cyl(bucket, 0.125, 0.02, Vector3(0, -0.08, 0), Mk.mat(Color(0.47, 0.46, 0.44), 0.2, 0.5), -1.0, 16)
+	bucket.visible = false
 
 
 func look(delta: Vector2) -> void:
@@ -135,6 +160,7 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= GRAVITY * delta
 	elif (hud and hud.consume_jump()) or Input.is_physical_key_pressed(KEY_SPACE):
 		velocity.y = JUMP
+	floor_max_angle = deg_to_rad(Game.climb_angle())
 	move_and_slide()
 
 	# endurance
@@ -172,6 +198,18 @@ func _physics_process(delta: float) -> void:
 	hand.position = Vector3(0.3 + cos(_bob * 0.5) * 0.01, -0.27 + sin(_bob) * 0.012 - _hand_kick * 0.08, -0.55 + _hand_kick * 0.12)
 	var fill := float(Game.hand_n + Game.hand_h) / float(Game.hand_cap())
 	hand.multimesh.visible_instance_count = int(ceil(fill * HAND_NEEDLES))
+	var tier := Game.container_name()
+	bucket.visible = tier != "Mains"
+	hand.visible = not bucket.visible
+	if bucket.visible:
+		if tier != _bucket_tier:
+			_bucket_tier = tier
+			var tint := {"Seau": Color(0.55, 0.6, 0.66), "Brouette": Color(0.25, 0.5, 0.3), "Chariot": Color(0.9, 0.7, 0.15), "Benne": Color(0.9, 0.45, 0.1)}
+			_bucket_mat.albedo_color = tint.get(tier, Color.GRAY)
+			bucket.scale = Vector3.ONE * {"Seau": 1.0, "Brouette": 1.25, "Chariot": 1.4, "Benne": 1.55}.get(tier, 1.0)
+		_bucket_fill.visible = fill > 0.0
+		_bucket_fill.position.y = lerpf(-0.08, 0.08, fill)
+		bucket.position = Vector3(0.32 + cos(_bob * 0.5) * 0.01, -0.36 + sin(_bob) * 0.012 - _hand_kick * 0.06, -0.62 + _hand_kick * 0.08)
 
 	_grab_cd = maxf(0.0, _grab_cd - delta)
 	_drop_cd = maxf(0.0, _drop_cd - delta)
@@ -240,7 +278,7 @@ func _update_target() -> void:
 				info = {"kind": "entity", "id": id, "type": Game.entities[id].type}
 	if info.is_empty():
 		var e := Game.entity_at(aim_cell(Game.reach()))
-		if not e.is_empty() and (e.type == "convoyeur" or e.type == "separateur"):
+		if not e.is_empty() and Game.belt_like(e.type):
 			info = {"kind": "entity", "id": e.id, "type": e.type}
 	var changed_t: bool = info.get("kind", "") != target.get("kind", "") or info.get("id", -1) != target.get("id", -1)
 	target = info
@@ -261,6 +299,14 @@ func action_pressed() -> void:
 			hud.toast("Vise une trémie ou un tapis pour déposer tes aiguilles.")
 		return
 	var id: int = target.id
+	if Game.is_broken(id):
+		var cost := Game.repair_cost(Game.entities[id].type)
+		if Game.repair(id):
+			hud.toast("Machine réparée (%s)" % Fmt.eur(cost))
+		else:
+			hud.toast("Pas assez d'argent pour réparer (%s)" % Fmt.eur(cost))
+			Sfx.play("prick")
+		return
 	match target.type:
 		"tremie":
 			var q := Game.deposit_tremie(id)
@@ -304,14 +350,15 @@ func try_grab() -> void:
 		hud.toast("Tu es épuisé… reprends ton souffle.")
 		return
 	var got := Game.grab(target.get("point", Vector3.INF))
-	_grab_cd = GRAB_DELAY
+	# l'aspirateur ramasse en continu, bien plus vite
+	_grab_cd = GRAB_DELAY * (0.35 if Game.tool_name() == "Aspirateur" else 1.0)
 	if got < 0:
 		_grab_cd = 1.0
 		hud.toast("Main pleine ! Verse-la dans une trémie ou pose-la sur un tapis.")
 		return
 	if got == 0:
 		return
-	stamina -= GRAB_COST
+	stamina -= GRAB_COST * (0.4 if Game.tool_name() == "Aspirateur" else 1.0)
 	_hand_kick = 1.0
 	Game.vibrate(12)
 	Sfx.play("needle", randf_range(0.9, 1.15))
