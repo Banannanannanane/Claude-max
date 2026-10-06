@@ -74,6 +74,8 @@ var _t := 0.0
 var _fall_budget := 0.0
 var _last_cash := 0.0
 var _cash_timer := 0.0
+var _item_ids: Array = [] # tapis, séparateurs et trieurs (seuls à porter des objets visibles)
+var _frame := 0
 var _alerts := {} # id du scanner -> horloge de la dernière détection
 var night := 0.0
 var rain := 0.0 # intensité de l'averse en cours (0 à 1)
@@ -565,8 +567,11 @@ func rebuild() -> void:
 			drones[id].queue_free()
 			drones.erase(id)
 	var belts: Array = []
+	_item_ids.clear()
 	for id in Game.entities:
 		var e: Dictionary = Game.entities[id]
+		if Game.belt_like(e.type):
+			_item_ids.append(id)
 		if Game.is_belt(e.type):
 			belts.append(e)
 			continue
@@ -621,10 +626,10 @@ func _draw_items() -> void:
 	var counts := {}
 	for t in _items:
 		counts[t] = 0
-	for id in Game.entities:
-		var e: Dictionary = Game.entities[id]
+	for id in _item_ids:
+		var e: Dictionary = Game.entities.get(id, {})
 		var it = e.get("item")
-		if it == null or not Game.belt_like(e.type):
+		if it == null:
 			continue
 		var t: String = it.t
 		if not _items.has(t):
@@ -649,18 +654,24 @@ func _draw_items() -> void:
 
 func _animate_machines(delta: float) -> void:
 	_cash_timer = maxf(0.0, _cash_timer - delta)
+	_frame += 1
+	var cam := get_viewport().get_camera_3d()
+	var eye: Vector3 = cam.global_position if cam else Vector3.ZERO
 	for id in nodes:
 		if not Game.entities.has(id):
 			continue
 		var e: Dictionary = Game.entities[id]
 		var node: Node3D = nodes[id]
+		# au loin, les détails ne se voient pas : on n'anime qu'une image sur six
+		if cam and node.position.distance_squared_to(eye) > 2500.0 and (_frame + id) % 6 != 0:
+			continue
 		var info := {}
 		var state := 1 if Game.is_active(id) else 0
 		match e.type:
 			"bras", "pelle":
 				var d: Vector3 = Data.PILE_POS - node.position
 				info["aim"] = atan2(-d.x, -d.z) - node.rotation.y
-				if not Game.digger_in_range(e.type, e.c, e.r):
+				if not Game.digger_ok(id):
 					state = 2
 			"tremie":
 				info["fill"] = clampf(float(int(e.n) + int(e.h)) / Game.tremie_cap(), 0.0, 1.0)

@@ -43,7 +43,7 @@ var tree := {"p_convoyeur": true} # nœuds achetés
 var ups := {} # niveaux des améliorations de plans
 var achievements := {}
 var stats := {}
-var settings := {"sound": true, "music": true, "weather": true, "sens": 1.0, "daynight": true, "quality": 1, "fps": false, "vibrate": true}
+var settings := {"sound": true, "music": true, "weather": true, "sens": 1.0, "daynight": true, "quality": 1, "fps": false, "vibrate": true, "hud_compact": false}
 var contract := {} # contrat en cours
 var offers: Array = [] # contrats proposés
 var rates := {"income": 0.0, "dig": 0.0, "hay": 0.0}
@@ -80,7 +80,7 @@ func _ready() -> void:
 
 
 ## Réglages propres à l'appareil (qualité, vibration, compteur) : communs à toutes les sauvegardes.
-const DEVICE_KEYS := ["quality", "fps", "vibrate", "sound", "music", "weather"]
+const DEVICE_KEYS := ["quality", "fps", "vibrate", "sound", "music", "weather", "hud_compact"]
 const DEVICE_PATH := "user://device.json"
 
 
@@ -93,7 +93,7 @@ func _load_device() -> void:
 			settings[k] = d[k]
 	settings.quality = clampi(int(settings.quality), 0, 2)
 	settings.fps = bool(settings.fps)
-	for k in ["fps", "vibrate", "sound", "music", "weather"]:
+	for k in ["fps", "vibrate", "sound", "music", "weather", "hud_compact"]:
 		settings[k] = bool(settings[k])
 
 
@@ -333,7 +333,7 @@ func alerts() -> Array:
 			blocked += 1
 		if e.type == "tremie" and int(e.n) + int(e.h) >= tremie_cap():
 			full += 1
-		if (e.type == "bras" or e.type == "pelle") and not digger_in_range(e.type, e.c, e.r):
+		if (e.type == "bras" or e.type == "pelle") and not digger_ok(id):
 			dry += 1
 	if broken > 0:
 		out.append("%d machine(s) en panne : répare-les ou construis un atelier." % broken)
@@ -884,6 +884,18 @@ func _return_hay_of(e: Dictionary) -> void:
 		if it.get("h", 0) > 0:
 			pile_h += int(it.h)
 			_hay_bury(int(it.h))
+	# ce que porte un drone ou un ouvrier retourne aussi dans le tas
+	var cn := int(e.get("carry_n", 0))
+	if cn > 0:
+		if pile_items() > 0:
+			field.scale_all(float(pile_items() + cn) / float(pile_items()))
+		pile_n += cn
+		e["carry_n"] = 0
+	var ch := int(e.get("carry_h", 0))
+	if ch > 0:
+		pile_h += ch
+		_hay_bury(ch)
+		e["carry_h"] = 0
 
 
 # ============================================================ actions du joueur
@@ -1789,6 +1801,21 @@ func digger_in_range(type: String, c: Vector2i, r := 0) -> bool:
 			if field.height_at(p.x + cos(a) * rr * ring, p.z + sin(a) * rr * ring) > 0.03:
 				return true
 	return false
+
+
+var _reach_cache := {} # id -> [horloge, à portée ?]
+
+
+## digger_in_range pour une machine posée, mis en cache une demi-seconde (affichage, alertes).
+func digger_ok(id: int) -> bool:
+	var e: Dictionary = entities.get(id, {})
+	if e.is_empty():
+		return false
+	var c: Array = _reach_cache.get(id, [-10.0, false])
+	if absf(_clock - float(c[0])) > 0.5 or c.size() < 3 or c[2] != Vector3i(e.c.x, e.c.y, e.r):
+		c = [_clock, digger_in_range(e.type, e.c, e.r), Vector3i(e.c.x, e.c.y, e.r)]
+		_reach_cache[id] = c
+	return bool(c[1])
 
 
 func _tick_digger(e: Dictionary, dt: float) -> void:

@@ -50,6 +50,9 @@ var _btn_cancel: TouchScreenButton
 var _action_label: Label
 var _buttons: Array = [] # [TouchScreenButton, rayon]
 var _menu: HBoxContainer
+var _info: PanelContainer
+var _fold: Button
+var _stamina_label: Label
 
 const JOY_R := 90.0
 
@@ -126,12 +129,24 @@ func _build_info() -> void:
 	p.position = Vector2(16, 12)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(p)
+	_info = p
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 3)
 	v.custom_minimum_size = Vector2(330, 0)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.add_child(v)
+	var top := HBoxContainer.new()
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(top)
 	_money = UI.label("", 30, UI.GOLD)
-	v.add_child(_money)
+	_money.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(_money)
+	# replie / déplie le panneau (les lignes secondaires disparaissent)
+	_fold = UI.button("–", _toggle_fold)
+	_fold.mouse_filter = Control.MOUSE_FILTER_STOP
+	_fold.custom_minimum_size = Vector2(52, 44)
+	_fold.add_theme_font_size_override("font_size", 24)
+	top.add_child(_fold)
 	_level = UI.label("", 17, UI.BLUE)
 	v.add_child(_level)
 	_xp_bar = UI.bar()
@@ -161,16 +176,35 @@ func _build_info() -> void:
 	_contract = UI.label("", 17, UI.BLUE, true)
 	_contract.custom_minimum_size = Vector2(330, 0)
 	v.add_child(_contract)
-	var sl := UI.label("Endurance", 16, UI.MUTED)
-	v.add_child(sl)
-	_stamina = UI.bar()
-	v.add_child(_stamina)
 	_det_label = UI.label("Détecteur de foin", 16, UI.MUTED)
 	v.add_child(_det_label)
 	_det_bar = UI.bar("HayBar")
 	_det_bar.max_value = 1.0
 	_det_bar.step = 0.01
+	_det_bar.custom_minimum_size = Vector2(0, 8)
 	v.add_child(_det_bar)
+	# endurance : n'apparaît que lorsqu'elle n'est pas pleine
+	_stamina_label = UI.label("Endurance", 16, UI.MUTED)
+	v.add_child(_stamina_label)
+	_stamina = UI.bar()
+	v.add_child(_stamina)
+	_apply_fold()
+
+
+func _toggle_fold() -> void:
+	Game.settings["hud_compact"] = not bool(Game.settings.get("hud_compact", false))
+	Game.save_device()
+	Sfx.play("click")
+	_apply_fold()
+
+
+## Panneau replié : argent, foin, main, objectif et alertes seulement.
+func _apply_fold() -> void:
+	var compact := bool(Game.settings.get("hud_compact", false))
+	_fold.text = "+" if compact else "–"
+	for c: Control in [_level, _xp_bar, _pile, _store]:
+		c.visible = not compact
+	_info.reset_size()
 
 
 func _build_menu() -> void:
@@ -293,7 +327,7 @@ func _over_button(p: Vector2) -> bool:
 
 
 func _over_ui(p: Vector2) -> bool:
-	if _menu.get_global_rect().has_point(p):
+	if _menu.get_global_rect().has_point(p) or _fold.get_global_rect().grow(6).has_point(p):
 		return true
 	return _over_button(p)
 
@@ -370,7 +404,8 @@ func _refresh() -> void:
 	_store.text = "Revenus : %s / min" % Fmt.eur(float(Game.rates.income) * 60.0)
 	_power.text = "Énergie : %s / %s kW%s" % [Fmt.num(Game.power_demand, 1), Fmt.num(Game.power_supply, 1), "  — manque de courant !" if Game.power_factor < 0.999 else ""]
 	_power.add_theme_color_override("font_color", UI.BAD if Game.power_factor < 0.999 else UI.MUTED)
-	_power.visible = Game.power_demand > 0.0 or Game.power_supply > Data.GRID_POWER
+	var compact := bool(Game.settings.get("hud_compact", false))
+	_power.visible = (Game.power_demand > 0.0 or Game.power_supply > Data.GRID_POWER) and (not compact or Game.power_factor < 0.999)
 	if Game.prestige > 0:
 		_store.text += "  ·  ★ %d jeton%s" % [Game.prestige, "s" if Game.prestige > 1 else ""]
 	if Game.quest < Data.QUESTS.size():
@@ -394,6 +429,11 @@ func _process(delta: float) -> void:
 	_stamina.max_value = Game.stamina_max()
 	_stamina.value = player.stamina
 	_stamina.modulate = Color(1, 0.5, 0.5) if player.is_exhausted() else Color.WHITE
+	var tired: bool = player.stamina < Game.stamina_max() - 0.01 or player.is_exhausted()
+	if tired != _stamina.visible:
+		_stamina.visible = tired
+		_stamina_label.visible = tired
+		_info.reset_size()
 	var building: bool = player.build_type != ""
 	var free := not panel_open()
 	for b in [_btn_action, _btn_sprint, _btn_jump]:
@@ -421,6 +461,10 @@ func _update_detector(delta: float) -> void:
 	var sig := clampf(1.0 - float(near[1]) / rng, 0.0, 1.0) if Game.pile_h > 0 else 0.0
 	_det_signal = lerpf(_det_signal, sig, minf(1.0, delta * 8.0))
 	_det_bar.value = _det_signal
+	var show_bar := _det_signal > 0.02
+	if show_bar != _det_bar.visible:
+		_det_bar.visible = show_bar
+		_info.reset_size()
 	if sig <= 0.0:
 		_det_label.text = "Détecteur de foin : rien à %s m" % Fmt.num(rng, 1)
 	elif sig > 0.8:

@@ -12,6 +12,8 @@ var scroll: ScrollContainer
 var title_label: Label
 var _sig := ""
 var _acc := 0.0
+var _box: PanelContainer
+var _vbox: VBoxContainer
 
 
 func _init() -> void:
@@ -32,8 +34,10 @@ func _ready() -> void:
 	box.offset_top = 24
 	box.offset_bottom = -24
 	add_child(box)
+	_box = box
 	var v := VBoxContainer.new()
 	box.add_child(v)
+	_vbox = v
 	var head := HBoxContainer.new()
 	v.add_child(head)
 	title_label = UI.label(title(), 30, UI.GOLD)
@@ -54,6 +58,34 @@ func _ready() -> void:
 	v.add_child(footer)
 	_rebuild()
 	Game.changed.connect(_on_changed)
+	if fit_content():
+		_fit_later()
+
+
+## Fenêtre courte (message) : la boîte prend la hauteur de son contenu, centrée.
+func fit_content() -> bool:
+	return false
+
+
+func _fit_later() -> void:
+	# le texte ne connaît sa hauteur qu'une fois mis en page (et la fenêtre peut s'ouvrir
+	# cachée, derrière l'écran titre) : on réajuste à chaque changement de taille
+	content.resized.connect(_fit)
+	scroll.resized.connect(_fit)
+
+
+func _fit() -> void:
+	if not is_inside_tree() or scroll.size.x <= 1.0:
+		return
+	var avail := get_viewport_rect().size.y - 48.0
+	var head: Control = _vbox.get_child(0)
+	var head_h: float = head.get_combined_minimum_size().y
+	var want: float = head_h + content.get_combined_minimum_size().y + footer.get_combined_minimum_size().y + 60.0
+	var h := minf(want, avail)
+	var top := (avail - h) * 0.5 + 24.0
+	if absf(_box.offset_top - top) > 1.0:
+		_box.offset_top = top
+		_box.offset_bottom = -top
 
 
 func title() -> String:

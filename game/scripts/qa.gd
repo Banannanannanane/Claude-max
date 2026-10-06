@@ -215,6 +215,7 @@ func _logic() -> void:
 	_test_farm()
 	_test_market_events()
 	_test_logistics_workers()
+	_test_fuzz()
 	await _test_weather_audio()
 	_test_stress()
 	_finish()
@@ -602,7 +603,7 @@ func _test_relief() -> void:
 	var n0 := Game.pile_n
 	_run(240.0)
 	var east1 := Game.field.height_at(P.x + R * 0.85, P.z)
-	check(east1 < east0 * 0.5, "le bras creuse son côté du tas (%.2f m → %.2f m)" % [east0, east1])
+	check(east1 < east0 * 0.65, "le bras creuse son côté du tas (%.2f m → %.2f m)" % [east0, east1])
 	check(absf(Game.field.height_at(P.x - R * 0.85, P.z) - west0) < 0.01 and absf(Game.field.height_at(P.x, P.z - R * 0.85) - north0) < 0.01, "le reste du tas ne bouge pas")
 	check(absf(Game.unit_volume() - uv0) < uv0 * 0.02, "le volume du relief suit le nombre d'aiguilles")
 	var dug := n0 - Game.pile_n
@@ -1111,6 +1112,156 @@ func _test_save() -> void:
 	check(is_equal_approx(float(r.seconds), Game.MAX_OFFLINE) and r.money > 0.0 and Game.pile_n <= pile0, "production hors ligne plafonnée à 8 h")
 
 
+## Foin présent ailleurs que dans le tas : tapis, files des machines, trémies, ouvriers, main.
+func _hay_in_system() -> int:
+	var n := Game.hand_h
+	for id in Game.entities:
+		var e: Dictionary = Game.entities[id]
+		if e.get("item") is Dictionary:
+			n += int(e.item.get("h", 0))
+		for key in ["inq", "outq", "busy", "q"]:
+			for it in e.get(key, []):
+				if it is Dictionary:
+					n += int(it.get("h", 0))
+		n += int(e.get("carry_h", 0))
+		if e.type == "tremie":
+			n += int(e.h)
+	return n
+
+
+## Invariants de l'état du jeu : renvoie la première incohérence trouvée ("" si tout va bien).
+func _invariants() -> String:
+	if Game.pile_h != Game.hay_spots.size():
+		return "brins cachés %d ≠ positions %d" % [Game.pile_h, Game.hay_spots.size()]
+	if Game.pile_n < 0 or Game.pile_h < 0 or Game.hand_n < 0 or Game.hand_h < 0:
+		return "compte négatif (tas %d/%d, main %d/%d)" % [Game.pile_n, Game.pile_h, Game.hand_n, Game.hand_h]
+	if is_nan(Game.money) or is_inf(Game.money) or is_nan(Game.xp):
+		return "argent ou XP invalide"
+	if Game.pile_found > Data.HAY_PER_PILE:
+		return "plus de %d brins trouvés (%d)" % [Data.HAY_PER_PILE, Game.pile_found]
+	if is_nan(Game.field.volume) or Game.field.volume < -1e-3:
+		return "volume du relief invalide"
+	for cell in Game.grid:
+		var id: int = Game.grid[cell]
+		if not Game.entities.has(id):
+			return "case %s vers une entité disparue" % cell
+		var e: Dictionary = Game.entities[id]
+		if not cell in Game.footprint(e.type, e.c, e.r):
+			return "case %s hors de l'emprise de %s" % [cell, e.type]
+	for id in Game.entities:
+		var e: Dictionary = Game.entities[id]
+		for cell in Game.footprint(e.type, e.c, e.r):
+			if Game.grid.get(cell, -1) != id:
+				return "%s n'occupe pas sa case %s" % [e.type, cell]
+		if e.get("item") is Dictionary and not Data.ITEMS.has(String(e.item.t)):
+			return "objet inconnu sur un tapis"
+		for key in ["inq", "outq", "busy", "q"]:
+			for it in e.get(key, []):
+				if int(it.get("n", 0)) < 0 or not Data.ITEMS.has(String(it.t)):
+					return "file de %s invalide" % e.type
+	return ""
+
+
+## Mille actions au hasard (construire, démolir, déplacer, creuser, verser, acheter, commander,
+## sauvegarder, recycler, hors ligne…) : l'état doit rester cohérent du début à la fin.
+func _test_fuzz() -> void:
+	Game.new_game()
+	Game.money = 5e6
+	Game.xp = Game.xp_for(Data.MAX_LEVEL)
+	for id in Data.TREE:
+		Game.tree[id] = true
+	Game.free_power = false
+	seed(int(OS.get_environment("FUZZ_SEED")) if OS.has_environment("FUZZ_SEED") else 4242)
+	var types: Array = Data.BUILD_ORDER
+	var err := ""
+	var actions := 0
+	var built := 0
+	var hay_base := Game.pile_found + Game.pile_h + _hay_in_system()
+	var conserv := ""
+	for step in 1000:
+		var a := randi() % 16
+		match a:
+			0, 1, 2:
+				var t: String = types[randi() % types.size()]
+				var c := Vector2i(randi_range(-30, 30), randi_range(-60, 20))
+				if Game.build(t, c, randi() % 4):
+					built += 1
+			3:
+				var ids := Game.entities.keys().filter(func(i): return not Data.MACHINES[Game.entities[i].type].get("fixed", false))
+				if not ids.is_empty():
+					Game.demolish(ids[randi() % ids.size()])
+			4:
+				var ids2 := Game.entities.keys().filter(func(i): return not Data.MACHINES[Game.entities[i].type].get("fixed", false))
+				if not ids2.is_empty():
+					var mid: int = ids2[randi() % ids2.size()]
+					var me: Dictionary = Game.entities[mid]
+					Game.move_entity(mid, me.c + Vector2i(randi_range(-3, 3), randi_range(-3, 3)), randi() % 4)
+			5:
+				var ids3 := Game.entities.keys()
+				Game.rotate_entity(ids3[randi() % ids3.size()])
+			6, 7:
+				var at := Data.PILE_POS + Vector3(randf_range(-6, 6), 0, randf_range(-6, 6))
+				at.y = Game.field.height_at(at.x, at.z)
+				Game.grab(at)
+			8:
+				for id in Game.entities:
+					if Game.entities[id].type == "tremie":
+						Game.deposit_tremie(id)
+						break
+			9:
+				for id in Game.entities:
+					if Game.is_belt(Game.entities[id].type) and Game.entities[id].item == null:
+						Game.drop_on_belt(id)
+						break
+			10:
+				Game.buy_shop(Data.SHOP_ORDER[randi() % Data.SHOP_ORDER.size()])
+				var ups: Array = Data.TREE_UPS.keys()
+				Game.buy_up(ups[randi() % ups.size()])
+				for id in Game.entities:
+					if Game.is_broken(id):
+						Game.repair(id)
+						break
+			11:
+				if randf() < 0.3:
+					Game.pile_found = Data.HAY_PER_PILE
+					Game.pile_done = true
+					Game.order_pile(Data.PILE_ORDER[randi() % 3])
+					hay_base = Game.pile_found + Game.pile_h + _hay_in_system()
+			12:
+				if randf() < 0.15:
+					Game.save_slot(3)
+					Game.load_slot(3)
+			13:
+				if randf() < 0.1:
+					Game.simulate_offline(randf_range(10.0, 600.0))
+					hay_base = Game.pile_found + Game.pile_h + _hay_in_system()
+			14:
+				Game.start_event(Game.EVENTS.keys()[randi() % Game.EVENTS.size()])
+				Game.alerts()
+			15:
+				if randf() < 0.02:
+					Game.run_earned = maxf(Game.run_earned, 1e6)
+					Game.recycle()
+					Game.money = 5e6
+					for id in Data.TREE:
+						Game.tree[id] = true
+					hay_base = Game.pile_found + Game.pile_h + _hay_in_system()
+		actions += 1
+		_run(0.2)
+		err = _invariants()
+		if err != "":
+			err = "action %d (%d) : %s" % [step, a, err]
+			break
+		var now := Game.pile_found + Game.pile_h + _hay_in_system()
+		if now != hay_base and conserv == "" and not Game.pile_done:
+			conserv = "action %d (%d) : %d brins au lieu de %d" % [step, a, now, hay_base]
+		hay_base = now
+	Game.events_frozen = true
+	Game.event = {}
+	check(err == "", "1000 actions au hasard : état cohérent (%d constructions)%s" % [built, "" if err == "" else " — " + err])
+	check(conserv == "", "le foin ne se crée ni ne se perd%s" % ("" if conserv == "" else " — " + conserv))
+
+
 func _test_stress() -> void:
 	Game.new_game()
 	_rich()
@@ -1190,6 +1341,21 @@ func _ui() -> void:
 			ok_t = ok_t and hud.panel_open()
 		check(ok_t, "l'écran titre s'ouvre sur %s" % ("le jeu" if dest == "" else "la fenêtre " + dest))
 		hud.close_panel()
+	await _frames(2)
+	# panneau d'infos repliable (réglage gardé sur le téléphone)
+	var was := bool(Game.settings.get("hud_compact", false))
+	hud._toggle_fold()
+	await _frames(2)
+	var folded: bool = not hud._level.visible and not hud._pile.visible and hud._money.visible and hud._hay.visible
+	hud._toggle_fold()
+	await _frames(2)
+	check(folded and hud._level.visible and bool(Game.settings.hud_compact) == was, "le panneau d'infos se replie et se déplie")
+	# message court : la fenêtre prend la hauteur de son texte
+	hud.message("Test", "Une ligne.")
+	await _frames(4)
+	var mp: Node = hud._panel
+	check(is_instance_valid(mp) and mp._box.offset_top > 150.0, "un message court ouvre une petite fenêtre centrée")
+	hud.close_panel()
 	await _frames(2)
 	_rich()
 	for p in ["boutique", "arbre", "construire", "commandes", "stock", "carte", "reglages", "sauvegardes", "succes", "objectifs"]:

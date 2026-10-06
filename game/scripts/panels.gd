@@ -814,6 +814,9 @@ class MessagePanel extends PanelBase:
 	func title() -> String:
 		return heading
 
+	func fit_content() -> bool:
+		return true
+
 	func build() -> void:
 		var c := UI.card()
 		content.add_child(c)

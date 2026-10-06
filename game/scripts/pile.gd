@@ -109,6 +109,13 @@ void fragment() {
 	float big = vnoise(lp.xz * 0.35 + seed) * 0.6 + vnoise(lp.xz * 1.3 - seed) * 0.4;
 	vec3 base = needle_col * mix(0.86, 1.06, big);
 	base = mix(base, base * vec3(1.08, 0.97, 0.86), smoothstep(0.62, 0.9, vnoise(lp.xz * 0.6 + 7.0)) * 0.5);
+	// coulées d'éboulement : des traînées claires et sombres dans le sens de la pente, visibles de loin
+	float rad = length(lp.xz) + 0.001;
+	vec2 dir = lp.xz / rad;
+	float streak = vnoise(dir * 9.0 + vec2(rad * 0.06 + seed)) * 0.7 + vnoise(dir * 35.0 + vec2(rad * 0.2 - seed)) * 0.3;
+	base *= mix(0.88, 1.07, streak);
+	// très grandes plaques (lisibles à 50 m sur la montagne)
+	base *= mix(0.92, 1.04, vnoise(lp.xz * 0.07 + seed * 0.3));
 	float ao = mix(0.62, 1.0, smoothstep(0.0, 0.9, vh)) * (1.0 - 0.35 * clamp(cav, 0.0, 1.0));
 	vec3 col = mix(base * 0.7, base * tint * 0.97, m) * ao;
 	// au pied, la couche est si fine qu'on voit la terre entre les aiguilles

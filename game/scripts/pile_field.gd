@@ -45,23 +45,33 @@ func generate(r: float, seed_value: int, frac := 1.0) -> void:
 		return
 	var hmain := rr * HEIGHT_RATIO
 	var cones: Array = [[Vector2(rng.randf_range(-0.06, 0.06), rng.randf_range(-0.06, 0.06)) * rr, hmain]]
-	for k in rng.randi_range(2, 4):
-		var a := rng.randf() * TAU
-		cones.append([Vector2(cos(a), sin(a)) * rr * rng.randf_range(0.3, 0.5), hmain * rng.randf_range(0.42, 0.62)])
-	var apex := rr * 0.12
+	# un second sommet tout proche (deux bennes déversées côte à côte), surtout sur les gros tas
+	if rng.randf() < (0.75 if rr > 8.0 else 0.35):
+		var a0 := rng.randf() * TAU
+		cones.append([Vector2(cos(a0), sin(a0)) * rr * rng.randf_range(0.14, 0.24), hmain * rng.randf_range(0.82, 0.93)])
+	# épaulements : plus nombreux sur les grands tas, pour une silhouette irrégulière
+	var nshoulder := rng.randi_range(2, 4) + (2 if rr > 8.0 else 0)
+	for k in nshoulder:
+		var a := TAU * (float(k) + rng.randf_range(0.15, 0.85)) / float(nshoulder)
+		cones.append([Vector2(cos(a), sin(a)) * rr * rng.randf_range(0.3, 0.58), hmain * rng.randf_range(0.38, 0.66)])
+	var apex := rr * 0.2 # sommet arrondi, pas une pointe
 	var center := Vector2(Data.PILE_POS.x, Data.PILE_POS.z)
 	for j in N:
 		for i in N:
 			var p := Vector2(i, j) * cell + origin - center
 			var dist := p.length()
+			var th := atan2(p.y, p.x)
+			# pied lobé : le tas n'est pas un cercle parfait
+			var lobe := 1.0 + 0.09 * _noise.get_noise_2d(cos(th) * 1.4 - 7.0, sin(th) * 1.4 + 3.0)
+			var pw := p / lobe
 			var y := 0.0
 			for c in cones:
-				var dc: float = p.distance_to(c[0])
+				var dc: float = pw.distance_to(c[0])
 				y = maxf(y, float(c[1]) - GEN_SLOPE * (sqrt(dc * dc + apex * apex) - apex))
-			# ravines et crêtes qui descendent le long des flancs
-			var th := atan2(p.y, p.x)
-			var gully := _noise.get_noise_2d(cos(th) * 2.2 + 11.0, sin(th) * 2.2) * smoothstep(0.35 * rr, 0.75 * rr, dist)
-			y *= 1.0 - 0.04 * gully
+			# ravines et crêtes qui descendent le long des flancs (larges, puis fines)
+			var down := smoothstep(0.3 * rr, 0.75 * rr, dist)
+			var gully := _noise.get_noise_2d(cos(th) * 2.2 + 11.0, sin(th) * 2.2) + 0.6 * _noise.get_noise_2d(cos(th) * 6.0 - 2.0, sin(th) * 6.0 + 9.0)
+			y *= 1.0 - 0.06 * gully * down
 			# bosses à petite échelle
 			var n := p / rr
 			y += rr * 0.015 * (_noise.get_noise_2d(n.x * 6.0, n.y * 6.0) + 0.5 * _noise.get_noise_2d(n.x * 15.0 + 4.0, n.y * 15.0))
