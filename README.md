@@ -21,7 +21,8 @@ Chaque push compile le jeu automatiquement (GitHub Actions → onglet **Releases
 
 | | |
 |---|---|
-| **Tas d'aiguilles** | 5 tailles : petit (600 aiguilles), moyen (2 500), gros (10 000), énorme (40 000) et montagne (200 000). Chacun cache 22 brins de foin, et chaque brin trouvé rapporte une prime. Trouver les 22 permet de commander le tas suivant au bureau. |
+| **Tas d'aiguilles** | 4 tailles : petit (10 millions d'aiguilles), moyen (25 millions), grand (100 millions) et montagne (300 millions, environ 26 m de haut). Chacun cache 22 brins de foin, et chaque brin trouvé rapporte une prime. Trouver les 22 permet de commander le tas suivant au bureau. |
+| **Relief creusable** | Le tas est un vrai relief : chaque poignée y fait un petit creux à l'endroit visé, et un bras robot ou une pelleteuse ne creuse que dans son rayon d'action. Quand une paroi devient trop raide, les aiguilles s'éboulent. Une fois sa zone vidée, une machine s'arrête (voyant rouge) : il faut la rapprocher. Les drones prennent au sommet. Le relief creusé est sauvegardé. |
 | **À la main** | Vise le tas et garde ACTION appuyé pour ramasser. Verse ensuite dans une trémie, ou pose ta poignée directement sur un tapis. L'endurance limite la course et le ramassage. |
 | **Convoyeurs** | De vrais tapis en 3D sur une grille : les lots d'aiguilles et les lingots y circulent. Pour en poser une ligne, garde PLACER appuyé en marchant. Les séparateurs répartissent le flux, les stockages tampons l'absorbent. |
 | **Un seul point de vente** | Le **trou de vente**, un grand puits dans le sol : seul ce que les tapis y font tomber est payé. Le foin non détecté qui y tombe retourne dans le tas. |
@@ -44,7 +45,7 @@ l'avant (flèche bleue). La plupart des machines occupent 2×2 cases, et la zone
 rouge si elle est bloquée (sortie pleine ou trop loin du tas).
 
 Le tas est un vrai monticule, haut et bosselé, couvert de fines aiguilles qui se fondent dans sa
-surface. Il rétrécit à mesure qu'on le vide.
+surface. Il se creuse là où l'on travaille et s'éboule de façon réaliste.
 
 Il y a aussi des **objectifs guidés** avec primes pour apprendre le jeu, et un **cycle jour/nuit**
 avec lampadaires (désactivable). Le bouton Retour d'Android ferme les fenêtres et demande
@@ -60,7 +61,8 @@ tester sur PC) : ZQSD/WASD, souris, E, R pour pivoter, Entrée pour placer, Maj,
 game/                Projet Godot (ouvrir game/project.godot dans l'éditeur Godot 4.5)
   scripts/game.gd    Économie et état de la partie (autoload « Game »)
   scripts/data.gd    Tables : tas, bâtiments, arbre, améliorations
-  scripts/world.gd   Décor 3D ; pile.gd = le tas ; buildings.gd = modèles des machines
+  scripts/world.gd   Décor 3D ; pile.gd = rendu du tas ; buildings.gd = modèles des machines
+  scripts/pile_field.gd  Relief du tas : grille de hauteurs, creusage local, éboulements
   scripts/player.gd  Joueur à la première personne, ramassage, mode construction
   scripts/hud.gd     HUD et contrôles tactiles ; panels.gd = boutique, arbre, vente…
   scripts/title.gd   Écran titre ; sfx.gd = sons, musique, ambiance et pluie

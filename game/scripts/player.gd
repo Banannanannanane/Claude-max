@@ -43,7 +43,7 @@ var _exhausted := false
 func _ready() -> void:
 	collision_layer = 1
 	collision_mask = 1
-	position = Vector3(1.5, 0.1, -3.5)
+	position = Vector3(3.5, 0.1, -22.0)
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.35
@@ -231,7 +231,10 @@ func _update_target() -> void:
 		var c := ray.get_collider()
 		if c and c.has_meta("kind"):
 			if c.get_meta("kind") == "pile":
-				info = {"kind": "pile", "point": ray.get_collision_point()}
+				# la carte de hauteurs couvre aussi le sol autour : on ne vise le tas que là où il y a des aiguilles
+				var hp := ray.get_collision_point()
+				if Game.field.height_at(hp.x, hp.z) > 0.03:
+					info = {"kind": "pile", "point": hp}
 			elif c.get_meta("kind") == "entity" and Game.entities.has(c.get_meta("id")):
 				var id: int = c.get_meta("id")
 				info = {"kind": "entity", "id": id, "type": Game.entities[id].type}
@@ -269,7 +272,7 @@ func action_pressed() -> void:
 			else:
 				Sfx.play("click")
 				_hand_kick = 1.0
-				hud.toast("%d aiguilles versées dans la trémie" % q)
+				hud.toast("%s aiguilles versées dans la trémie" % Fmt.needles(q))
 		"convoyeur":
 			_drop_cd = 0.25
 			_drop_on_belt(true)
@@ -300,7 +303,7 @@ func try_grab() -> void:
 		_grab_cd = 0.5
 		hud.toast("Tu es épuisé… reprends ton souffle.")
 		return
-	var got := Game.grab()
+	var got := Game.grab(target.get("point", Vector3.INF))
 	_grab_cd = GRAB_DELAY
 	if got < 0:
 		_grab_cd = 1.0

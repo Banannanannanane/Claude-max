@@ -26,6 +26,8 @@ func _ready() -> void:
 			_shots.call_deferred()
 		"icon":
 			_icon.call_deferred()
+		"pile":
+			_pile_shots.call_deferred()
 
 
 func check(cond: bool, what: String) -> void:
@@ -44,9 +46,27 @@ func _finish() -> void:
 
 func _run(seconds: float) -> void:
 	var t := 0.0
+	var k := 0
 	while t < seconds:
 		Game._step(Game.STEP)
 		t += Game.STEP
+		k += 1
+		if k % 6 == 0:
+			Game.field.relax(2) # éboulements, comme en jeu (5 fois par seconde)
+
+
+## Nombre d'entités de l'installation de départ (trou, borne, trémie, tapis).
+func _start_count() -> int:
+	return 3 + (12 - Game.START_TREMIE.x - 1) + (-3 - Game.START_TREMIE.y)
+
+
+## Première case libre au pied du tas, sur l'axe est (side = 1) ou ouest (side = -1), plus un écart.
+func _beside_pile(side := 1, gap := 1) -> Vector2i:
+	var z := int(Data.PILE_POS.z)
+	var x := int(Data.PILE_POS.x)
+	while Game._pile_blocks(Vector2i(x, z)) or Game._pile_blocks(Vector2i(x, z - 1)) or Game._pile_blocks(Vector2i(x, z + 1)):
+		x += side
+	return Vector2i(x + side * (gap - 1) - (1 if side < 0 and gap > 1 else 0), z)
 
 
 func _rich() -> void:
@@ -181,9 +201,67 @@ func _logic() -> void:
 	_test_contracts_quests()
 	_test_save()
 	_test_golden_recycle()
+	_test_relief()
 	await _test_weather_audio()
 	_test_stress()
 	_finish()
+
+
+func _test_relief() -> void:
+	# un tas neuf est stable : rien ne s'éboule tant qu'on n'y touche pas
+	var stable := true
+	for size in Data.PILE_ORDER:
+		var f := PileField.new()
+		f.generate(float(Data.PILES[size].radius), 1234)
+		f._mark(Rect2i(0, 0, PileField.N, PileField.N))
+		if f.relax(3):
+			stable = false
+	check(stable, "les 4 tas neufs tiennent debout sans s'ébouler")
+	Game.new_game()
+	_rich()
+	Game.pile_done = true
+	Game.order_pile("gros")
+	var P := Data.PILE_POS
+	var R := Game.field.radius
+	check(Game.field.top_near(P.x, P.z, R).y > R, "le grand tas est haut (%.1f m pour %.0f m de rayon)" % [Game.field.top_near(P.x, P.z, R).y, R])
+	var uv0 := Game.unit_volume()
+	var near := _beside_pile(1, 1)
+	Game.build("bras", near, 1)
+	_route_to_hole(near, 1)
+	var east0 := Game.field.height_at(P.x + R * 0.85, P.z)
+	var west0 := Game.field.height_at(P.x - R * 0.85, P.z)
+	var north0 := Game.field.height_at(P.x, P.z - R * 0.85)
+	var n0 := Game.pile_n
+	_run(240.0)
+	var east1 := Game.field.height_at(P.x + R * 0.85, P.z)
+	check(east1 < east0 * 0.5, "le bras creuse son côté du tas (%.2f m → %.2f m)" % [east0, east1])
+	check(absf(Game.field.height_at(P.x - R * 0.85, P.z) - west0) < 0.01 and absf(Game.field.height_at(P.x, P.z - R * 0.85) - north0) < 0.01, "le reste du tas ne bouge pas")
+	check(absf(Game.unit_volume() - uv0) < uv0 * 0.02, "le volume du relief suit le nombre d'aiguilles")
+	var dug := n0 - Game.pile_n
+	var n1 := Game.pile_n
+	_run(120.0)
+	check(dug > 500 and n1 - Game.pile_n < dug * 0.5 and Game.pile_items() > int(Data.PILES.gros.needles) * 0.8,
+		"un bras ne vide que sa zone, puis ralentit (%d puis %d unités)" % [dug, n1 - Game.pile_n])
+	# le relief creusé est sauvegardé
+	var hb := Game.field.height_at(P.x + R * 0.85, P.z)
+	Game.save_slot(2)
+	Game.order_pile("petit")
+	Game.load_slot(2)
+	check(absf(Game.field.height_at(P.x + R * 0.85, P.z) - hb) < 0.05 and Game.pile_size == "gros", "le relief creusé est restauré au chargement")
+	# une sauvegarde de la version précédente (petits tas, tas énorme) est convertie
+	var old := Game.to_dict()
+	old.v = 2
+	old.erase("field")
+	old.pile_size = "enorme"
+	old.pile_total = 40000
+	old.pile_n = 19978
+	old.pile_h = 22
+	var f2 := FileAccess.open(Game.slot_path(3), FileAccess.WRITE)
+	f2.store_string(JSON.stringify(Game._ser(old)))
+	f2.close()
+	check(Game.load_slot(3) and Game.pile_size == "gros" and absi(Game.pile_n - int(Data.PILES.gros.needles) / 2) < 200 and Game.field.volume > 0.0,
+		"ancienne sauvegarde convertie (tas énorme à moitié vide → grand tas à moitié)")
+	Game.delete_slot(3)
 
 
 func _test_golden_recycle() -> void:
@@ -215,7 +293,7 @@ func _test_golden_recycle() -> void:
 	Game.achievements["first_hay"] = true
 	var sm0 := Game.sell_mult()
 	check(Game.recycle(), "recyclage de l'usine")
-	check(Game.prestige == 2 and Game.money == 0.0 and Game.entities.size() == 21 and not Game.tree.has("p_scanner") and Game.shop_lvl("main") == 0,
+	check(Game.prestige == 2 and Game.money == 0.0 and Game.entities.size() == _start_count() and not Game.tree.has("p_scanner") and Game.shop_lvl("main") == 0,
 		"le recyclage repart de zéro avec 2 jetons")
 	check(Game.achievements.has("first_hay") and Game.achievements.has("recycle") and int(Game.stats.recycles) == 1, "succès et statistiques conservés")
 	check(absf(Game.sell_mult() - sm0 * 1.2) < 0.001 and Game.run_earned == 0.0, "les jetons augmentent les ventes de 20 %")
@@ -279,8 +357,13 @@ func _test_geometry() -> void:
 
 func _test_start_and_hand() -> void:
 	Game.new_game()
-	check(Game.pile_items() == 622, "le petit tas contient 600 aiguilles + 22 brins")
-	check(Game.count_type("convoyeur") == 18 and Game.count_type("tremie") == 1 and Game.count_type("trou") == 1 and Game.count_type("bureau") == 1, "installation de départ : trémie, 18 tapis, trou de vente, borne")
+	check(Game.pile_items() == int(Data.PILES.petit.needles) + 22, "le petit tas contient 10 millions d'aiguilles + 22 brins")
+	check(Game.entities.size() == _start_count() and Game.count_type("tremie") == 1 and Game.count_type("trou") == 1 and Game.count_type("bureau") == 1, "installation de départ : trémie, %d tapis, trou de vente, borne" % Game.count_type("convoyeur"))
+	var v0 := Game.field.volume
+	Game.grab(Data.PILE_POS + Vector3(0, 0, 3))
+	var dent := Game.field.volume
+	check(dent < v0 and v0 - dent < v0 * 0.002, "une poignée creuse le tas, à peine (%.4f m³ sur %.0f)" % [v0 - dent, v0])
+	Game.hand_n = 0
 	check(Game.money == 0.0 and Game.quest == 0, "départ à 0 € sur le premier objectif")
 	var tremie := _tremie_id()
 	var guard := 0
@@ -299,7 +382,7 @@ func _test_start_and_hand() -> void:
 	Game._check_quest()
 	check(Game.quest >= 2, "les premiers objectifs se valident en jouant (objectif n°%d)" % Game.quest)
 	Game.hand_n = 8
-	var belt: int = Game.grid[Vector2i(5, -10)]
+	var belt: int = Game.grid[Vector2i(5, Game.START_TREMIE.y)]
 	_run(5.0)
 	check(Game.entities[belt].item == null and Game.drop_on_belt(belt) == 8 and Game.hand_n == 0, "poser une poignée directement sur un tapis")
 	check(Game.drop_on_belt(belt) == 0, "on ne pose rien sur un tapis occupé ou avec la main vide")
@@ -308,7 +391,7 @@ func _test_start_and_hand() -> void:
 func _test_placement() -> void:
 	Game.new_game()
 	_rich()
-	check(Game.placement_ok("fonderie", Vector2i(0, -16), 0) == "Trop près du tas", "pas de construction sur le tas")
+	check(Game.placement_ok("fonderie", Vector2i(int(Data.PILE_POS.x), int(Data.PILE_POS.z)), 0) == "Trop près du tas", "pas de construction sur le tas")
 	check(Game.placement_ok("fonderie", Vector2i(Data.FIELD + 1, 0), 0) == "Hors du terrain", "pas de construction hors de la clôture")
 	check(Game.placement_ok("fonderie", Vector2i(Data.FIELD - 1, 0), 0) == "", "on construit jusqu'au bord de la grande zone (%d cases de côté)" % (Data.FIELD * 2))
 	check(Game.placement_ok("fonderie", Vector2i(12, -2), 0) != "", "pas de construction sur le trou de vente")
@@ -458,27 +541,28 @@ func _test_diggers_drone() -> void:
 	_rich()
 	Game.pile_done = true
 	Game.order_pile("gros")
-	var R := Game.pile_radius()
-	var near := Vector2i(int(R) + 2, -16)
+	var near := _beside_pile(1, 1)
 	check(Game.build("bras", near, 1), "bras robot au bord du tas")
 	check(Game.digger_in_range("bras", near, 1), "le bras est à portée")
-	check(not Game.digger_in_range("bras", Vector2i(40, -16), 1), "un bras loin du tas ne creuse pas")
+	check(not Game.digger_in_range("bras", Vector2i(60, int(Data.PILE_POS.z)), 1), "un bras loin du tas ne creuse pas")
 	check(_route_to_hole(near, 1), "sortie du bras reliée au trou")
 	var n0 := Game.pile_n
 	_run(20.0)
 	check(Game.pile_n < n0, "le bras robot ramasse dans le tas (%d)" % (n0 - Game.pile_n))
-	var pc := Vector2i(-int(R) - 3, -16)
+	var pc := _beside_pile(-1, 2)
 	check(Game.build("pelle", pc, 3), "pelleteuse près du tas")
 	check(Game.digger_in_range("pelle", pc, 3), "la pelleteuse est à portée")
 	var n1 := Game.pile_n
 	_run(20.0)
 	check(Game.pile_n < n1, "la pelleteuse creuse")
-	var tremie := _tremie_id()
-	check(tremie >= 0, "la trémie de départ est toujours là")
+	# le grand tas a recouvert la trémie de départ (remboursée) : une nouvelle, reliée au trou
+	check(_tremie_id() < 0, "le grand tas recouvre la trémie de départ, qui est remboursée")
+	var ta := Vector2i(-14, -6)
+	check(Game.build("tremie", ta, 1) and _route_to_hole(Game.out_cells("tremie", ta, 1)[0] - Data.DIRS[1], 1), "nouvelle trémie reliée au trou")
 	check(Game.build("drone", Vector2i(-6, -6), 0), "drone collecteur")
 	var sold0 := int(Game.stats.sold.get("vrac", 0))
 	var delivered := false
-	for i in 60:
+	for i in 180:
 		_run(1.0)
 		if int(Game.stats.sold.get("vrac", 0)) > sold0 + 2:
 			delivered = true
@@ -499,7 +583,10 @@ func _test_hay_and_piles() -> void:
 	Game.new_game()
 	_rich()
 	tremie = _tremie_id()
-	Game.build("scanner", Vector2i(5, -10), 1)
+	Game.build("scanner", Vector2i(5, Game.START_TREMIE.y), 1)
+	# tas réduit pour le test (le compte et le relief restent proportionnels)
+	Game.field.shrink(600.0 / float(Game.pile_n))
+	Game.pile_n = 600
 	var guard := 0
 	while Game.pile_items() > 0 and guard < 20000:
 		guard += 1
@@ -515,7 +602,7 @@ func _test_hay_and_piles() -> void:
 			ok = false
 		if Game.pile_items() != int(Data.PILES[size].needles) + 22:
 			ok = false
-	check(ok, "commande des 5 tailles de tas jusqu'à la montagne")
+	check(ok, "commande des 4 tailles de tas jusqu'à la montagne")
 	var blocked := false
 	for id in Game.entities:
 		var en: Dictionary = Game.entities[id]
@@ -612,7 +699,7 @@ func _test_save() -> void:
 	var n_ent := Game.entities.size()
 	check(Game.save_slot(2), "sauvegarde dans l'emplacement 2")
 	Game.new_game_in_slot(3)
-	check(Game.entities.size() == 21 and Game.slot == 3, "nouvelle partie dans l'emplacement 3")
+	check(Game.entities.size() == _start_count() and Game.slot == 3, "nouvelle partie dans l'emplacement 3")
 	check(Game.load_slot(2), "chargement de l'emplacement 2")
 	var after := JSON.stringify(Game.to_dict().entities)
 	check(before == after and Game.entities.size() == n_ent, "toutes les machines, tapis et objets transportés sont restaurés à l'identique")
@@ -820,9 +907,9 @@ func _ui() -> void:
 	# ACTION sur le tas
 	Game.new_game()
 	await _frames(3)
-	pl.global_position = Vector3(0.5, 0.1, -11.2)
+	pl.global_position = Data.PILE_POS + Vector3(-2.5, 0.1, Game.field.radius * PileField.WOBBLE + 1.0)
 	pl.rotation.y = 0
-	pl.head.rotation.x = deg_to_rad(-25)
+	pl.head.rotation.x = deg_to_rad(-12)
 	await _frames(4)
 	check(pl.target.get("kind", "") == "pile", "viser le tas")
 	var btn: TouchScreenButton = hud._btn_action
@@ -934,6 +1021,54 @@ func _face(pos: Vector3, look: Vector3, pitch := -8.0) -> void:
 	p.head.rotation.x = deg_to_rad(pitch)
 
 
+## Captures du relief : petit tas, poignées à la main, bras sur un côté, montagne.
+func _pile_shots() -> void:
+	Game.new_game()
+	Game.settings.daynight = false
+	Game.settings.weather = false
+	await _frames(3)
+	main.hud.close_panel()
+	var P := Data.PILE_POS
+	_face(P + Vector3(-7, 0, 8), P + Vector3(0, 2, 0), -6)
+	await _shot("p1_petit", 30)
+	for i in 60:
+		Game.hand_n = 0
+		Game.grab(P + Vector3(-2.0, 0, 2.5))
+	for i in 20:
+		Game.field.relax(2)
+	await _shot("p2_poignees", 10)
+	_rich()
+	var R := float(Data.PILES.petit.radius)
+	for k in 3:
+		Game.build("bras", Vector2i(int(R) + 2, int(P.z) - 2 + k * 2), 3)
+	var t_step := 0
+	var t_relax := 0
+	for i in 1800:
+		var t0 := Time.get_ticks_usec()
+		Game._step(Game.STEP)
+		t_step += Time.get_ticks_usec() - t0
+		for id in Game.entities:
+			if Game.entities[id].type == "bras":
+				Game.entities[id].outq.clear()
+		if i % 6 == 0:
+			t0 = Time.get_ticks_usec()
+			Game.field.relax(2)
+			t_relax += Time.get_ticks_usec() - t0
+	print("1 min de 3 bras : simulation %d ms, éboulement %d ms, reste %d" % [t_step / 1000, t_relax / 1000, Game.pile_n])
+	main.player.head.position.y = 7.0
+	_face(P + Vector3(12, 0, 9), P + Vector3(3, 0, -1), -30)
+	await _shot("p3_bras", 20)
+	main.player.head.position.y = 1.62
+	Game.pile_done = true
+	Game.stats.piles = 10
+	Game.order_pile("montagne")
+	_face(Vector3(0, 0, 12), P + Vector3(0, 12, 0), 8)
+	await _shot("p4_montagne", 30)
+	_face(P + Vector3(6, 0, 25), P + Vector3(0, 10, 0), 12)
+	await _shot("p5_montagne_pres", 30)
+	get_tree().quit()
+
+
 func _shots() -> void:
 	Game.new_game()
 	Game.settings.daynight = false
@@ -946,9 +1081,9 @@ func _shots() -> void:
 	await get_tree().create_timer(1.2).timeout
 	await _shot("01_intro", 20)
 	main.hud.close_panel()
-	_face(Vector3(-3, 0, -3), Vector3(6, 0, -9), -16)
+	_face(Vector3(9, 0, -18), Data.PILE_POS + Vector3(2, 0, 4), -10)
 	await _shot("02_depart", 10)
-	_face(Vector3(0.5, 0, -11.3), Data.PILE_POS, -25)
+	_face(Data.PILE_POS + Vector3(-2.5, 0, Game.field.radius * PileField.WOBBLE + 1.0), Data.PILE_POS + Vector3(-2.5, 0, 0), -12)
 	for i in 4:
 		main.player._grab_cd = 0
 		main.player.try_grab()
@@ -957,16 +1092,15 @@ func _shots() -> void:
 	_rich()
 	Game.pile_done = true
 	Game.order_pile("gros")
-	var R := Game.pile_radius()
-	var ch := _chain(Vector2i(int(R) + 2, -16), 1, ["bras", "belt:1", "scanner", "belt:1", "fonderie", "belt:1", "purif", "belt:1", "presse", "belt:1"])
+	var ch := _chain(_beside_pile(1, 1), 1, ["bras", "belt:1", "scanner", "belt:1", "fonderie", "belt:1", "purif", "belt:1", "presse", "belt:1"])
 	_route_to_hole(ch.end, 1)
-	var ch2 := _chain(Vector2i(-int(R) - 3, -18), 3, ["pelle", "belt:2", "scanner", "belt:1", "fonderie", "belt:1", "purif", "belt:1", "trefileuse", "belt:1", "aiguilleuse", "belt:1", "tampon", "belt:2"])
+	var ch2 := _chain(_beside_pile(-1, 2) + Vector2i(0, -3), 3, ["pelle", "belt:2", "scanner", "belt:1", "fonderie", "belt:1", "purif", "belt:1", "trefileuse", "belt:1", "aiguilleuse", "belt:1", "tampon", "belt:2"])
 	Game.build("drone", Vector2i(-4, -6), 0)
 	Game.build("separateur", Vector2i(-14, 2), 0)
 	for i in 1500:
 		Game._step(Game.STEP)
-	main.player.head.position.y = 11.0
-	_face(Vector3(26, 0, 8), Vector3(4, 0, -16), -26)
+	main.player.head.position.y = 14.0
+	_face(Data.PILE_POS + Vector3(32, 0, 26), Data.PILE_POS + Vector3(4, 0, 0), -24)
 	await _shot("04_usine", 40)
 	main.player.head.position.y = 1.62
 	var fid: int = ch.ids[2]
@@ -993,7 +1127,7 @@ func _shots() -> void:
 	Game.stats.time = 0.82 * 900.0
 	main.world.night = 1.0
 	main.player.head.position.y = 6.0
-	_face(Vector3(18, 0, 6), Vector3(4, 0, -12), -14)
+	_face(Vector3(18, 0, 6), Data.PILE_POS, -12)
 	await _shot("11_nuit", 30)
 	main.world.night = 0.0
 	Game.stats.time = 0.0
@@ -1007,8 +1141,8 @@ func _shots() -> void:
 	Game.order_pile("montagne")
 	Game.settings.daynight = false
 	main.world.night = 0.0
-	main.player.head.position.y = 4.0
-	_face(Vector3(0, 0, 20), Data.PILE_POS + Vector3(0, 3, 0), -6)
+	main.player.head.position.y = 2.0
+	_face(Vector3(4, 0, 14), Data.PILE_POS + Vector3(0, 10, 0), 2)
 	await _shot("12_montagne", 30)
 	Game.settings.quality = 0
 	main.apply_quality()

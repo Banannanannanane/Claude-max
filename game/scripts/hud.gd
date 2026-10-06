@@ -326,9 +326,9 @@ func _refresh() -> void:
 	_money.text = Fmt.eur(Game.money)
 	_hay.text = "Foin trouvé : %d / %d" % [Game.pile_found, Data.HAY_PER_PILE]
 	_hay_bar.value = Game.pile_found
-	_pile.text = "%s · %s aiguilles" % [Data.PILES[Game.pile_size].name, Fmt.num(Game.pile_n)]
+	_pile.text = "%s · %s aiguilles" % [Data.PILES[Game.pile_size].name, Fmt.needles(Game.pile_n)]
 	var held := Game.hand_n + Game.hand_h
-	_hand.text = "Main : %d / %d" % [held, Game.hand_cap()]
+	_hand.text = "Main : %s / %s" % [Fmt.needles(held), Fmt.needles(Game.hand_cap())]
 	_hand.add_theme_color_override("font_color", UI.BAD if held >= Game.hand_cap() else Color(0.93, 0.94, 0.96))
 	_store.text = "Revenus : %s / min" % Fmt.eur(float(Game.rates.income) * 60.0)
 	if Game.prestige > 0:
@@ -397,7 +397,7 @@ func _update_prompt() -> void:
 		match e.type:
 			"tremie":
 				act = "Verser"
-				txt = "Trémie : %d / %d aiguilles" % [int(e.n) + int(e.h), Game.tremie_cap()]
+				txt = "Trémie : %s / %s aiguilles" % [Fmt.needles(int(e.n) + int(e.h)), Fmt.needles(Game.tremie_cap())]
 			"convoyeur":
 				act = "Poser"
 				txt = "Convoyeur — poser une poignée dessus" if Game.hand_n + Game.hand_h > 0 else "Convoyeur"

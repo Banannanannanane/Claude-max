@@ -24,6 +24,11 @@ static func num(v: float, dec := 0) -> String:
 	return ("-" if neg else "") + s.replace(".", ",")
 
 
+## Nombre d'aiguilles réelles pour un nombre d'unités de jeu (1 unité = 1 000 aiguilles).
+static func needles(units: float) -> String:
+	return num(units * Data.NEEDLE_UNIT)
+
+
 static func eur(v: float) -> String:
 	return num(v, 2) + " €"
 

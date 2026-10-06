@@ -104,7 +104,7 @@ func _catch_up(away := -1.0) -> void:
 		hud.message("Pendant ton absence…", "\n".join([
 			"Ton usine a tourné pendant %s." % Fmt.duration(r.seconds),
 			"",
-			"Aiguilles ramassées : %s" % Fmt.num(r.needles),
+			"Aiguilles ramassées : %s" % Fmt.needles(r.needles),
 			"Brins de foin trouvés : %d" % r.hay,
 			"Argent gagné : %s" % Fmt.eur(r.money),
 		]))

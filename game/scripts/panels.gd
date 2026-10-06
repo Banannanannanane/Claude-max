@@ -44,7 +44,7 @@ class ShopPanel extends PanelBase:
 	func _effect(id: String, l: int) -> String:
 		match id:
 			"main":
-				return "%d aiguilles" % (15 + 10 * l)
+				return "%s aiguilles" % Fmt.needles(15 + 10 * l)
 			"poignee":
 				return "%d par geste" % (3 + 2 * l)
 			"endurance":
@@ -58,7 +58,7 @@ class ShopPanel extends PanelBase:
 			"oeil":
 				return "%d %% de chances" % int(minf(0.9, 0.3 + 0.07 * l) * 100)
 			"tremie_cap":
-				return "%d aiguilles / trémie" % (600 + 300 * l)
+				return "%s aiguilles / trémie" % Fmt.needles(600 + 300 * l)
 		return ""
 
 
@@ -288,7 +288,7 @@ class OrderPanel extends PanelBase:
 			var p: Dictionary = Data.PILES[id]
 			var b2 := UI.button("", _order.bind(id), "GoldButton")
 			b2.custom_minimum_size = Vector2(230, 60)
-			var r2 := row(p.name, "%s aiguilles · 22 brins de foin cachés · %s le brin" % [Fmt.num(p.needles), Fmt.eur(p.hay_value)], b2)
+			var r2 := row(p.name, "%s d'aiguilles · 22 brins de foin cachés · %s le brin" % [Fmt.needles(p.needles), Fmt.eur(p.hay_value)], b2)
 			r2["button"] = b2
 			_rows[id] = r2
 		section("Recyclage de l'usine")
@@ -327,7 +327,7 @@ class OrderPanel extends PanelBase:
 	func refresh() -> void:
 		var p: Dictionary = Data.PILES[Game.pile_size]
 		_status.text = "Tas actuel : %s — foin trouvé %d / 22 — %s aiguilles restantes%s" % [
-			p.name, Game.pile_found, Fmt.num(Game.pile_n), "\nTas terminé : tu peux en commander un nouveau !" if Game.pile_done else ""]
+			p.name, Game.pile_found, Fmt.needles(Game.pile_n), "\nTas terminé : tu peux en commander un nouveau !" if Game.pile_done else ""]
 		if Game.contract.is_empty():
 			_contract.text = "Aucun contrat en cours : accepte une offre ci-dessous."
 		else:
@@ -395,10 +395,10 @@ class StockPanel extends PanelBase:
 			if Game.entities[id].get("item") != null:
 				on_belts += 1
 		_lines.text = "\n".join([
-			"%s : %s aiguilles restantes, foin trouvé %d / 22" % [p.name, Fmt.num(Game.pile_n), Game.pile_found],
+			"%s : %s aiguilles restantes, foin trouvé %d / 22" % [p.name, Fmt.needles(Game.pile_n), Game.pile_found],
 			"Dans ta main : %d / %d" % [Game.hand_n + Game.hand_h, Game.hand_cap()],
 			"Objets sur les tapis : %d · vitesse des tapis : %s cases/s" % [on_belts, Fmt.num(Game.belt_speed(), 1)],
-			"Revenus récents : %s / min · aiguilles ramassées : %s / min" % [Fmt.eur(float(Game.rates.income) * 60.0), Fmt.num(float(Game.rates.dig) * 60.0)],
+			"Revenus récents : %s / min · aiguilles ramassées : %s / min" % [Fmt.eur(float(Game.rates.income) * 60.0), Fmt.needles(float(Game.rates.dig) * 60.0)],
 			"Foin perdu dans le trou (non détecté) : %d" % int(Game.stats.lost_hay),
 		])
 		var counts := {}
@@ -459,7 +459,7 @@ class EntityPanel extends PanelBase:
 		var s := []
 		match e.type:
 			"tremie":
-				s.append("Contenu : %d / %d aiguilles" % [int(e.n) + int(e.h), Game.tremie_cap()])
+				s.append("Contenu : %s / %s aiguilles" % [Fmt.needles(int(e.n) + int(e.h)), Fmt.needles(Game.tremie_cap())])
 			"bras", "pelle":
 				s.append("Portée : %s m depuis le bord du tas" % Fmt.num(Game.dig_range(e.type), 1))
 				s.append("À portée du tas" if Game.digger_in_range(e.type, e.c, e.r) else "Trop loin du tas : déplace-le plus près !")
@@ -467,7 +467,7 @@ class EntityPanel extends PanelBase:
 			"tampon":
 				s.append("Stock : %d / %d objets" % [e.q.size(), int(m.cap)])
 			"drone":
-				s.append("Charge : %d aiguilles par voyage" % (30 + 20 * Game.up_lvl("u_drone_charge")))
+				s.append("Charge : %s aiguilles par voyage" % Fmt.needles(30 + 20 * Game.up_lvl("u_drone_charge")))
 			"trou":
 				s.append("Ventes totales : %s" % Fmt.eur(float(Game.stats.earned)))
 		if m.has("in"):
@@ -575,7 +575,7 @@ class AchievementsPanel extends PanelBase:
 		_stats.text = "\n".join([
 			"Temps de jeu : %s" % Fmt.duration(float(st.get("time", 0.0))),
 			"Argent gagné au total : %s" % Fmt.eur(float(st.get("earned", 0.0))),
-			"Aiguilles ramassées : %s" % Fmt.num(float(st.get("needles", 0))),
+			"Aiguilles ramassées : %s" % Fmt.needles(float(st.get("needles", 0))),
 			"Brins de foin trouvés : %s   ·   foin perdu dans le trou : %s" % [Fmt.num(float(st.get("hay", 0))), Fmt.num(float(st.get("lost_hay", 0)))],
 			"Tas terminés : %s   ·   contrats livrés : %s" % [Fmt.num(float(st.get("piles", 0))), Fmt.num(float(st.get("contracts", 0)))],
 			"Lingots coulés : %s   ·   objets vendus : %s" % [Fmt.num(float(st.get("ingots", 0))), Fmt.num(float(sold))],
@@ -663,12 +663,13 @@ class SettingsPanel extends PanelBase:
 			"• Verse tes aiguilles dans une trémie ou pose-les sur un tapis (ACTION en visant le tapis).",
 			"• On ne vend qu'au TROU DE VENTE : amène-y tout par convoyeurs. Construire > Convoyeur, puis garde PLACER appuyé en marchant.",
 			"• Le foin non détecté qui tombe dans le trou retourne dans le tas : place des SCANNERS sur tes tapis.",
+			"• Bras robots et pelleteuses ne creusent que dans leur rayon d'action : quand leur voyant passe au rouge, déplace-les plus près du tas.",
 			"• Chaîne de valeur : vrac → scanner → fonderie → purificateur → presse / tréfileuse → aiguilleuse.",
 			"• Chaque machine prend par l'arrière (flèche verte) et sort par l'avant (flèche bleue). Les séparateurs répartissent.",
 			"• Arbre : achète les plans (droits de construction), puis leurs améliorations par niveaux.",
 			"• Bureau : contrats de livraison à prime et commande des tas. L'usine produit aussi hors ligne (8 h max).",
 		]), 19, Color(0.86, 0.88, 0.92), true))
-		content.add_child(UI.label("Trouve le Foin v1.4 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
+		content.add_child(UI.label("Trouve le Foin v1.5 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
 
 	func _toggle_sound() -> void:
 		Game.settings.sound = not Game.settings.sound

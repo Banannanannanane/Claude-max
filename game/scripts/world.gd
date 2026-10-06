@@ -288,7 +288,7 @@ func _farm() -> void:
 
 
 func _lamps() -> void:
-	var spots := [Vector3(4, 0, 4), Vector3(-9, 0, -4), Vector3(17, 0, -9), Vector3(-5, 0, -25), Vector3(10, 0, -24), Vector3(20, 0, 6)]
+	var spots := [Vector3(4, 0, 4), Vector3(-9, 0, -4), Vector3(17, 0, -9), Vector3(-26, 0, -14), Vector3(25, 0, -16), Vector3(20, 0, 6)]
 	for s in spots:
 		var lp := Node3D.new()
 		lp.position = s

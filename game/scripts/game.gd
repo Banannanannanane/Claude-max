@@ -28,6 +28,9 @@ var pile_h := 22
 var pile_found := 0
 var pile_done := false
 var pile_gold := 0 # rang du brin doré dans ce tas (0 = aucun)
+var field := PileField.new() # relief du tas, creusé localement
+var _take_carry := 0.0
+var _relax_acc := 0.0
 var prestige := 0 # jetons de recyclage (bonus permanent)
 var run_earned := 0.0 # argent gagné depuis le dernier recyclage
 
@@ -105,6 +108,9 @@ func _blank_stats() -> Dictionary:
 		"contracts": 0, "sold": {}, "lost_hay": 0, "poured": 0, "ordered": {}, "golden": 0, "recycles": 0}
 
 
+const START_TREMIE := Vector2i(0, -28) # trémie de départ, au pied du petit tas
+
+
 ## keep_meta : recyclage — on garde succès, statistiques et jetons.
 func new_game(keep_meta := false) -> void:
 	money = 0.0
@@ -129,10 +135,10 @@ func new_game(keep_meta := false) -> void:
 	# installation de départ : une trémie près du tas, un tapis jusqu'au trou de vente
 	_add("trou", Vector2i(12, -2), 0)
 	_add("bureau", Vector2i(-6, 2), 2)
-	_add("tremie", Vector2i(0, -10), 1)
-	for x in range(1, 12):
-		_add("convoyeur", Vector2i(x, -10), 1)
-	for z in range(-10, -3):
+	_add("tremie", START_TREMIE, 1)
+	for x in range(START_TREMIE.x + 1, 12):
+		_add("convoyeur", Vector2i(x, START_TREMIE.y), 1)
+	for z in range(START_TREMIE.y, -3):
 		_add("convoyeur", Vector2i(12, z), 2)
 	_roll_offers()
 	_order_dirty = true
@@ -347,9 +353,12 @@ static func in_cells(type: String, c: Vector2i, r: int) -> Array:
 
 
 func _pile_blocks(cell: Vector2i) -> bool:
-	var R: float = Data.PILES[pile_size].radius
+	# on ne construit pas là où il y a des aiguilles (le bord de la case compte aussi)
 	var p := cell_center(cell)
-	return Vector2(p.x - Data.PILE_POS.x, p.z - Data.PILE_POS.z).length() < R + 0.4
+	for o: Vector2 in [Vector2.ZERO, Vector2(-0.45, -0.45), Vector2(0.45, -0.45), Vector2(-0.45, 0.45), Vector2(0.45, 0.45)]:
+		if field.height_at(p.x + o.x, p.z + o.y) > 0.04:
+			return true
+	return false
 
 
 var player_cells: Array = [] # cases occupées par le joueur (on ne construit pas sur lui)
@@ -492,6 +501,9 @@ func demolish(id: int) -> bool:
 	var refund := build_cost(e.type) if e.type == "convoyeur" else build_cost(e.type) / 1.35 * 0.5
 	# les aiguilles de la trémie retournent dans le tas, le foin reste trouvable
 	if e.type == "tremie":
+		var back := int(e.n) + int(e.h)
+		if back > 0 and pile_items() > 0:
+			field.scale_all(float(pile_items() + back) / float(pile_items()))
 		pile_n += int(e.n)
 		pile_h += int(e.h)
 	_return_hay_of(e)
@@ -628,11 +640,15 @@ func recycle() -> bool:
 	return true
 
 
-func grab() -> int:
+## Prend une poignée dans le tas, à l'endroit visé (at) : le relief s'y creuse un peu.
+func grab(at := Vector3.INF) -> int:
 	var room := hand_cap() - hand_n - hand_h
 	if room <= 0:
 		return -1
-	var got := _draw_mix(mini(grab_amount(), room), pile_n, pile_h)
+	if at == Vector3.INF:
+		at = field.top_near(Data.PILE_POS.x, Data.PILE_POS.z, field.radius)
+	var k := _take_units(at.x, at.z, maxf(0.4, field.cell * 1.3), mini(grab_amount(), room))
+	var got := _draw_mix(k, pile_n, pile_h)
 	if got.x + got.y <= 0:
 		return 0
 	pile_n -= got.x
@@ -770,6 +786,8 @@ func _set_pile(size: String) -> void:
 	pile_done = false
 	# 40 % des tas cachent un brin doré parmi leurs 22 brins
 	pile_gold = randi_range(1, Data.HAY_PER_PILE) if randf() < 0.4 else 0
+	field.generate(float(Data.PILES[size].radius), randi())
+	_take_carry = 0.0
 	hand_h = 0
 	# le foin caché de l'ancien tas ne compte plus ; ce que le nouveau tas recouvre est remboursé
 	var removed := 0
@@ -847,7 +865,7 @@ func abandon_contract() -> void:
 func quest_progress(id: String) -> Vector2:
 	match id:
 		"grab30":
-			return Vector2(stats.needles, 30)
+			return Vector2(float(stats.needles) * Data.NEEDLE_UNIT, 30000)
 		"tremie":
 			return Vector2(mini(int(stats.poured), 1), 1)
 		"sell10":
@@ -1107,29 +1125,89 @@ func _tick_tremie(e: Dictionary, dt: float) -> void:
 	_push_out(e)
 
 
+# ============================================================ relief du tas
+## Volume d'une unité (1 000 aiguilles) : le relief et le compte restent proportionnels.
+func unit_volume() -> float:
+	return field.volume / float(maxi(1, pile_items()))
+
+
+## Retire jusqu'à k unités du relief autour de (x, z). Renvoie le nombre d'unités obtenues.
+func _take_units(x: float, z: float, rad: float, k: int) -> int:
+	k = mini(k, pile_items())
+	if k <= 0:
+		return 0
+	if field.volume <= 1e-6:
+		return k # relief épuisé (arrondis) : on finit le compte n'importe où
+	var uv := unit_volume()
+	var got := field.take(x, z, rad, uv * k) / uv + _take_carry
+	var units := mini(k, int(floor(got + 1e-4)))
+	_take_carry = clampf(got - units, 0.0, 0.999)
+	if pile_items() - units <= 0:
+		field.clear()
+	return units
+
+
+## Point de creusage d'une machine : l'endroit le plus haut parmi quelques essais dans sa portée.
+func _scoop_point(center: Vector3, reach_r: float) -> Vector3:
+	var best := Vector3(center.x, -1.0, center.z)
+	var to_pile := Vector2(Data.PILE_POS.x - center.x, Data.PILE_POS.z - center.z)
+	var base := to_pile.angle()
+	for i in 9:
+		var a := base + randf_range(-1.2, 1.2)
+		var d := reach_r * sqrt(randf())
+		var x := center.x + cos(a) * d
+		var z := center.z + sin(a) * d
+		var hh := field.height_at(x, z)
+		if hh > best.y:
+			best = Vector3(x, hh, z)
+	return best
+
+
+## Y a-t-il des aiguilles dans la portée de la machine ? (quelques sondages, rapide)
 func digger_in_range(type: String, c: Vector2i, r := 0) -> bool:
+	if pile_items() <= 0:
+		return false
 	var p := machine_center(type, c, r)
-	var d := Vector2(p.x - Data.PILE_POS.x, p.z - Data.PILE_POS.z).length()
-	return pile_items() > 0 and d - pile_radius() <= dig_range(type)
+	var rr := dig_range(type) + 0.6
+	if Vector2(p.x - Data.PILE_POS.x, p.z - Data.PILE_POS.z).length() > field.radius * PileField.WOBBLE + rr:
+		return false
+	for ring: float in [0.35, 0.7, 1.0]:
+		for i in 12:
+			var a := TAU * (float(i) + ring) / 12.0
+			if field.height_at(p.x + cos(a) * rr * ring, p.z + sin(a) * rr * ring) > 0.03:
+				return true
+	return false
 
 
 func _tick_digger(e: Dictionary, dt: float) -> void:
 	_push_out(e)
-	if not digger_in_range(e.type, e.c, e.r) or e.outq.size() >= 3:
+	if e.outq.size() >= 3 or float(e.get("dry", 0.0)) > _clock:
 		return
 	var m: Dictionary = Data.MACHINES[e.type]
 	e.acc += float(m.dig) * machine_speed(e.type) * dt
 	if e.acc < 1.0:
 		return
 	e.acc -= 1.0
+	var c := machine_center(e.type, e.c, e.r)
+	var scoop := 0.8 if e.type == "bras" else 1.3
+	var dug := false
 	for i in int(m.get("lot_mult", 1)):
-		var mix := _draw_mix(Data.LOT, pile_n, pile_h)
-		if mix.x + mix.y <= 0:
+		var sp := _scoop_point(c, dig_range(e.type) + 0.6)
+		if sp.y <= 0.0:
 			break
+		var k := _take_units(sp.x, sp.z, maxf(scoop, field.cell * 1.3), Data.LOT)
+		if k <= 0:
+			break
+		var mix := _draw_mix(k, pile_n, pile_h)
 		pile_n -= mix.x
 		pile_h -= mix.y
 		stats.needles += mix.x
 		e.outq.append({"t": "vrac", "n": mix.x, "h": mix.y, "p": 0.0})
+		dug = true
+	if not dug:
+		# plus rien à portée : on réessaie dans une seconde (le tas peut s'ébouler jusqu'ici)
+		e["dry"] = _clock + 1.0
+		return
 	_activity[e.id] = _clock
 	if not offline:
 		pile_changed.emit()
@@ -1191,11 +1269,16 @@ func _tick_drone(e: Dictionary, dt: float) -> void:
 			if pile_items() <= 0:
 				target = cell_center(e.c) + Vector3(0, 0.6, 0)
 			else:
-				var d: Vector3 = Data.PILE_POS - e.pos
-				d.y = 0
-				target = Data.PILE_POS - d.normalized() * pile_radius() * 0.7 + Vector3(0, pile_radius() * 0.7 + 1.0, 0)
+				# le sommet du tas, recalculé de temps en temps
+				if not e.has("goal") or float(e.get("goal_t", 0.0)) < _clock:
+					var top := field.top_near(Data.PILE_POS.x, Data.PILE_POS.z, field.radius)
+					e["goal"] = top + Vector3(0, 1.2, 0)
+					e["goal_t"] = _clock + 4.0
+				target = e.goal
 				if e.pos.distance_to(target) < 0.6:
-					var mix := _draw_mix(carry, pile_n, pile_h)
+					var k := _take_units(target.x, target.z, maxf(1.2, field.cell * 2.0), carry)
+					e["goal_t"] = 0.0
+					var mix := _draw_mix(k, pile_n, pile_h)
 					pile_n -= mix.x
 					pile_h -= mix.y
 					stats.needles += mix.x
@@ -1236,6 +1319,11 @@ func _process(delta: float) -> void:
 		_step(STEP)
 		_acc -= STEP
 		n += 1
+	_relax_acc += delta
+	if _relax_acc >= 0.2:
+		_relax_acc = 0.0
+		if field.relax(2):
+			pile_changed.emit()
 	_sec_acc += delta
 	if _sec_acc >= 1.0:
 		_sec_acc = 0.0
@@ -1276,6 +1364,8 @@ func simulate_offline(seconds: float) -> Dictionary:
 	if float(rates.hay) > 0.0 and dig > 0 and pile_n + pile_h > 0:
 		hay = mini(pile_h, int(round(float(dig) * float(pile_h) / float(pile_n + pile_h))))
 	var money_gain: float = float(rates.income) * seconds * 0.8
+	if pile_items() > 0:
+		field.shrink(float(pile_items() - dig) / float(pile_items()))
 	pile_n -= dig
 	stats.needles += dig
 	offline = true
@@ -1336,7 +1426,7 @@ func to_dict() -> Dictionary:
 	for id in entities:
 		ents.append(_ser(entities[id]))
 	return {
-		"v": 2, "money": money, "hand_n": hand_n, "hand_h": hand_h,
+		"v": 3, "money": money, "field": field.to_save(), "hand_n": hand_n, "hand_h": hand_h,
 		"pile_size": pile_size, "pile_total": pile_total, "pile_n": pile_n, "pile_h": pile_h,
 		"pile_found": pile_found, "pile_done": pile_done, "pile_gold": pile_gold,
 		"prestige": prestige, "run_earned": run_earned,
@@ -1404,15 +1494,34 @@ func load_slot(s: int) -> bool:
 
 
 func from_dict(d: Dictionary) -> bool:
-	if int(d.get("v", 0)) != 2 or not Data.PILES.has(d.get("pile_size", "")):
+	var v := int(d.get("v", 0))
+	var ps: String = str(d.get("pile_size", ""))
+	if v == 2 and ps == "enorme":
+		ps = "gros" # le tas énorme n'existe plus
+	if (v != 2 and v != 3) or not Data.PILES.has(ps):
 		return false
 	money = float(d.money)
 	hand_n = int(d.get("hand_n", 0))
 	hand_h = int(d.get("hand_h", 0))
-	pile_size = d.pile_size
+	pile_size = ps
 	pile_total = int(d.pile_total)
 	pile_n = int(d.pile_n)
 	pile_h = int(d.pile_h)
+	if v == 2:
+		# anciennes tailles de tas : on garde la proportion restante dans le nouveau tas
+		var frac := float(pile_n + pile_h) / float(maxi(1, pile_total + Data.HAY_PER_PILE))
+		pile_total = int(Data.PILES[ps].needles)
+		pile_n = int(round(frac * pile_total))
+		if pile_n + pile_h <= 0:
+			pile_h = 0
+	var full := float(pile_total + Data.HAY_PER_PILE)
+	var radius_now := float(Data.PILES[ps].radius)
+	if pile_n + pile_h <= 0:
+		field.generate(radius_now, 1, 0.0)
+		field.clear()
+	elif typeof(d.get("field")) != TYPE_DICTIONARY or not field.from_save(d.field, radius_now):
+		field.generate(radius_now, hash(ps), float(pile_n + pile_h) / full)
+	_take_carry = 0.0
 	pile_found = int(d.pile_found)
 	pile_done = bool(d.pile_done)
 	pile_gold = clampi(int(d.get("pile_gold", 0)), 0, Data.HAY_PER_PILE)

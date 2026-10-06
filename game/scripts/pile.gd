@@ -1,13 +1,35 @@
 extends Node3D
-## Le tas d'aiguilles : un monticule haut et bosselé, couvert d'une fine texture d'aiguilles,
-## avec de petites aiguilles posées dessus qui se fondent dans la texture. Il rétrécit quand on le vide.
+## Le tas d'aiguilles, rendu d'après son relief (Game.field) : une grille déformée dans le shader,
+## couverte d'une fine texture d'aiguilles et de petites aiguilles qui suivent la surface.
+## Chaque poignée, chaque bras ou pelleteuse creuse là où il travaille ; le reste ne bouge pas.
 
-const HEIGHT_RATIO := 1.0      # hauteur / rayon : un vrai tas, pas une demi-sphère
-const RINGS := 30
-const SEGS := 72
 const NEEDLE_LEN := 0.22
 const NEEDLE_RAD := 0.0075
 const NEEDLE_COL := Color(0.54, 0.53, 0.5)
+
+## Fonctions communes : lecture du relief (texture flottante, un texel par sommet de la grille).
+const HEIGHT_FN := """
+uniform sampler2D hmap : filter_nearest;
+uniform float cell = 0.1;
+uniform int n = 96;
+float H(ivec2 p) { return texelFetch(hmap, clamp(p, ivec2(0), ivec2(n - 1)), 0).r; }
+// hauteur interpolée en coordonnées de grille (flottantes)
+float Hf(vec2 g) {
+	vec2 b = floor(g);
+	vec2 f = g - b;
+	ivec2 i = ivec2(b);
+	float a = mix(H(i), H(i + ivec2(1, 0)), f.x);
+	float c = mix(H(i + ivec2(0, 1)), H(i + ivec2(1, 1)), f.x);
+	return mix(a, c, f.y);
+}
+vec3 Nrm(vec2 g) {
+	float l = Hf(g - vec2(1.0, 0.0));
+	float r = Hf(g + vec2(1.0, 0.0));
+	float d = Hf(g - vec2(0.0, 1.0));
+	float u = Hf(g + vec2(0.0, 1.0));
+	return normalize(vec3(l - r, 2.0 * cell, d - u));
+}
+"""
 
 const MOUND_SHADER := """
 shader_type spatial;
@@ -16,6 +38,8 @@ uniform vec3 needle_col : source_color = vec3(0.56, 0.56, 0.57);
 uniform float seed = 0.0;
 varying vec3 lp;
 varying vec3 ln;
+varying float vh;
+%s
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 // une couche d'aiguilles : un trait fin par cellule, orientation et teinte aléatoires
 vec2 layer(vec2 p, float s, float w) {
@@ -42,10 +66,22 @@ vec2 needles(vec2 p) {
 	return vec2(m, tint);
 }
 void vertex() {
+	vec2 g = VERTEX.xz + vec2(float(n - 1) * 0.5);
+	ivec2 gi = ivec2(round(g));
+	float h = H(gi);
+	float around = max(max(H(gi + ivec2(1, 0)), H(gi - ivec2(1, 0))), max(H(gi + ivec2(0, 1)), H(gi - ivec2(0, 1))));
+	// hors du tas, la grille passe sous le sol
+	float y = (h > 0.0005 || around > 0.0005) ? h : -0.08;
+	VERTEX = vec3(VERTEX.x * cell, y, VERTEX.z * cell);
+	NORMAL = Nrm(vec2(gi));
+	vh = h;
 	lp = VERTEX;
 	ln = NORMAL;
 }
 void fragment() {
+	if (vh < 0.004) {
+		discard;
+	}
 	vec3 w = pow(abs(ln), vec3(4.0));
 	w /= (w.x + w.y + w.z);
 	vec2 nx = needles(lp.zy);
@@ -53,76 +89,103 @@ void fragment() {
 	vec2 nz = needles(lp.xy);
 	float m = nx.x * w.x + ny.x * w.y + nz.x * w.z;
 	float tint = nx.y * w.x + ny.y * w.y + nz.y * w.z;
-	// creux entre les aiguilles : sombres ; aiguilles : même teinte que les vraies
+	// assombri au ras du sol
+	float ao = mix(0.72, 1.0, smoothstep(0.0, 0.8, vh));
 	vec3 gap = needle_col * 0.36;
-	vec3 col = mix(gap, needle_col * tint, m) * COLOR.r;
-	ALBEDO = col;
+	ALBEDO = mix(gap, needle_col * tint, m) * ao;
 	METALLIC = mix(0.08, 0.12, m);
 	ROUGHNESS = mix(0.8, 0.5, m);
 	SPECULAR = 0.35;
 }
 """
 
-## Les petites aiguilles sont éclairées avec la normale du tas sous elles (INSTANCE_CUSTOM) :
-## même teinte, même reflet que la texture, on ne voit pas où finit le décor.
+## Les petites aiguilles suivent la surface : on lit la hauteur actuelle sous chacune
+## et on la déplace d'autant (ou on la cache si le tas a été creusé jusqu'au sol).
 const NEEDLE_SHADER := """
 shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx, cull_disabled;
 uniform vec3 needle_col : source_color = vec3(0.56, 0.56, 0.57);
+uniform vec3 pile_pos = vec3(0.0);
 varying vec3 hn;
 varying float tint;
-varying float ao;
+%s
 void vertex() {
-	hn = INSTANCE_CUSTOM.xyz * 2.0 - 1.0;
-	tint = COLOR.r;
-	ao = COLOR.g;
+	vec3 o = MODEL_MATRIX[3].xyz - pile_pos;
+	vec2 g = o.xz / cell + vec2(float(n - 1) * 0.5);
+	float hnow = Hf(g);
+	tint = COLOR.r * mix(0.75, 1.0, smoothstep(0.0, 0.8, hnow));
+	hn = Nrm(g);
+	if (hnow < 0.03 || g.x < 0.0 || g.y < 0.0 || g.x > float(n - 1) || g.y > float(n - 1)) {
+		VERTEX = vec3(0.0);
+	} else {
+		VERTEX += inverse(mat3(MODEL_MATRIX)) * vec3(0.0, hnow + 0.008 - o.y, 0.0);
+	}
 }
 void fragment() {
-	NORMAL = normalize((VIEW_MATRIX * vec4(normalize(hn), 0.0)).xyz);
-	ALBEDO = needle_col * tint * ao * 0.92;
+	NORMAL = normalize((VIEW_MATRIX * vec4(hn, 0.0)).xyz);
+	ALBEDO = needle_col * tint * 0.92;
 	METALLIC = 0.12;
 	ROUGHNESS = 0.5;
 	SPECULAR = 0.35;
 }
 """
 
-var _heap: Node3D
 var _mound: MeshInstance3D
+var _mound_mat: ShaderMaterial
 var _needles: MultiMeshInstance3D
+var _needle_mat: ShaderMaterial
 var _scatter: MultiMeshInstance3D
 var _hay: MultiMeshInstance3D
+var _hay_spots: Array = []
 var _body: StaticBody3D
-var _shape: ConvexPolygonShape3D
+var _shape: HeightMapShape3D
+var _cs: CollisionShape3D
 var _dirt: MeshInstance3D
-var _noise := FastNoiseLite.new()
-var _built_radius := -1.0
+var _img: Image
+var _tex: ImageTexture
 var _built_size := ""
-var _R := 1.0
-var _H := 1.0
+var _built_quality := -1
+var _ver := -1
+var _shape_ver := -1
+var _tex_t := 0.0
+var _shape_t := 0.0
 var radius := 1.0
 
 
 func _ready() -> void:
 	position = Data.PILE_POS
 	_dirt = Mk.cyl(self, 1.0, 0.04, Vector3(0, 0.01, 0), Mk.mat(Color(0.36, 0.29, 0.2), 0.0, 1.0), -1.0, 48)
-	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_noise.frequency = 1.0
-
-	_heap = Node3D.new()
-	add_child(_heap)
+	var n := PileField.N
+	_img = Image.create(n, n, false, Image.FORMAT_RF)
+	_tex = ImageTexture.create_from_image(_img)
 
 	_mound = MeshInstance3D.new()
-	var shm := ShaderMaterial.new()
+	_mound.mesh = _grid_mesh(n)
+	_mound_mat = ShaderMaterial.new()
 	var sh := Shader.new()
-	sh.code = MOUND_SHADER
-	shm.shader = sh
-	shm.set_shader_parameter("needle_col", NEEDLE_COL)
-	_mound.material_override = shm
-	_heap.add_child(_mound)
+	sh.code = MOUND_SHADER % HEIGHT_FN
+	_mound_mat.shader = sh
+	_mound_mat.set_shader_parameter("needle_col", NEEDLE_COL)
+	_mound_mat.set_shader_parameter("hmap", _tex)
+	_mound_mat.set_shader_parameter("n", n)
+	_mound.material_override = _mound_mat
+	# le relief bouge dans le shader : boîte englobante large pour ne pas être masqué
+	_mound.custom_aabb = AABB(Vector3(-30, -1, -30), Vector3(60, 40, 60))
+	add_child(_mound)
 
-	_needles = _needle_layer(_heap)
+	_needle_mat = ShaderMaterial.new()
+	var nsh := Shader.new()
+	nsh.code = NEEDLE_SHADER % HEIGHT_FN
+	_needle_mat.shader = nsh
+	_needle_mat.set_shader_parameter("needle_col", NEEDLE_COL)
+	_needle_mat.set_shader_parameter("hmap", _tex)
+	_needle_mat.set_shader_parameter("n", n)
+	_needle_mat.set_shader_parameter("pile_pos", Data.PILE_POS)
+	_needles = _needle_layer(self, _needle_mat)
 	_needles.visibility_range_end = 45.0
-	_scatter = _needle_layer(self)
+	var flat := Mk.mat(NEEDLE_COL * 0.95, 0.12, 0.5)
+	flat.vertex_color_use_as_albedo = true
+	_scatter = _needle_layer(self, flat)
 
 	_hay = MultiMeshInstance3D.new()
 	var hm := MultiMesh.new()
@@ -130,25 +193,48 @@ func _ready() -> void:
 	hm.mesh = Mk.needle_mesh(0.55, 0.02)
 	_hay.multimesh = hm
 	_hay.material_override = Mk.hay_material()
-	_heap.add_child(_hay)
+	add_child(_hay)
 
 	_body = StaticBody3D.new()
 	_body.collision_layer = 3
 	_body.set_meta("kind", "pile")
-	var cs := CollisionShape3D.new()
-	_shape = ConvexPolygonShape3D.new()
-	# enveloppe provisoire : une forme vide ne peut pas être construite par le moteur physique
-	_shape.points = PackedVector3Array([Vector3(-1, 0, -1), Vector3(1, 0, -1), Vector3(0, 0, 1), Vector3(0, 1, 0)])
-	cs.shape = _shape
-	_body.add_child(cs)
+	_cs = CollisionShape3D.new()
+	_shape = HeightMapShape3D.new()
+	_shape.map_width = n
+	_shape.map_depth = n
+	_cs.shape = _shape
+	_body.add_child(_cs)
 	add_child(_body)
 
 	Game.pile_changed.connect(_refresh)
 	_refresh()
+	_upload(true)
+
+
+## Grille plate de n × n sommets en unités de grille (le shader la met à l'échelle et en relief).
+func _grid_mesh(n: int) -> ArrayMesh:
+	var verts := PackedVector3Array()
+	verts.resize(n * n)
+	var half := float(n - 1) * 0.5
+	for j in n:
+		for i in n:
+			verts[j * n + i] = Vector3(i - half, 0, j - half)
+	var idx := PackedInt32Array()
+	for j in n - 1:
+		for i in n - 1:
+			var a := j * n + i
+			idx.append_array([a, a + 1, a + n, a + 1, a + n + 1, a + n])
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_INDEX] = idx
+	var am := ArrayMesh.new()
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	return am
 
 
 ## Couche de petites aiguilles (prismes fins, sans ombre : invisibles à cette taille).
-func _needle_layer(parent: Node3D) -> MultiMeshInstance3D:
+func _needle_layer(parent: Node3D, material: Material) -> MultiMeshInstance3D:
 	var cm := CylinderMesh.new()
 	cm.top_radius = NEEDLE_RAD * 0.2
 	cm.bottom_radius = NEEDLE_RAD
@@ -160,17 +246,12 @@ func _needle_layer(parent: Node3D) -> MultiMeshInstance3D:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
-	mm.use_custom_data = true
 	mm.mesh = cm
-	var m := ShaderMaterial.new()
-	var sh := Shader.new()
-	sh.code = NEEDLE_SHADER
-	m.shader = sh
-	m.set_shader_parameter("needle_col", NEEDLE_COL)
 	var mi := MultiMeshInstance3D.new()
 	mi.multimesh = mm
-	mi.material_override = m
+	mi.material_override = material
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.custom_aabb = AABB(Vector3(-30, -1, -30), Vector3(60, 40, 60))
 	parent.add_child(mi)
 	return mi
 
@@ -179,19 +260,14 @@ func _refresh() -> void:
 	var base: float = Data.PILES[Game.pile_size].radius
 	radius = Game.pile_radius()
 	var empty := Game.pile_items() <= 0
-	_heap.visible = not empty
+	_mound.visible = not empty
+	_needles.visible = not empty
 	_body.process_mode = Node.PROCESS_MODE_DISABLED if empty else Node.PROCESS_MODE_INHERIT
-	_dirt.scale = Vector3(base + 2.0, 1, base + 2.0)
-	if empty:
-		return
-	var r := maxf(radius, 0.35)
-	# reconstruction seulement quand la taille a vraiment changé ; entre-temps on met à l'échelle
-	if _built_size != Game.pile_size or absf(r - _built_radius) > maxf(0.06, _built_radius * 0.1):
-		_build(r)
-	var k := r / _built_radius
-	_heap.scale = Vector3.ONE * k
-	_update_shape(k)
-	_hay.visible = Game.pile_h > 0
+	_dirt.scale = Vector3(base * 1.1 + 2.0, 1, base * 1.1 + 2.0)
+	var q := clampi(int(Game.settings.get("quality", 1)), 0, 2)
+	if _built_size != Game.pile_size or _built_quality != q:
+		_build_needles(q)
+	_hay.visible = Game.pile_h > 0 and not empty
 	if _hay.visible:
 		_hay.multimesh.visible_instance_count = mini(Game.pile_h, 3)
 
@@ -200,93 +276,81 @@ func _refresh() -> void:
 func rebuild() -> void:
 	_built_size = ""
 	_refresh()
+	_upload(true)
 
 
-## Profil du tas : sommet arrondi, flancs raides, pied évasé ; plus des bosses.
-## th : angle autour du tas, t : 0 au sommet, 1 au pied.
-func _surf(th: float, t: float) -> Vector3:
-	var wob := 1.0 + 0.08 * _noise.get_noise_2d(cos(th) * 1.6, sin(th) * 1.6)
-	var rr := t * _R * wob
-	var x := cos(th) * rr
-	var z := sin(th) * rr
-	var y := _H * pow(maxf(0.0, 1.0 - pow(t, 1.7)), 1.25)
-	var nx := x / _R
-	var nz := z / _R
-	var lump := _noise.get_noise_2d(nx * 3.2 + 7.0, nz * 3.2) * 0.65 + _noise.get_noise_2d(nx * 8.0, nz * 8.0 - 3.0) * 0.25 + _noise.get_noise_2d(nx * 19.0, nz * 19.0) * 0.1
-	y += _R * 0.085 * lump * (1.0 - pow(t, 4.0))
-	return Vector3(x, maxf(y, 0.0), z)
+func _process(delta: float) -> void:
+	_tex_t += delta
+	_shape_t += delta
+	var f: PileField = Game.field
+	if f.version != _ver and _tex_t >= 0.1:
+		_upload(false)
+	if f.version != _shape_ver and _shape_t >= 0.3:
+		_update_shape()
 
 
-func _surf_normal(th: float, t: float) -> Vector3:
-	var tt := clampf(t, 0.02, 0.98)
-	var e := 0.01
-	var a := _surf(th, tt + e) - _surf(th, tt - e)
-	var b := _surf(th + e, tt) - _surf(th - e, tt)
-	var n := b.cross(a).normalized()
-	if n.y < 0.0:
-		n = -n
-	return n
+## Envoie le relief au GPU (texture) et replace les brins de foin visibles.
+func _upload(force: bool) -> void:
+	var f: PileField = Game.field
+	if not force and f.version == _ver:
+		return
+	_ver = f.version
+	_tex_t = 0.0
+	_img.set_data(PileField.N, PileField.N, false, Image.FORMAT_RF, f.h.to_byte_array())
+	_tex.update(_img)
+	_mound_mat.set_shader_parameter("cell", f.cell)
+	_needle_mat.set_shader_parameter("cell", f.cell)
+	var hm := _hay.multimesh
+	for i in _hay_spots.size():
+		var s: Vector3 = _hay_spots[i]
+		var y := f.height_at(s.x + Data.PILE_POS.x, s.z + Data.PILE_POS.z)
+		var b := Basis(Vector3(cos(s.y), 0.0, sin(s.y)).normalized().cross(Vector3.UP), 0.9)
+		hm.set_instance_transform(i, Transform3D(b, Vector3(s.x, y + 0.05, s.z)))
+	if force:
+		_update_shape()
 
 
-func _build(r: float) -> void:
-	_built_radius = r
+func _update_shape() -> void:
+	var f: PileField = Game.field
+	_shape_ver = f.version
+	_shape_t = 0.0
+	var data := PackedFloat32Array()
+	data.resize(f.h.size())
+	var inv := 1.0 / f.cell
+	for k in f.h.size():
+		data[k] = f.h[k] * inv
+	_shape.map_data = data
+	_cs.scale = Vector3.ONE * f.cell
+
+
+func _build_needles(q: int) -> void:
 	_built_size = Game.pile_size
-	_R = r
-	_H = r * HEIGHT_RATIO
-	var sd := hash(Game.pile_size)
-	_noise.seed = sd
+	_built_quality = q
+	var f: PileField = Game.field
+	var r := float(Data.PILES[Game.pile_size].radius)
 	var rng := RandomNumberGenerator.new()
-	rng.seed = sd
-	(_mound.material_override as ShaderMaterial).set_shader_parameter("seed", float(sd % 100))
-
-	# grille de la surface (sommet = anneau 0) : sert au maillage et à poser les aiguilles
-	var gp := PackedVector3Array()
-	var gn := PackedVector3Array()
-	var ga := PackedFloat32Array()
-	gp.resize((RINGS + 1) * SEGS)
-	gn.resize((RINGS + 1) * SEGS)
-	ga.resize((RINGS + 1) * SEGS)
-	for i in RINGS + 1:
-		var t := float(i) / RINGS
-		for j in SEGS:
-			var q := _surf(float(j) / SEGS * TAU, t)
-			gp[i * SEGS + j] = q
-			ga[i * SEGS + j] = _ao(q, t)
-	for i in RINGS + 1:
-		for j in SEGS:
-			if i == 0:
-				gn[j] = Vector3.UP
-				continue
-			var up := gp[(i - 1) * SEGS + j]
-			var dn := gp[mini(i + 1, RINGS) * SEGS + j]
-			var lf := gp[i * SEGS + (j + SEGS - 1) % SEGS]
-			var rt := gp[i * SEGS + (j + 1) % SEGS]
-			var n := (rt - lf).cross(dn - up).normalized()
-			if n.y < 0.0:
-				n = -n
-			gn[i * SEGS + j] = n
-	_mound.mesh = _build_mesh(gp, gn, ga)
-
-	# petites aiguilles posées sur la surface, réparties selon l'aire ; écrites d'un bloc
-	var area := PI * r * sqrt(r * r + _H * _H)
-	var dens: float = [0.35, 0.65, 1.0][clampi(int(Game.settings.get("quality", 1)), 0, 2)]
+	rng.seed = hash(Game.pile_size)
+	_mound_mat.set_shader_parameter("seed", float(hash(Game.pile_size) % 100))
+	# petites aiguilles posées sur le relief actuel (elles suivent ensuite la surface dans le shader)
+	var dens: float = [0.35, 0.65, 1.0][q]
+	var hh := r * PileField.HEIGHT_RATIO
+	var area := PI * r * sqrt(r * r + hh * hh)
 	var count := clampi(int(area * 110.0 * dens), int(2500 * dens), int(16000 * dens))
 	var buf := PackedFloat32Array()
-	buf.resize(count * 20)
+	buf.resize(count * 16)
 	var o := 0
-	for k in count:
-		var fi := sqrt(rng.randf()) * 0.98 * RINGS
-		var fj := rng.randf() * SEGS
-		var i0 := int(fi)
-		var j0 := int(fj) % SEGS
-		var j1 := (j0 + 1) % SEGS
-		var f := fi - i0
-		var g := fj - floorf(fj)
-		var a0 := i0 * SEGS
-		var a1 := mini(i0 + 1, RINGS) * SEGS
-		var p := gp[a0 + j0].lerp(gp[a0 + j1], g).lerp(gp[a1 + j0].lerp(gp[a1 + j1], g), f)
-		var n := gn[a0 + j0].lerp(gn[a0 + j1], g).lerp(gn[a1 + j0].lerp(gn[a1 + j1], g), f).normalized()
-		var ao := lerpf(ga[a0 + j0], ga[a1 + j0], f)
+	var placed := 0
+	var tries := 0
+	while placed < count and tries < count * 4:
+		tries += 1
+		var a := rng.randf() * TAU
+		var d := r * PileField.WOBBLE * sqrt(rng.randf())
+		var x := cos(a) * d
+		var z := sin(a) * d
+		var y := f.height_at(x + Data.PILE_POS.x, z + Data.PILE_POS.z)
+		if y < 0.03:
+			continue
+		var n := _normal_at(f, x + Data.PILE_POS.x, z + Data.PILE_POS.z)
 		var side := n.cross(Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)))
 		if side.length_squared() < 0.0001:
 			side = n.cross(Vector3.RIGHT)
@@ -294,103 +358,53 @@ func _build(r: float) -> void:
 		# couchées sur la pente, quelques-unes dépassent un peu
 		var tilt := rng.randf_range(-0.12, 0.12) if rng.randf() < 0.85 else rng.randf_range(0.25, 0.55)
 		var bs := Basis(Quaternion(Vector3.UP, side.lerp(n, tilt).normalized()))
-		o = _put(buf, o, Transform3D(bs, p + n * 0.01), Color(rng.randf_range(0.75, 1.1), ao, 0, 1), _pack(n))
+		o = _put(buf, o, Transform3D(bs, Vector3(x, y, z)), Color(rng.randf_range(0.75, 1.1), 1, 1, 1))
+		placed += 1
+	buf.resize(placed * 16)
 	var mm := _needles.multimesh
-	mm.instance_count = count
-	mm.buffer = buf
+	mm.instance_count = placed
+	if placed > 0:
+		mm.buffer = buf
 
 	# aiguilles tombées au sol autour du tas
-	var ns := clampi(int(90.0 * r), 200, 1200)
+	var ns := clampi(int(90.0 * r), 200, 1600)
 	var sb := PackedFloat32Array()
-	sb.resize(ns * 20)
+	sb.resize(ns * 16)
 	o = 0
-	var flat_n := _pack(Vector3.UP)
 	for k in ns:
 		var an := rng.randf() * TAU
-		var d := r * (1.0 + 0.08 * _noise.get_noise_2d(cos(an) * 1.6, sin(an) * 1.6)) * (0.97 + pow(rng.randf(), 2.0) * 0.3)
-		var flat := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.FORWARD, PI / 2 + rng.randf_range(-0.08, 0.08))
-		o = _put(sb, o, Transform3D(flat, Vector3(cos(an) * d, 0.012, sin(an) * d)), Color(rng.randf_range(0.75, 1.1), 0.8, 0, 1), flat_n)
+		var dd := r * PileField.WOBBLE * (0.95 + pow(rng.randf(), 2.0) * 0.35)
+		var fl := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.FORWARD, PI / 2 + rng.randf_range(-0.08, 0.08))
+		var col := NEEDLE_COL * rng.randf_range(0.75, 1.1)
+		o = _put(sb, o, Transform3D(fl, Vector3(cos(an) * dd, 0.012, sin(an) * dd)), col)
 	var sm := _scatter.multimesh
 	sm.instance_count = ns
 	sm.buffer = sb
 
-	# quelques brins de foin qui dépassent : un indice qu'il en reste
-	var hm := _hay.multimesh
-	hm.instance_count = 3
+	# quelques brins de foin qui dépassent : un indice qu'il en reste (x, angle, z)
+	_hay_spots.clear()
+	_hay.multimesh.instance_count = 3
 	for k in 3:
-		var th2 := rng.randf() * TAU
-		var t2 := rng.randf_range(0.3, 0.8)
-		var p2 := _surf(th2, t2)
-		var n2 := _surf_normal(th2, t2)
-		var side2 := n2.cross(Vector3.UP).normalized()
-		var b2 := Basis(Quaternion(Vector3.UP, side2.lerp(n2, 0.45).normalized()))
-		hm.set_instance_transform(k, Transform3D(b2, p2 + n2 * 0.03))
+		var a2 := rng.randf() * TAU
+		var d2 := r * rng.randf_range(0.35, 0.75)
+		_hay_spots.append(Vector3(cos(a2) * d2, rng.randf() * TAU, sin(a2) * d2))
+	_upload(true)
 
 
-## Écrit une instance (transformation 3x4, couleur, données perso) dans le tampon d'un MultiMesh.
-func _put(buf: PackedFloat32Array, o: int, tr: Transform3D, c: Color, cd: Color) -> int:
+func _normal_at(f: PileField, x: float, z: float) -> Vector3:
+	var e := f.cell
+	var n := Vector3(f.height_at(x - e, z) - f.height_at(x + e, z), 2.0 * e, f.height_at(x, z - e) - f.height_at(x, z + e))
+	return n.normalized()
+
+
+## Écrit une instance (transformation 3x4 puis couleur) dans le tampon d'un MultiMesh.
+func _put(buf: PackedFloat32Array, o: int, tr: Transform3D, c: Color) -> int:
 	var bs := tr.basis
 	buf[o] = bs.x.x; buf[o + 1] = bs.y.x; buf[o + 2] = bs.z.x; buf[o + 3] = tr.origin.x
 	buf[o + 4] = bs.x.y; buf[o + 5] = bs.y.y; buf[o + 6] = bs.z.y; buf[o + 7] = tr.origin.y
 	buf[o + 8] = bs.x.z; buf[o + 9] = bs.y.z; buf[o + 10] = bs.z.z; buf[o + 11] = tr.origin.z
 	buf[o + 12] = c.r; buf[o + 13] = c.g; buf[o + 14] = c.b; buf[o + 15] = c.a
-	buf[o + 16] = cd.r; buf[o + 17] = cd.g; buf[o + 18] = cd.b; buf[o + 19] = cd.a
-	return o + 20
-
-
-## Assombrissement au pied et dans les creux (partagé par la surface et les aiguilles).
-func _ao(p: Vector3, t: float) -> float:
-	var cav := 0.5 + 0.5 * clampf(_noise.get_noise_2d(p.x * 10.0 / _R, p.z * 10.0 / _R) + 0.3, 0.0, 1.0)
-	return lerpf(1.0, 0.75, smoothstep(0.75, 1.0, t)) * lerpf(0.85, 1.0, cav)
-
-
-func _pack(n: Vector3) -> Color:
-	return Color(n.x * 0.5 + 0.5, n.y * 0.5 + 0.5, n.z * 0.5 + 0.5, 1.0)
-
-
-func _build_mesh(gp: PackedVector3Array, gn: PackedVector3Array, ga: PackedFloat32Array) -> ArrayMesh:
-	# sommet : un seul sommet au centre, puis les anneaux
-	var verts := PackedVector3Array([gp[0]])
-	var norms := PackedVector3Array([Vector3.UP])
-	var cols := PackedColorArray([Color(1, 1, 1)])
-	for i in range(1, RINGS + 1):
-		for j in SEGS:
-			var a := ga[i * SEGS + j]
-			verts.append(gp[i * SEGS + j])
-			norms.append(gn[i * SEGS + j])
-			cols.append(Color(a, a, a))
-	var idx := PackedInt32Array()
-	for j in SEGS:
-		var j2 := (j + 1) % SEGS
-		idx.append_array([0, 1 + j, 1 + j2])
-	for i in range(1, RINGS):
-		var a0 := 1 + (i - 1) * SEGS
-		var b0 := 1 + i * SEGS
-		for j in SEGS:
-			var j2 := (j + 1) % SEGS
-			idx.append_array([a0 + j, b0 + j, a0 + j2, a0 + j2, b0 + j, b0 + j2])
-	var arr := []
-	arr.resize(Mesh.ARRAY_MAX)
-	arr[Mesh.ARRAY_VERTEX] = verts
-	arr[Mesh.ARRAY_NORMAL] = norms
-	arr[Mesh.ARRAY_COLOR] = cols
-	arr[Mesh.ARRAY_INDEX] = idx
-	var am := ArrayMesh.new()
-	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
-	return am
-
-
-## Collision : enveloppe convexe un peu plus étroite que le pied évasé (on ne grimpe pas dessus).
-func _update_shape(k: float) -> void:
-	var pts := PackedVector3Array()
-	pts.append(_surf(0.0, 0.0) * k)
-	for t in [0.3, 0.55, 0.75, 0.88]:
-		for j in 16:
-			pts.append(_surf(float(j) / 16.0 * TAU, t) * k)
-	for j in 16:
-		var th := float(j) / 16.0 * TAU
-		pts.append(Vector3(cos(th), 0.0, sin(th)) * _R * 0.9 * k)
-	_shape.points = pts
+	return o + 16
 
 
 ## Point de la surface le plus proche d'une position (pour viser les machines).
@@ -399,5 +413,6 @@ func surface_toward(from: Vector3) -> Vector3:
 	d.y = 0
 	if d.length() < 0.01:
 		d = Vector3(1, 0, 0)
-	var th := atan2(d.z, d.x)
-	return global_position + _surf(th, 0.8) * (radius / maxf(_built_radius, 0.01))
+	var p := global_position + d.normalized() * radius * 0.8
+	p.y = Game.field.height_at(p.x, p.z)
+	return p
