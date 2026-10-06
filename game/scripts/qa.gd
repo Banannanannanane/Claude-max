@@ -28,6 +28,8 @@ func _ready() -> void:
 			_icon.call_deferred()
 		"pile":
 			_pile_shots.call_deferred()
+		"look":
+			_look_shots.call_deferred()
 
 
 func check(cond: bool, what: String) -> void:
@@ -1133,6 +1135,45 @@ func _face(pos: Vector3, look: Vector3, pitch := -8.0) -> void:
 	var d := look - pos
 	p.rotation.y = atan2(-d.x, -d.z)
 	p.head.rotation.x = deg_to_rad(pitch)
+
+
+## Captures d'inspection du tas sous plusieurs angles (pour juger son aspect).
+func _look_shots() -> void:
+	Game.new_game()
+	Game.settings.daynight = false
+	Game.settings.weather = false
+	await _frames(3)
+	main.hud.close_panel()
+	main.hud.visible = false
+	main.player.hand.visible = false
+	var P := Data.PILE_POS
+	var sizes := ["petit", "gros", "montagne"]
+	for size in sizes:
+		_rich()
+		Game.pile_done = true
+		if size != "petit":
+			Game.order_pile(size)
+		var R := Game.field.radius
+		var H := Game.field.top_near(P.x, P.z, R).y
+		main.player.head.position.y = 1.62
+		_face(P + Vector3(0, 0, R + 1.6), P + Vector3(0, 1.2, 0), -4)
+		await _shot("l_%s_1_pres" % size, 25)
+		_face(P + Vector3(0, 0, -R - 1.6), P + Vector3(0, 1.2, 0), -4)
+		await _shot("l_%s_2_ombre" % size, 15)
+		_face(P + Vector3(R * 1.6 + 6, 0, R * 1.2 + 6), P + Vector3(0, H * 0.4, 0), 4)
+		await _shot("l_%s_3_moyen" % size, 15)
+		main.player.head.position.y = H + 4.0
+		_face(P + Vector3(R * 0.9, 0, R * 0.9), P, -45)
+		await _shot("l_%s_4_dessus" % size, 15)
+		main.player.head.position.y = 1.62
+		for i in 80:
+			Game.hand_n = 0
+			Game.grab(P + Vector3(R * 0.55, 0, R * 0.55))
+		for i in 30:
+			Game.field.relax(3)
+		_face(P + Vector3(R * 0.85 + 2.5, 0, R * 0.85 + 2.5), P + Vector3(R * 0.5, H * 0.25, R * 0.5), -6)
+		await _shot("l_%s_5_creuse" % size, 20)
+	get_tree().quit()
 
 
 ## Captures du relief : petit tas, poignées à la main, bras sur un côté, montagne.

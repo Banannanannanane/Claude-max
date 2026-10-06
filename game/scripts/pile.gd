@@ -3,9 +3,9 @@ extends Node3D
 ## couverte d'une fine texture d'aiguilles et de petites aiguilles qui suivent la surface.
 ## Chaque poignée, chaque bras ou pelleteuse creuse là où il travaille ; le reste ne bouge pas.
 
-const NEEDLE_LEN := 0.22
-const NEEDLE_RAD := 0.0075
-const NEEDLE_COL := Color(0.54, 0.53, 0.5)
+const NEEDLE_LEN := 0.17
+const NEEDLE_RAD := 0.006
+const NEEDLE_COL := Color(0.43, 0.425, 0.41)
 
 ## Fonctions communes : lecture du relief (texture flottante, un texel par sommet de la grille).
 const HEIGHT_FN := """
@@ -39,63 +39,132 @@ uniform float seed = 0.0;
 varying vec3 lp;
 varying vec3 ln;
 varying float vh;
+varying float cav;
 %s
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-// une couche d'aiguilles : un trait fin par cellule, orientation et teinte aléatoires
-vec2 layer(vec2 p, float s, float w) {
+float vnoise(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+// une couche d'aiguilles : un trait fin par cellule ; renvoie (présence, teinte, angle)
+vec3 layer(vec2 p, float s, float w) {
 	vec2 g = p * s;
 	vec2 id = floor(g);
 	float a = hash(id + seed) * 6.2831;
-	vec2 f = fract(g) - 0.5 + (vec2(hash(id + 3.1), hash(id + 5.7)) - 0.5) * 0.5;
+	vec2 f = fract(g) - 0.5 + (vec2(hash(id + 3.1), hash(id + 5.7)) - 0.5) * 0.45;
 	vec2 d = vec2(cos(a), sin(a));
 	float across = abs(dot(f, vec2(-d.y, d.x)));
 	float along = abs(dot(f, d));
-	float m = smoothstep(w, w * 0.3, across) * smoothstep(0.62, 0.5, along);
-	// au loin les traits deviennent plus fins que le pixel : on passe à la teinte moyenne
-	float fw = length(fwidth(g));
-	float fade = smoothstep(0.9, 0.25, fw);
-	return vec2(mix(0.5, m, fade), 0.75 + 0.35 * hash(id + 9.2));
+	float m = smoothstep(w, w * 0.25, across) * smoothstep(0.66, 0.52, along);
+	// au loin les traits deviennent plus fins que le pixel : on passe à la valeur moyenne
+	float fade = smoothstep(1.0, 0.3, length(fwidth(g)));
+	return vec3(mix(0.42, m, fade), 0.85 + 0.3 * hash(id + 9.2), a);
 }
-vec2 needles(vec2 p) {
-	vec2 a = layer(p, 4.6, 0.045);
-	vec2 b = layer(p + 0.37, 5.9, 0.05);
-	vec2 c = layer(p + 0.71, 8.3, 0.06);
-	vec2 d = layer(p + 0.13, 12.5, 0.07);
-	float m = max(max(a.x, b.x * 0.95), max(c.x * 0.88, d.x * 0.75));
-	float tint = a.x >= b.x ? a.y : b.y;
-	return vec2(m, tint);
+vec3 needles(vec2 p) {
+	vec3 a = layer(p, 6.0, 0.035);
+	vec3 b = layer(p + 0.37, 8.5, 0.04);
+	vec3 c = layer(p + 0.71, 12.0, 0.045);
+	vec3 d = layer(p + 0.13, 17.0, 0.05);
+	vec3 best = a;
+	if (b.x * 0.95 > best.x) { best = vec3(b.x * 0.95, b.y, b.z); }
+	if (c.x * 0.9 > best.x) { best = vec3(c.x * 0.9, c.y, c.z); }
+	if (d.x * 0.82 > best.x) { best = vec3(d.x * 0.82, d.y, d.z); }
+	return best;
 }
 void vertex() {
 	vec2 g = VERTEX.xz + vec2(float(n - 1) * 0.5);
 	ivec2 gi = ivec2(round(g));
 	float h = H(gi);
-	float around = max(max(H(gi + ivec2(1, 0)), H(gi - ivec2(1, 0))), max(H(gi + ivec2(0, 1)), H(gi - ivec2(0, 1))));
+	float l = H(gi - ivec2(1, 0));
+	float r = H(gi + ivec2(1, 0));
+	float d = H(gi - ivec2(0, 1));
+	float u = H(gi + ivec2(0, 1));
+	float around = max(max(l, r), max(d, u));
 	// hors du tas, la grille passe sous le sol
 	float y = (h > 0.0005 || around > 0.0005) ? h : -0.08;
+	// le bord rendu (5 cm) affleure au sol : pas de marche visible autour du tas
+	y -= 0.12 * (1.0 - smoothstep(0.12, 0.5, h));
 	VERTEX = vec3(VERTEX.x * cell, y, VERTEX.z * cell);
-	NORMAL = Nrm(vec2(gi));
+	NORMAL = normalize(vec3(l - r, 2.0 * cell, d - u));
+	// creux (courbure positive) : moins de lumière y entre
+	cav = clamp((l + r + u + d - 4.0 * h) / (cell * 4.0), -1.0, 1.0);
 	vh = h;
 	lp = VERTEX;
 	ln = NORMAL;
 }
 void fragment() {
-	if (vh < 0.004) {
+	// la couche très fine du pied est rendue par l'épandage au sol (transparent) : pas de bord net ici
+	if (vh < 0.12) {
 		discard;
 	}
 	vec3 w = pow(abs(ln), vec3(4.0));
 	w /= (w.x + w.y + w.z);
-	vec2 nx = needles(lp.zy);
-	vec2 ny = needles(lp.xz);
-	vec2 nz = needles(lp.xy);
+	vec3 nx = needles(lp.zy);
+	vec3 ny = needles(lp.xz);
+	vec3 nz = needles(lp.xy);
 	float m = nx.x * w.x + ny.x * w.y + nz.x * w.z;
 	float tint = nx.y * w.x + ny.y * w.y + nz.y * w.z;
-	// assombri au ras du sol
-	float ao = mix(0.72, 1.0, smoothstep(0.0, 0.8, vh));
-	vec3 gap = needle_col * 0.36;
-	ALBEDO = mix(gap, needle_col * tint, m) * ao;
-	METALLIC = mix(0.08, 0.12, m);
-	ROUGHNESS = mix(0.8, 0.5, m);
-	SPECULAR = 0.35;
+	float ang = ny.z * w.y + nx.z * w.x + nz.z * w.z;
+	// variations à grande échelle : zones plus claires, plus sombres, un peu rouillées
+	float big = vnoise(lp.xz * 0.35 + seed) * 0.6 + vnoise(lp.xz * 1.3 - seed) * 0.4;
+	vec3 base = needle_col * mix(0.86, 1.06, big);
+	base = mix(base, base * vec3(1.08, 0.97, 0.86), smoothstep(0.62, 0.9, vnoise(lp.xz * 0.6 + 7.0)) * 0.5);
+	float ao = mix(0.62, 1.0, smoothstep(0.0, 0.9, vh)) * (1.0 - 0.35 * clamp(cav, 0.0, 1.0));
+	vec3 col = mix(base * 0.7, base * tint * 0.97, m) * ao;
+	// au pied, la couche est si fine qu'on voit la terre entre les aiguilles
+	col = mix(col, vec3(0.30, 0.25, 0.19), (1.0 - smoothstep(0.12, 0.4, vh)) * (1.0 - m) * 0.6);
+	ALBEDO = col;
+	// lumière renvoyée par le sol et le tas lui-même : l'ombre reste grise, pas bleue
+	EMISSION = col * vec3(0.4, 0.37, 0.32);
+	// chaque aiguille a sa propre inclinaison : des éclats d'acier qui scintillent selon l'angle
+	vec3 tilt = vec3(cos(ang), 0.6 * sin(ang * 3.1), sin(ang));
+	vec3 nw = normalize(ln + tilt * 0.55 * m);
+	NORMAL = normalize((VIEW_MATRIX * vec4(nw, 0.0)).xyz);
+	METALLIC = mix(0.03, 0.12, m);
+	ROUGHNESS = mix(0.88, 0.38, m);
+	SPECULAR = 0.32;
+}
+"""
+
+## Épandage au sol : aiguilles tombées et terre tassée autour du pied, qui se perdent dans l'herbe.
+const SPILL_SHADER := """
+shader_type spatial;
+render_mode diffuse_burley, specular_schlick_ggx, depth_draw_never, cull_disabled;
+uniform vec3 needle_col : source_color = vec3(0.56, 0.56, 0.57);
+uniform float inner = 4.0;
+uniform float outer = 7.0;
+varying vec3 lp;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vnoise(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float strokes(vec2 p, float s, float w) {
+	vec2 g = p * s;
+	vec2 id = floor(g);
+	float a = hash(id) * 6.2831;
+	vec2 f = fract(g) - 0.5;
+	vec2 d = vec2(cos(a), sin(a));
+	float keep = step(0.45, hash(id + 2.7));
+	return keep * smoothstep(w, w * 0.25, abs(dot(f, vec2(-d.y, d.x)))) * smoothstep(0.6, 0.45, abs(dot(f, d)));
+}
+void vertex() {
+	lp = VERTEX;
+}
+void fragment() {
+	float dist = length(lp.xz);
+	// densité qui décroît doucement vers l'extérieur, irrégulière mais sans trous
+	float wob = (vnoise(lp.xz * 0.25) - 0.5) * (outer - inner) * 0.5;
+	float dens = 1.0 - smoothstep(inner, outer + wob, dist);
+	dens = dens * dens * (0.8 + 0.2 * vnoise(lp.xz * 1.7));
+	float m = max(strokes(lp.xz, 5.5, 0.04), strokes(lp.xz + 0.3, 9.0, 0.05) * 0.8);
+	float fade = smoothstep(1.0, 0.3, length(fwidth(lp.xz * 9.0)));
+	m = mix(0.3, m, fade);
+	vec3 soil = vec3(0.36, 0.31, 0.23) * (0.85 + 0.3 * vnoise(lp.xz * 0.9));
+	ALBEDO = mix(soil, needle_col * 0.95, clamp(m * (0.4 + 0.6 * dens), 0.0, 1.0));
+	ALPHA = clamp(dens * (0.62 + 0.38 * m), 0.0, 0.95);
+	METALLIC = 0.15 * m;
+	ROUGHNESS = mix(0.95, 0.35, m);
 }
 """
 
@@ -123,10 +192,10 @@ void vertex() {
 }
 void fragment() {
 	NORMAL = normalize((VIEW_MATRIX * vec4(hn, 0.0)).xyz);
-	ALBEDO = needle_col * tint * 0.92;
-	METALLIC = 0.12;
-	ROUGHNESS = 0.5;
-	SPECULAR = 0.35;
+	ALBEDO = needle_col * tint * 0.86;
+	METALLIC = 0.3;
+	ROUGHNESS = 0.32;
+	SPECULAR = 0.5;
 }
 """
 
@@ -141,7 +210,9 @@ var _marks_t := 0.0
 var _body: StaticBody3D
 var _shape: HeightMapShape3D
 var _cs: CollisionShape3D
-var _dirt: MeshInstance3D
+var _spill: MeshInstance3D
+var _spill_mat: ShaderMaterial
+var _slide_t := 0.0
 var _img: Image
 var _tex: ImageTexture
 var _built_size := ""
@@ -155,7 +226,20 @@ var radius := 1.0
 
 func _ready() -> void:
 	position = Data.PILE_POS
-	_dirt = Mk.cyl(self, 1.0, 0.04, Vector3(0, 0.01, 0), Mk.mat(Color(0.36, 0.29, 0.2), 0.0, 1.0), -1.0, 48)
+	# épandage au sol (remplace l'ancien disque de terre)
+	_spill = MeshInstance3D.new()
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(2, 2)
+	_spill.mesh = pm
+	_spill.position = Vector3(0, 0.018, 0)
+	_spill_mat = ShaderMaterial.new()
+	var ssh := Shader.new()
+	ssh.code = SPILL_SHADER
+	_spill_mat.shader = ssh
+	_spill_mat.set_shader_parameter("needle_col", NEEDLE_COL)
+	_spill.material_override = _spill_mat
+	_spill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_spill)
 	var n := PileField.N
 	_img = Image.create(n, n, false, Image.FORMAT_RF)
 	_tex = ImageTexture.create_from_image(_img)
@@ -171,7 +255,7 @@ func _ready() -> void:
 	_mound_mat.set_shader_parameter("n", n)
 	_mound.material_override = _mound_mat
 	# le relief bouge dans le shader : boîte englobante large pour ne pas être masqué
-	_mound.custom_aabb = AABB(Vector3(-30, -1, -30), Vector3(60, 40, 60))
+	_mound.custom_aabb = AABB(Vector3(-34, -1, -34), Vector3(68, 46, 68))
 	add_child(_mound)
 
 	_needle_mat = ShaderMaterial.new()
@@ -215,7 +299,7 @@ func _ready() -> void:
 	bmat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_beacons.material_override = bmat
 	_beacons.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_beacons.custom_aabb = AABB(Vector3(-30, -1, -30), Vector3(60, 40, 60))
+	_beacons.custom_aabb = AABB(Vector3(-34, -1, -34), Vector3(68, 46, 68))
 	add_child(_beacons)
 
 	_body = StaticBody3D.new()
@@ -274,7 +358,7 @@ func _needle_layer(parent: Node3D, material: Material) -> MultiMeshInstance3D:
 	mi.multimesh = mm
 	mi.material_override = material
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.custom_aabb = AABB(Vector3(-30, -1, -30), Vector3(60, 40, 60))
+	mi.custom_aabb = AABB(Vector3(-34, -1, -34), Vector3(68, 46, 68))
 	parent.add_child(mi)
 	return mi
 
@@ -286,7 +370,10 @@ func _refresh() -> void:
 	_mound.visible = not empty
 	_needles.visible = not empty
 	_body.process_mode = Node.PROCESS_MODE_DISABLED if empty else Node.PROCESS_MODE_INHERIT
-	_dirt.scale = Vector3(base * 1.1 + 2.0, 1, base * 1.1 + 2.0)
+	var outer := base * 1.15 + 2.5
+	(_spill.mesh as PlaneMesh).size = Vector2.ONE * outer * 2.0
+	_spill_mat.set_shader_parameter("inner", base * 0.9)
+	_spill_mat.set_shader_parameter("outer", outer)
 	var q := clampi(int(Game.settings.get("quality", 1)), 0, 2)
 	if _built_size != Game.pile_size or _built_quality != q:
 		_build_needles(q)
@@ -311,6 +398,41 @@ func _process(delta: float) -> void:
 	_marks_t += delta
 	if _marks_t >= 0.5:
 		_update_marks()
+	# éboulement : des aiguilles dévalent la pente
+	_slide_t -= delta
+	if f.slide_amount > 0.0 and _slide_t <= 0.0:
+		if f.slide_amount > 0.01:
+			_slide_fx(f.slide_pos, f.slide_amount)
+		f.slide_amount = 0.0
+		_slide_t = 0.25
+
+
+func _slide_fx(at: Vector3, vol: float) -> void:
+	var f: PileField = Game.field
+	var n := _normal_at(f, at.x, at.z)
+	var down := Vector3(n.x, -0.4, n.z).normalized()
+	var p := CPUParticles3D.new()
+	p.one_shot = true
+	p.explosiveness = 0.6
+	p.amount = clampi(int(vol * 60.0), 6, 40)
+	p.lifetime = 1.1
+	p.direction = down
+	p.spread = 25.0
+	p.initial_velocity_min = 0.8
+	p.initial_velocity_max = 2.2
+	p.gravity = Vector3(0, -6, 0)
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = clampf(f.cell * 2.0, 0.2, 1.2)
+	p.particle_flag_align_y = true
+	var m := BoxMesh.new()
+	m.size = Vector3(0.008, 0.2, 0.008)
+	p.mesh = m
+	p.material_override = Mk.mat(NEEDLE_COL * 1.1, 0.4, 0.35)
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.position = at - Data.PILE_POS + Vector3(0, 0.1, 0)
+	add_child(p)
+	p.emitting = true
+	get_tree().create_timer(1.6).timeout.connect(p.queue_free)
 
 
 ## Brins de foin visibles : ceux que le creusage a mis à nu (posés sur la surface)
@@ -418,7 +540,7 @@ func _build_needles(q: int) -> void:
 	o = 0
 	for k in ns:
 		var an := rng.randf() * TAU
-		var dd := r * PileField.WOBBLE * (0.95 + pow(rng.randf(), 2.0) * 0.35)
+		var dd := r * (0.85 + pow(rng.randf(), 2.0) * 0.5)
 		var fl := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.FORWARD, PI / 2 + rng.randf_range(-0.08, 0.08))
 		var col := NEEDLE_COL * rng.randf_range(0.75, 1.1)
 		o = _put(sb, o, Transform3D(fl, Vector3(cos(an) * dd, 0.012, sin(an) * dd)), col)

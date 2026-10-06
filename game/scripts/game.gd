@@ -459,10 +459,10 @@ static func in_cells(type: String, c: Vector2i, r: int) -> Array:
 
 
 func _pile_blocks(cell: Vector2i) -> bool:
-	# on ne construit pas là où il y a des aiguilles (le bord de la case compte aussi)
+	# on ne construit pas sur le tas (une fine couche d'aiguilles au pied ne gêne pas)
 	var p := cell_center(cell)
 	for o: Vector2 in [Vector2.ZERO, Vector2(-0.45, -0.45), Vector2(0.45, -0.45), Vector2(-0.45, 0.45), Vector2(0.45, 0.45)]:
-		if field.height_at(p.x + o.x, p.z + o.y) > 0.04:
+		if field.height_at(p.x + o.x, p.z + o.y) > 0.25:
 			return true
 	return false
 

@@ -4,10 +4,11 @@ extends RefCounted
 ## On y creuse localement (main, bras, pelleteuse, drone) ; le matériau s'éboule ensuite
 ## quand une pente dépasse l'angle de talus. Le volume restant suit le nombre d'aiguilles.
 
-const N := 64
-const HEIGHT_RATIO := 1.1 # hauteur du tas neuf / rayon
-const SLOPE := 1.8 # pente maximale (≈ 61°) avant éboulement ; le tas neuf est juste en dessous
-const WOBBLE := 1.1 # le pied du tas déborde au plus de 10 % du rayon nominal
+const N := 80
+const SLOPE := 1.8 # pente maximale (≈ 61°) avant éboulement
+const GEN_SLOPE := 1.45 # pente des flancs d'un tas neuf (≈ 55°), sous le seuil d'éboulement
+const WOBBLE := 1.25 # demi-côté de la grille / rayon nominal (le pied s'étale jusque-là)
+const HEIGHT_RATIO := GEN_SLOPE * 0.86 # hauteur approximative du tas neuf / rayon
 
 var h := PackedFloat32Array()
 var cell := 0.1 # écart entre deux sommets (m)
@@ -15,44 +16,75 @@ var origin := Vector2.ZERO # position (x, z) du sommet (0, 0)
 var radius := 1.0 # rayon nominal du tas neuf
 var volume := 0.0 # volume total actuel (m³)
 var version := 0 # augmente à chaque modification (pour le rendu et la collision)
+var slide_amount := 0.0 # volume éboulé depuis la dernière lecture (pour les effets)
+var slide_pos := Vector3.ZERO # où l'éboulement a eu lieu (monde)
 var _dirty := Rect2i()
 var _has_dirty := false
 var _noise := FastNoiseLite.new()
 
 
 ## Construit un tas neuf de rayon nominal r, réduit à la fraction `frac` de son volume.
+## Comme un vrai tas déversé : un cône principal, quelques cônes secondaires qui s'y appuient,
+## des ravines et des bosses, un pied qui s'étale ; puis un éboulement final le rend stable.
 func generate(r: float, seed_value: int, frac := 1.0) -> void:
 	radius = r
 	cell = 2.0 * r * WOBBLE / float(N - 1)
 	origin = Vector2(Data.PILE_POS.x, Data.PILE_POS.z) - Vector2.ONE * (N - 1) * 0.5 * cell
 	h.resize(N * N)
+	h.fill(0.0)
 	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_noise.frequency = 1.0
 	_noise.seed = seed_value
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
 	# un tas partiellement vidé garde sa forme, en plus petit
 	var rr := r * pow(clampf(frac, 0.0, 1.0), 1.0 / 3.0)
-	var hh := rr * HEIGHT_RATIO
+	if rr < 0.05:
+		_recount()
+		version += 1
+		return
+	var hmain := rr * HEIGHT_RATIO
+	var cones: Array = [[Vector2(rng.randf_range(-0.06, 0.06), rng.randf_range(-0.06, 0.06)) * rr, hmain]]
+	for k in rng.randi_range(2, 4):
+		var a := rng.randf() * TAU
+		cones.append([Vector2(cos(a), sin(a)) * rr * rng.randf_range(0.3, 0.5), hmain * rng.randf_range(0.42, 0.62)])
+	var apex := rr * 0.12
+	var center := Vector2(Data.PILE_POS.x, Data.PILE_POS.z)
 	for j in N:
 		for i in N:
-			var d := Vector2(i, j) * cell + origin - Vector2(Data.PILE_POS.x, Data.PILE_POS.z)
-			h[j * N + i] = _profile(d, rr, hh) if rr > 0.05 else 0.0
+			var p := Vector2(i, j) * cell + origin - center
+			var dist := p.length()
+			var y := 0.0
+			for c in cones:
+				var dc: float = p.distance_to(c[0])
+				y = maxf(y, float(c[1]) - GEN_SLOPE * (sqrt(dc * dc + apex * apex) - apex))
+			# ravines et crêtes qui descendent le long des flancs
+			var th := atan2(p.y, p.x)
+			var gully := _noise.get_noise_2d(cos(th) * 2.2 + 11.0, sin(th) * 2.2) * smoothstep(0.35 * rr, 0.75 * rr, dist)
+			y *= 1.0 - 0.04 * gully
+			# bosses à petite échelle
+			var n := p / rr
+			y += rr * 0.015 * (_noise.get_noise_2d(n.x * 6.0, n.y * 6.0) + 0.5 * _noise.get_noise_2d(n.x * 15.0 + 4.0, n.y * 15.0))
+			# pied qui s'étale : une couche fine qui se perd dans l'herbe
+			var toe := minf(rr * 0.045, 0.3) * exp(-maxf(0.0, dist - rr * 0.78) / minf(0.13 * rr, 2.2))
+			toe *= 1.0 - smoothstep(rr * 1.05, rr * WOBBLE * 0.97, dist)
+			toe *= 0.9 + 0.2 * (_noise.get_noise_2d(cos(th) * 3.0 - 5.0, sin(th) * 3.0) * 0.5 + 0.5)
+			h[j * N + i] = maxf(maxf(y, toe), 0.0)
+	# bord de grille toujours vide
+	for k in N:
+		h[k] = 0.0
+		h[(N - 1) * N + k] = 0.0
+		h[k * N] = 0.0
+		h[k * N + N - 1] = 0.0
+	# éboulement final : le tas neuf tient debout tout seul
+	_mark(Rect2i(0, 0, N, N))
+	for it in 40:
+		if not relax(1):
+			break
+	_has_dirty = false
+	slide_amount = 0.0
 	_recount()
 	version += 1
-
-
-func _profile(d: Vector2, rr: float, hh: float) -> float:
-	var th := atan2(d.y, d.x)
-	var wob := 1.0 + 0.08 * _noise.get_noise_2d(cos(th) * 1.6, sin(th) * 1.6)
-	var t := d.length() / (rr * wob)
-	if t >= 1.0:
-		return 0.0
-	# cône à sommet arrondi : pente presque constante, la plus raide possible sans s'ébouler
-	const C := 0.25
-	var y := hh * (sqrt(1.0 + C * C) - sqrt(t * t + C * C)) / (sqrt(1.0 + C * C) - C)
-	var n := d / rr
-	var lump := _noise.get_noise_2d(n.x * 3.2 + 7.0, n.y * 3.2) * 0.65 + _noise.get_noise_2d(n.x * 8.0, n.y * 8.0 - 3.0) * 0.25 + _noise.get_noise_2d(n.x * 19.0, n.y * 19.0) * 0.1
-	y += rr * 0.035 * lump * (1.0 - pow(t, 4.0))
-	return maxf(y, 0.0)
 
 
 ## Pente maximale entre deux sommets voisins (pour les tests de stabilité).
@@ -203,6 +235,9 @@ func relax(iterations := 2) -> bool:
 	var lim := SLOPE * cell
 	var eps := lim + 0.004 # en dessous, on laisse : évite les micro-glissements sans fin
 	var a := h # copie locale (plus rapide), réécrite à la fin
+	var mv := 0.0
+	var sx := 0.0
+	var sz := 0.0
 	for it in iterations:
 		var r := _dirty
 		_has_dirty = false
@@ -239,6 +274,10 @@ func relax(iterations := 2) -> bool:
 					a[idx - N] += dv
 					moved_here = true
 				if moved_here:
+					var dm := a[idx] - v
+					mv += dm
+					sx += i * dm
+					sz += j * dm
 					a[idx] = v
 					x0 = mini(x0, i)
 					y0 = mini(y0, j)
@@ -251,6 +290,11 @@ func relax(iterations := 2) -> bool:
 	h = a
 	if moved_any:
 		version += 1
+		if mv > 0.0:
+			slide_amount += mv * cell * cell
+			var gx := sx / mv
+			var gz := sz / mv
+			slide_pos = Vector3(origin.x + gx * cell, height_at(origin.x + gx * cell, origin.y + gz * cell), origin.y + gz * cell)
 	return moved_any
 
 

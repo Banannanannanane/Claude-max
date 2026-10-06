@@ -690,7 +690,7 @@ class SettingsPanel extends PanelBase:
 			"• Arbre : achète les plans (droits de construction), puis leurs améliorations par niveaux.",
 			"• Bureau : contrats de livraison à prime et commande des tas. L'usine produit aussi hors ligne (8 h max).",
 		]), 19, Color(0.86, 0.88, 0.92), true))
-		content.add_child(UI.label("Trouve le Foin v1.6 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
+		content.add_child(UI.label("Trouve le Foin v1.7 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
 
 	func _toggle_sound() -> void:
 		Game.settings.sound = not Game.settings.sound

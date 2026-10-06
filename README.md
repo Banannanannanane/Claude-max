@@ -21,7 +21,7 @@ Chaque push compile le jeu automatiquement (GitHub Actions → onglet **Releases
 
 | | |
 |---|---|
-| **Tas d'aiguilles** | 4 tailles : petit (10 millions d'aiguilles), moyen (25 millions), grand (100 millions) et montagne (300 millions, environ 26 m de haut). Chacun cache 22 brins de foin, et chaque brin trouvé rapporte une prime. Trouver les 22 permet de commander le tas suivant au bureau. |
+| **Tas d'aiguilles** | 4 tailles : petit (10 millions d'aiguilles), moyen (25 millions), grand (100 millions) et montagne (300 millions, environ 30 m de haut). Chacun cache 22 brins de foin, et chaque brin trouvé rapporte une prime. Trouver les 22 permet de commander le tas suivant au bureau. |
 | **Relief creusable** | Le tas est un vrai relief : chaque poignée y fait un petit creux à l'endroit visé, et un bras robot ou une pelleteuse ne creuse que dans son rayon d'action. Quand une paroi devient trop raide, les aiguilles s'éboulent. Une fois sa zone vidée, une machine s'arrête (voyant rouge) : il faut la rapprocher. Les drones prennent au sommet. Le relief creusé est sauvegardé. |
 | **Foin enfoui et détecteur** | Comme le détecteur de métaux de Find the Needle, mais à l'envers : chaque brin de foin est caché à un endroit précis du tas. Le **détecteur de foin** bipe de plus en plus vite près de l'endroit visé, et un cercle doré se resserre sur le viseur. Un brin n'est libéré que lorsqu'on creuse jusqu'à lui : il faut fouiller tout le tas. Les brins mis à nu par un éboulement restent visibles sur la surface. |
 | **Radar à foin** | Une machine qui révèle les brins enfouis autour d'elle : une balise dorée s'allume au-dessus de chacun, et ils apparaissent sur la carte. |
@@ -48,8 +48,10 @@ l'avant (flèche bleue). La plupart des machines occupent 2×2 cases, et la zone
 160×160 cases. Un voyant sur chaque machine indique son état : vert en marche, orange en attente,
 rouge si elle est bloquée (sortie pleine ou trop loin du tas).
 
-Le tas est un vrai monticule, haut et bosselé, couvert de fines aiguilles qui se fondent dans sa
-surface. Il se creuse là où l'on travaille et s'éboule de façon réaliste.
+Le tas est formé comme un vrai déversement : un cône principal et des épaulements, des ravines,
+un pied qui s'étale en épandage d'aiguilles sur l'herbe. Sa surface en acier est faite de fines
+aiguilles qui scintillent selon l'angle. Il se creuse là où l'on travaille, et quand une paroi
+devient trop raide, on voit les aiguilles dévaler la pente.
 
 Il y a aussi des **objectifs guidés** avec primes pour apprendre le jeu, et un **cycle jour/nuit**
 avec lampadaires (désactivable). Le bouton Retour d'Android ferme les fenêtres et demande
