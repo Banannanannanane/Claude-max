@@ -374,6 +374,7 @@ class OrderPanel extends PanelBase:
 
 # ============================================================ usine et production
 class StockPanel extends PanelBase:
+	var _market: Label
 	var _lines: Label
 	var _machines: Label
 	var _sales: Label
@@ -396,8 +397,21 @@ class StockPanel extends PanelBase:
 		content.add_child(c3)
 		_sales = UI.label("", 19, Color(0.9, 0.92, 0.95), true)
 		c3.add_child(_sales)
+		section("Marché : cours du jour")
+		var c4 := UI.card()
+		content.add_child(c4)
+		_market = UI.label("", 18, Color(0.9, 0.92, 0.95), true)
+		c4.add_child(_market)
 
 	func refresh() -> void:
+		var mk := ["Les cours bougent avec le temps ; chaque vente fait baisser celui du produit vendu. Diversifie ta production !"]
+		for t in Game.available_items():
+			var f := Game.market_mult(t)
+			var arrow := "▲" if f > 1.03 else ("▼" if f < 0.97 else "=")
+			mk.append("%s %s : %s le lot (%d %%)" % [arrow, Data.ITEMS[t].name, Fmt.eur(Game.item_price({"t": t, "n": Data.LOT})), int(round(f * 100))])
+		if Game.event_id() != "":
+			mk.append("Événement : %s — %s" % [Game.EVENTS[Game.event_id()].name, Game.EVENTS[Game.event_id()].desc])
+		_market.text = "\n".join(mk)
 		var p: Dictionary = Data.PILES[Game.pile_size]
 		var on_belts := 0
 		for id in Game.entities:
@@ -735,7 +749,7 @@ class SettingsPanel extends PanelBase:
 			"• Arbre : achète les plans (droits de construction), puis leurs améliorations par niveaux.",
 			"• Bureau : contrats de livraison à prime et commande des tas. L'usine produit aussi hors ligne (8 h max).",
 		]), 19, Color(0.86, 0.88, 0.92), true))
-		content.add_child(UI.label("Trouve le Foin v1.8 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
+		content.add_child(UI.label("Trouve le Foin v1.9 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
 
 	func _toggle_sound() -> void:
 		Game.settings.sound = not Game.settings.sound
@@ -844,7 +858,7 @@ class MapPanel extends PanelBase:
 		content.add_child(view)
 		var legend := HFlowContainer.new()
 		content.add_child(legend)
-		for t in ["tremie", "scanner", "bras", "pelle", "fonderie", "purif", "presse", "trefileuse", "aiguilleuse", "tampon", "separateur", "drone", "radar", "groupe", "eolienne", "solaire", "compacteuse", "trieur", "atelier"]:
+		for t in ["tremie", "scanner", "bras", "pelle", "fonderie", "purif", "presse", "trefileuse", "aiguilleuse", "tampon", "separateur", "drone", "radar", "groupe", "eolienne", "solaire", "compacteuse", "trieur", "atelier", "affuteuse", "haut_fourneau", "epingles", "couture", "emballeuse"]:
 			if not Game.entities.values().any(func(e: Dictionary) -> bool: return e.type == t):
 				continue
 			var l := UI.label("■ " + Data.MACHINES[t].name, 17, MapView.color_of(t))
@@ -866,6 +880,8 @@ class MapView extends Control:
 		"presse": Color(0.25, 0.45, 0.95), "trefileuse": Color(0.65, 0.45, 0.95), "aiguilleuse": Color(0.95, 0.45, 0.7),
 		"tampon": Color(0.6, 0.62, 0.66), "separateur": Color(0.5, 0.65, 0.8), "drone": Color(0.95, 0.95, 0.95),
 		"bureau": Color(0.3, 0.8, 0.45), "trou": Color(0.08, 0.08, 0.1),
+		"affuteuse": Color(0.35, 0.55, 0.3), "haut_fourneau": Color(0.55, 0.22, 0.12), "epingles": Color(0.95, 0.75, 0.2),
+		"couture": Color(0.55, 0.25, 0.65), "emballeuse": Color(0.72, 0.55, 0.33),
 		"compacteuse": Color(0.2, 0.42, 0.62), "trieur": Color(0.16, 0.6, 0.6), "atelier": Color(0.8, 0.3, 0.2),
 		"radar": Color(1.0, 0.85, 0.35), "groupe": Color(0.85, 0.62, 0.12), "eolienne": Color(0.95, 0.96, 0.98), "solaire": Color(0.15, 0.25, 0.6),
 	}

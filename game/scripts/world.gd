@@ -339,6 +339,9 @@ func _update_weather(delta: float) -> void:
 			else:
 				_rain_target = randf_range(0.55, 1.0)
 				_weather_timer = randf_range(90.0, 180.0)
+	if Game.event_id() == "tempete":
+		_rain_target = maxf(_rain_target, 1.0)
+		_weather_timer = maxf(_weather_timer, 20.0)
 	rain = move_toward(rain, _rain_target, delta * 0.05)
 	Game.weather_rain = rain
 	Sfx.set_rain(rain)
@@ -494,6 +497,18 @@ func item_mesh(t: String) -> Mesh:
 			var lid := BoxMesh.new()
 			lid.size = Vector3(0.36, 0.04, 0.3)
 			m = Mk.merge([[bx, Transform3D(Basis(), Vector3(0, 0.09, 0))], [lid, Transform3D(Basis(), Vector3(0, 0.19, 0))]])
+		"carton":
+			var cb := BoxMesh.new()
+			cb.size = Vector3(0.48, 0.38, 0.42)
+			var tp := BoxMesh.new()
+			tp.size = Vector3(0.1, 0.39, 0.43)
+			m = Mk.merge([[cb, Transform3D(Basis(), Vector3(0, 0.19, 0))], [tp, Transform3D(Basis(), Vector3(0, 0.19, 0))]])
+		"kit":
+			var kb := BoxMesh.new()
+			kb.size = Vector3(0.4, 0.12, 0.3)
+			var hd := BoxMesh.new()
+			hd.size = Vector3(0.16, 0.05, 0.04)
+			m = Mk.merge([[kb, Transform3D(Basis(), Vector3(0, 0.06, 0))], [hd, Transform3D(Basis(), Vector3(0, 0.14, 0))]])
 		"balle":
 			var bb := BoxMesh.new()
 			bb.size = Vector3(0.42, 0.28, 0.32)

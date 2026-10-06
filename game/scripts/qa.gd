@@ -17,6 +17,9 @@ func _ready() -> void:
 		elif a.begins_with("--out="):
 			out = a.substr(6)
 	DirAccess.make_dir_recursive_absolute(out)
+	# cours du marché et événements figés : les tests restent reproductibles
+	Game.market_frozen = true
+	Game.events_frozen = true
 	match scenario:
 		"logic":
 			_logic.call_deferred()
@@ -210,6 +213,7 @@ func _logic() -> void:
 	_test_hay_spots_detector()
 	_test_power()
 	_test_farm()
+	_test_market_events()
 	await _test_weather_audio()
 	_test_stress()
 	_finish()
@@ -372,6 +376,91 @@ func _test_farm() -> void:
 	Game.shop["crampons"] = 3
 	check(Game.climb_angle() > 65.0, "les crampons permettent de grimper sur le tas")
 	Game.shop.erase("crampons")
+
+
+func _test_market_events() -> void:
+	Game.new_game()
+	_rich()
+	# nouvelles machines
+	var a := _chain(Vector2i(-60, -60), 1, ["belt:1", "affuteuse", "belt:2"])
+	for i in 3:
+		_inject(Vector2i(-60, -60), {"t": "acier", "n": 10})
+		_run(1.0)
+	_run(8.0)
+	var aff := 0
+	for id in Game.entities:
+		var e: Dictionary = Game.entities[id]
+		if e.get("item") != null and e.item.t == "affutee":
+			aff += 1
+		for it in e.get("outq", []):
+			if it.t == "affutee":
+				aff += 1
+	check(aff >= 2, "l'affûteuse produit des aiguilles affûtées (%d)" % aff)
+	check(Game.item_price({"t": "affutee"}) > Game.item_price({"t": "acier", "n": 10}) * 2.0, "les aiguilles affûtées valent plus du double")
+	var hf := _chain(Vector2i(-60, -50), 1, ["belt:1", "haut_fourneau", "belt:2"])
+	var ing0 := int(Game.stats.ingots)
+	for i in 8:
+		_inject(Vector2i(-60, -50), {"t": "acier", "n": 10})
+		_run(0.8)
+	_run(12.0)
+	check(int(Game.stats.ingots) - ing0 >= 4, "le haut fourneau coule 4 lingots d'un coup (%d)" % (int(Game.stats.ingots) - ing0))
+	var cu := _chain(Vector2i(-60, -40), 1, ["belt:1", "couture", "belt:2"])
+	var cid: int = cu.ids[0]
+	for t in ["boite", "fil", "fil"]:
+		_inject(Vector2i(-60, -40), {"t": t})
+		_run(1.0)
+	_run(12.0)
+	var kits := 0
+	for id in Game.entities:
+		var e: Dictionary = Game.entities[id]
+		if e.get("item") != null and e.item.t == "kit":
+			kits += 1
+		for it in e.get("outq", []):
+			if it.t == "kit":
+				kits += 1
+	check(kits == 1, "la machine à coudre assemble une boîte et deux fils en un kit")
+	check(Game.item_price({"t": "carton"}) > Game.item_price({"t": "kit"}) * 4.0, "un carton vaut plus que les 4 kits qu'il contient")
+	# marché
+	Game.market_frozen = false
+	Game.market = {}
+	var p0 := Game.item_price({"t": "brut"})
+	for i in 60:
+		Game._market_sold("brut")
+	check(Game.item_price({"t": "brut"}) < p0 * 0.95, "vendre beaucoup du même produit fait baisser son cours")
+	var low := float(Game.market.brut)
+	for i in 30:
+		Game._market_tick(10.0)
+	check(float(Game.market.brut) > low, "le cours remonte avec le temps")
+	Game.ups["u_marche"] = 5
+	check(Game._saturation("brut") < Game._saturation("vrac") * 10.0 and Game._saturation("kit") > Game._saturation("vrac"), "les produits chers saturent plus vite que le vrac")
+	Game.save_slot(2)
+	var mk := Game.market.duplicate()
+	Game.market = {}
+	Game.load_slot(2)
+	check(Game.market.size() == mk.size() and absf(float(Game.market.brut) - float(mk.brut)) < 0.001, "les cours du marché sont sauvegardés")
+	Game.market_frozen = true
+	# événements
+	var pf := Game.item_price({"t": "pur"})
+	Game.start_event("foire")
+	check(absf(Game.item_price({"t": "pur"}) - pf * 1.4) < 0.01 and Game.event_left() > 60.0, "foire aux aiguilles : +40 % sur les ventes")
+	Game.event = {}
+	var hv := Game.hay_unit_value()
+	Game.start_event("chasse")
+	check(absf(Game.hay_unit_value() - hv * 2.0) < 0.01, "chasse au foin : primes doublées")
+	Game.event = {}
+	Game.free_power = false
+	Game.start_event("coupure")
+	check(Game.power_supply < Data.GRID_POWER, "coupure du réseau : plus de raccordement")
+	Game.event = {}
+	Game._update_power()
+	Game.free_power = true
+	Game.start_event("inspection")
+	var mi := Game.money
+	Game.stats.time = float(Game.event.until) + 1.0
+	Game.events_frozen = false
+	Game._event_tick()
+	Game.events_frozen = true
+	check(Game.event.is_empty() and Game.money > mi, "inspection réussie : prime quand aucune machine n'est en panne")
 
 
 func _test_power() -> void:
@@ -882,7 +971,7 @@ func _test_contracts_quests() -> void:
 	check(Game.money >= 55.0, "les objectifs rapportent leur prime")
 	var all_known := true
 	for q in Data.QUESTS:
-		if Game.quest_progress(q[0]) == Vector2(0, 1) and not q[0] in ["plan_scan", "scanner", "pile1", "fonderie", "energie", "ingot", "bras", "radar", "moyen", "contrat", "balle", "purif", "atelier", "gros", "presse", "boite", "montagne"]:
+		if Game.quest_progress(q[0]) == Vector2(0, 1) and not q[0] in ["plan_scan", "scanner", "pile1", "fonderie", "energie", "ingot", "bras", "radar", "moyen", "contrat", "balle", "purif", "atelier", "gros", "presse", "boite", "kit", "montagne"]:
 			all_known = false
 	check(all_known, "tous les objectifs ont une progression calculée")
 	Game.stats.belts = 1
@@ -1052,6 +1141,11 @@ func _ui() -> void:
 	Game.build("compacteuse", Vector2i(-2, 40), 0)
 	Game.build("trieur", Vector2i(1, 40), 0)
 	Game.build("atelier", Vector2i(4, 40), 0)
+	Game.build("affuteuse", Vector2i(7, 40), 0)
+	Game.build("haut_fourneau", Vector2i(11, 41), 0)
+	Game.build("epingles", Vector2i(15, 40), 0)
+	Game.build("couture", Vector2i(18, 40), 0)
+	Game.build("emballeuse", Vector2i(21, 40), 0)
 	await _frames(3)
 	var types_seen := {}
 	for id in Game.entities.keys():
@@ -1344,6 +1438,18 @@ func _pile_shots() -> void:
 	main.player.head.position.y = 2.5
 	_face(Vector3(fb.x + 1.5, 0, fb.y + 7.5), Vector3(fb.x + 1.5, 0.8, fb.y), -10)
 	await _shot("p3c_ferme", 30)
+	var nb := Vector2i(int(P.x) + 12, int(P.z) + 14)
+	Game.build("affuteuse", nb, 0)
+	Game.build("haut_fourneau", nb + Vector2i(4, 0), 0)
+	Game.build("epingles", nb + Vector2i(8, 0), 0)
+	Game.build("couture", nb + Vector2i(11, 0), 0)
+	Game.build("emballeuse", nb + Vector2i(14, 0), 0)
+	Game.start_event("foire")
+	await _frames(5)
+	main.player.head.position.y = 3.0
+	_face(Vector3(nb.x + 7.5, 0, nb.y + 10.0), Vector3(nb.x + 7.5, 1.0, nb.y), -10)
+	await _shot("p3d_nouvelles_machines", 30)
+	Game.event = {}
 	main.player.head.position.y = 1.62
 	Game.pile_done = true
 	Game.stats.piles = 10

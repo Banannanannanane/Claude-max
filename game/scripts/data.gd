@@ -23,14 +23,18 @@ const PILES := {
 const ITEMS := {
 	"vrac": {"name": "Aiguilles en vrac", "price": 2.0, "color": Color(0.55, 0.56, 0.58), "scale": Vector3(0.5, 0.12, 0.2)},
 	"acier": {"name": "Aiguilles vérifiées", "price": 4.0, "color": Color(0.78, 0.8, 0.84), "scale": Vector3(0.5, 0.12, 0.2)},
+	"affutee": {"name": "Aiguilles affûtées", "price": 9.0, "color": Color(0.88, 0.9, 0.95), "scale": Vector3(0.5, 0.12, 0.2)},
 	"balle": {"name": "Balle d'aiguilles compressées", "price": 28.0, "color": Color(0.6, 0.62, 0.66), "scale": Vector3(0.45, 0.3, 0.35)},
 	"brut": {"name": "Lingot brut", "price": 10.0, "color": Color(0.42, 0.38, 0.35), "scale": Vector3(0.36, 0.14, 0.2)},
 	"pur": {"name": "Lingot pur", "price": 22.0, "color": Color(0.9, 0.92, 0.95), "scale": Vector3(0.36, 0.14, 0.2)},
 	"tole": {"name": "Tôle d'acier", "price": 55.0, "color": Color(0.55, 0.62, 0.72), "scale": Vector3(0.55, 0.04, 0.5)},
 	"fil": {"name": "Bobine de fil", "price": 28.0, "color": Color(0.85, 0.55, 0.3), "scale": Vector3(0.3, 0.3, 0.3)},
 	"boite": {"name": "Boîte d'aiguilles neuves", "price": 80.0, "color": Color(0.85, 0.2, 0.25), "scale": Vector3(0.36, 0.22, 0.3)},
+	"epingle": {"name": "Boîte d'épingles", "price": 42.0, "color": Color(0.95, 0.75, 0.2), "scale": Vector3(0.3, 0.16, 0.24)},
+	"kit": {"name": "Kit de couture", "price": 260.0, "color": Color(0.55, 0.25, 0.65), "scale": Vector3(0.42, 0.14, 0.32)},
+	"carton": {"name": "Carton d'expédition", "price": 1250.0, "color": Color(0.72, 0.55, 0.33), "scale": Vector3(0.5, 0.4, 0.45)},
 }
-const ITEM_ORDER := ["vrac", "acier", "balle", "brut", "pur", "tole", "fil", "boite"]
+const ITEM_ORDER := ["vrac", "acier", "affutee", "balle", "brut", "pur", "tole", "fil", "epingle", "boite", "kit", "carton"]
 
 ## Machines. size = (largeur, profondeur) en cases ; l'entrée est à l'arrière (toute la largeur),
 ## la sortie à l'avant (la machine sert à tour de rôle chaque case de devant). plan = nœud de l'arbre qui donne le droit de construire.
@@ -79,6 +83,21 @@ const MACHINES := {
 	"compacteuse": {"name": "Compacteuse", "desc": "Compresse 5 lots d'aiguilles vérifiées en une balle, qui se vend 40 % plus cher.",
 		"size": Vector2i(2, 2), "cost": 1500.0, "plan": "p_compacteuse", "h": 1.9, "power": 5.0,
 		"in": {"acier": 5}, "out": {"balle": 1}, "time": 4.0, "speed": "u_comp_vitesse"},
+	"affuteuse": {"name": "Affûteuse", "desc": "Affûte les aiguilles vérifiées : elles se vendent plus du double.",
+		"size": Vector2i(2, 2), "cost": 2200.0, "plan": "p_affuteuse", "h": 1.6, "power": 4.0,
+		"in": {"acier": 1}, "out": {"affutee": 1}, "time": 2.0, "speed": "u_aff_vitesse", "quality": "u_aff_qualite"},
+	"haut_fourneau": {"name": "Haut fourneau", "desc": "Énorme four de 3 × 3 : fond 8 lots vérifiés en 4 lingots bruts d'un coup.",
+		"size": Vector2i(3, 3), "cost": 18000.0, "plan": "p_haut_fourneau", "h": 4.5, "power": 14.0,
+		"in": {"acier": 8}, "out": {"brut": 4}, "time": 6.0, "speed": "u_hf_vitesse"},
+	"epingles": {"name": "Fabrique d'épingles", "desc": "Coupe et étête le fil : une bobine donne une boîte d'épingles.",
+		"size": Vector2i(2, 2), "cost": 14000.0, "plan": "p_epingles", "h": 1.8, "power": 6.0,
+		"in": {"fil": 1}, "out": {"epingle": 1}, "time": 3.0, "speed": "u_ep_vitesse"},
+	"couture": {"name": "Machine à coudre", "desc": "Assemble une boîte d'aiguilles et deux bobines de fil en un kit de couture. Il faut amener les deux sur la même entrée.",
+		"size": Vector2i(2, 2), "cost": 60000.0, "plan": "p_couture", "h": 2.0, "power": 8.0,
+		"in": {"boite": 1, "fil": 2}, "out": {"kit": 1}, "time": 6.0, "speed": "u_cou_vitesse", "quality": "u_cou_qualite"},
+	"emballeuse": {"name": "Emballeuse", "desc": "Met 4 kits de couture en carton d'expédition : le produit le plus cher du jeu.",
+		"size": Vector2i(2, 2), "cost": 150000.0, "plan": "p_emballeuse", "h": 2.2, "power": 10.0,
+		"in": {"kit": 4}, "out": {"carton": 1}, "time": 8.0, "speed": "u_emb_vitesse"},
 	"trieur": {"name": "Trieur", "desc": "Envoie à gauche le type d'objet choisi (touche-le pour le régler), le reste continue tout droit.",
 		"size": Vector2i(1, 1), "cost": 150.0, "plan": "p_trieur", "h": 0.6},
 	"atelier": {"name": "Atelier de maintenance", "desc": "Répare tout seul les machines usées ou en panne autour de lui.",
@@ -89,11 +108,13 @@ const MACHINES := {
 		"size": Vector2i(1, 1), "cost": 0.0, "plan": "", "h": 1.6, "fixed": true},
 }
 const BUILD_ORDER := ["convoyeur", "tremie", "scanner", "groupe", "separateur", "trieur", "radar", "bras", "compacteuse",
-	"fonderie", "tampon", "eolienne", "atelier", "purif", "pelle", "solaire", "presse", "trefileuse", "drone", "aiguilleuse"]
+	"fonderie", "affuteuse", "tampon", "eolienne", "atelier", "purif", "pelle", "solaire", "presse", "trefileuse", "drone",
+	"haut_fourneau", "epingles", "aiguilleuse", "couture", "emballeuse"]
 ## Usure : secondes de travail avant la panne (les machines sans valeur ne s'usent pas).
 const LIFE := {"scanner": 1500.0, "bras": 1200.0, "pelle": 1500.0, "fonderie": 1500.0, "purif": 1800.0, "presse": 1500.0,
 	"trefileuse": 1500.0, "aiguilleuse": 1800.0, "drone": 1500.0, "radar": 3000.0, "groupe": 1200.0, "eolienne": 3600.0,
-	"solaire": 4800.0, "compacteuse": 1500.0}
+	"solaire": 4800.0, "compacteuse": 1500.0, "affuteuse": 1200.0, "haut_fourneau": 1800.0, "epingles": 1500.0,
+	"couture": 1500.0, "emballeuse": 1800.0}
 const MAX_LEVEL := 60
 ## Niveau de fermier requis par étape de l'arbre (sauf si le nœud en précise un).
 const STAGE_LEVEL := [1, 1, 4, 9, 15, 22]
@@ -113,6 +134,12 @@ const TREE := {
 	"p_trieur": {"stage": 2, "name": "Plan : Trieur", "cost": 1400.0, "req": ["p_separateur"], "ups": []},
 	"p_compacteuse": {"stage": 2, "name": "Plan : Compacteuse", "cost": 3200.0, "req": ["p_scanner"], "lvl": 6, "ups": ["u_comp_vitesse"]},
 	"p_atelier": {"stage": 3, "name": "Plan : Atelier de maintenance", "cost": 10000.0, "req": ["p_bras"], "ups": ["u_atelier_portee", "u_fiabilite"]},
+	"p_affuteuse": {"stage": 3, "name": "Plan : Affûteuse", "cost": 5000.0, "req": ["p_compacteuse"], "ups": ["u_aff_vitesse", "u_aff_qualite"]},
+	"p_haut_fourneau": {"stage": 4, "name": "Plan : Haut fourneau", "cost": 40000.0, "req": ["p_fonderie", "p_atelier"], "ups": ["u_hf_vitesse"]},
+	"p_epingles": {"stage": 4, "name": "Plan : Fabrique d'épingles", "cost": 30000.0, "req": ["p_trefileuse"], "ups": ["u_ep_vitesse"]},
+	"p_couture": {"stage": 5, "name": "Plan : Machine à coudre", "cost": 120000.0, "req": ["p_aiguilleuse", "p_epingles"], "lvl": 30, "ups": ["u_cou_vitesse", "u_cou_qualite"]},
+	"p_emballeuse": {"stage": 5, "name": "Plan : Emballeuse", "cost": 300000.0, "req": ["p_couture"], "lvl": 36, "ups": ["u_emb_vitesse"]},
+	"b_marche": {"stage": 3, "name": "Courtier en aiguilles", "cost": 8000.0, "req": ["p_compacteuse"], "ups": ["u_marche"]},
 	"p_energie": {"stage": 1, "name": "Plan : Groupe électrogène", "cost": 150.0, "req": ["p_scanner"], "ups": ["u_energie"]},
 	"p_radar": {"stage": 2, "name": "Plan : Radar à foin", "cost": 1800.0, "req": ["p_scanner"], "ups": ["u_radar_portee"]},
 	"p_eolienne": {"stage": 2, "name": "Plan : Éolienne", "cost": 3600.0, "req": ["p_energie"], "ups": []},
@@ -157,6 +184,14 @@ const TREE_UPS := {
 	"u_comp_vitesse": {"name": "Compactage rapide", "base": 3750.0, "k": 1.7, "max": 10, "fx": "+25 % de balles par minute"},
 	"u_atelier_portee": {"name": "Atelier mobile", "base": 9000.0, "k": 1.8, "max": 5, "fx": "+3 m de rayon de réparation"},
 	"u_fiabilite": {"name": "Pièces renforcées", "base": 12000.0, "k": 1.9, "max": 6, "fx": "+30 % de durée de vie des machines"},
+	"u_aff_vitesse": {"name": "Meules diamantées", "base": 5000.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse d'affûtage"},
+	"u_aff_qualite": {"name": "Pointe parfaite", "base": 6000.0, "k": 1.9, "max": 5, "fx": "+10 % sur le prix des aiguilles affûtées"},
+	"u_hf_vitesse": {"name": "Soufflerie", "base": 30000.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse du haut fourneau"},
+	"u_ep_vitesse": {"name": "Étêteuse rapide", "base": 25000.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse"},
+	"u_cou_vitesse": {"name": "Moteur de couture", "base": 90000.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse"},
+	"u_cou_qualite": {"name": "Kits de luxe", "base": 100000.0, "k": 1.9, "max": 5, "fx": "+10 % sur le prix des kits"},
+	"u_emb_vitesse": {"name": "Plieuse automatique", "base": 200000.0, "k": 1.7, "max": 10, "fx": "+25 % de vitesse d'emballage"},
+	"u_marche": {"name": "Carnet d'adresses", "base": 10000.0, "k": 2.0, "max": 5, "fx": "le marché sature 15 % moins vite"},
 	"u_auto": {"name": "Usine optimisée", "base": 90000.0, "k": 2.0, "max": 5, "fx": "+10 % de vitesse pour toutes les machines"},
 }
 
@@ -193,6 +228,8 @@ const ACHIEVEMENTS := [
 	["level_10", "Fermier confirmé", "Atteins le niveau 10."],
 	["level_30", "Maître des aiguilles", "Atteins le niveau 30."],
 	["repair_10", "Mécano", "Répare 10 machines en panne."],
+	["carton_1", "Expéditeur", "Vends un carton d'expédition."],
+	["events_10", "Imprévus maîtrisés", "Vis 10 événements."],
 ]
 
 ## Objectifs guidés : [identifiant, texte, récompense]. La progression est calculée par Game.quest_progress().
@@ -218,5 +255,6 @@ const QUESTS := [
 	["gros", "Commande un grand tas", 2500.0],
 	["presse", "Vends une tôle d'acier", 5000.0],
 	["boite", "Vends une boîte d'aiguilles neuves", 20000.0],
+	["kit", "Vends un kit de couture", 60000.0],
 	["montagne", "Commande la montagne d'aiguilles", 50000.0],
 ]

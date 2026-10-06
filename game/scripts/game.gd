@@ -109,7 +109,7 @@ func save_device() -> void:
 # ============================================================ nouvelle partie
 func _blank_stats() -> Dictionary:
 	return {"needles": 0, "hay": 0, "piles": 0, "earned": 0.0, "ingots": 0, "time": 0.0, "belts": 0,
-		"contracts": 0, "sold": {}, "lost_hay": 0, "poured": 0, "ordered": {}, "golden": 0, "recycles": 0, "repairs": 0, "breakdowns": 0}
+		"contracts": 0, "sold": {}, "lost_hay": 0, "poured": 0, "ordered": {}, "golden": 0, "recycles": 0, "repairs": 0, "breakdowns": 0, "events": 0}
 
 
 const START_TREMIE := Vector2i(0, -28) # trémie de départ, au pied du petit tas
@@ -124,6 +124,9 @@ func new_game(keep_meta := false) -> void:
 	tree = {"p_convoyeur": true}
 	ups = {}
 	run_earned = 0.0
+	market = {}
+	event = {}
+	_next_event = 420.0
 	if not keep_meta:
 		achievements = {}
 		stats = _blank_stats()
@@ -278,7 +281,10 @@ func daylight() -> float:
 
 ## Force du vent de 0,5 à 1,5 : rafales lentes, plus fort sous la pluie.
 func wind() -> float:
-	return clampf(0.75 + 0.25 * sin(_clock * 0.07) * sin(_clock * 0.023 + 1.0) + 0.6 * weather_rain, 0.5, 1.5)
+	var w := 0.75 + 0.25 * sin(_clock * 0.07) * sin(_clock * 0.023 + 1.0) + 0.6 * weather_rain
+	if event_id() == "tempete":
+		w += 0.6
+	return clampf(w, 0.5, 1.8)
 
 
 func generator_output(type: String) -> float:
@@ -295,7 +301,7 @@ func generator_output(type: String) -> float:
 
 
 func _update_power() -> void:
-	var sup := Data.GRID_POWER
+	var sup := 0.0 if event_id() == "coupure" else Data.GRID_POWER
 	var dem := 0.0
 	for id in entities:
 		var m: Dictionary = Data.MACHINES[entities[id].type]
@@ -371,6 +377,10 @@ func quality_mult(item: String) -> float:
 			return 1.0 + 0.1 * up_lvl("u_tref_qualite")
 		"boite":
 			return 1.0 + 0.1 * up_lvl("u_aig_qualite")
+		"affutee":
+			return 1.0 + 0.1 * up_lvl("u_aff_qualite")
+		"kit":
+			return 1.0 + 0.1 * up_lvl("u_cou_qualite")
 	return 1.0
 
 
@@ -379,11 +389,118 @@ func item_price(item: Dictionary) -> float:
 	var base: float = Data.ITEMS[t].price
 	if t == "vrac" or t == "acier":
 		base *= float(item.get("n", Data.LOT)) / Data.LOT
-	return base * quality_mult(t) * sell_mult()
+	return base * quality_mult(t) * sell_mult() * market_mult(t) * event_sell_mult()
+
+
+# ============================================================ marché
+## Chaque produit a un cours qui varie lentement ; vendre beaucoup du même produit le fait baisser.
+var market := {} # type -> facteur de prix (1 = prix normal)
+var market_frozen := false # tests uniquement : cours fixes
+var _market_acc := 0.0
+
+
+func market_mult(t: String) -> float:
+	return 1.0 if market_frozen else float(market.get(t, 1.0))
+
+
+## Baisse du cours à chaque vente : forte pour les produits rares et chers, faible pour le vrac.
+func _saturation(t: String) -> float:
+	var price: float = Data.ITEMS[t].price
+	return clampf(0.0006 * sqrt(price), 0.0008, 0.02) * (1.0 - 0.15 * up_lvl("u_marche"))
+
+
+func _market_tick(dt: float) -> void:
+	if market_frozen:
+		return
+	_market_acc += dt
+	if _market_acc < 10.0:
+		return
+	_market_acc = 0.0
+	for t in Data.ITEMS:
+		var f := float(market.get(t, 1.0))
+		# marche aléatoire qui revient doucement vers le prix normal
+		f += randf_range(-0.035, 0.035) + (1.0 - f) * 0.06
+		market[t] = clampf(f, 0.5, 1.6)
+
+
+func _market_sold(t: String) -> void:
+	if market_frozen:
+		return
+	market[t] = clampf(float(market.get(t, 1.0)) - _saturation(t), 0.5, 1.6)
+
+
+# ============================================================ événements
+const EVENTS := {
+	"foire": {"name": "Foire aux aiguilles", "desc": "Toutes les ventes rapportent 40 % de plus !"},
+	"tempete": {"name": "Tempête", "desc": "Vent violent et averse : les éoliennes tournent à fond, le soleil se cache."},
+	"coupure": {"name": "Coupure du réseau", "desc": "Le raccordement électrique est coupé : seuls tes générateurs fonctionnent."},
+	"chasse": {"name": "Chasse au foin", "desc": "Chaque brin de foin trouvé rapporte le double !"},
+	"inspection": {"name": "Visite de l'inspecteur", "desc": "Pas une seule machine en panne à la fin : grosse prime !"},
+}
+var event := {} # {"id", "until"} : événement en cours
+var events_frozen := false # tests uniquement
+var _next_event := 420.0 # secondes de jeu avant le prochain événement
+
+
+func event_id() -> String:
+	return str(event.get("id", "")) if not event.is_empty() else ""
+
+
+func event_left() -> float:
+	return maxf(0.0, float(event.get("until", 0.0)) - float(stats.time)) if not event.is_empty() else 0.0
+
+
+func event_sell_mult() -> float:
+	return 1.4 if event_id() == "foire" else 1.0
+
+
+func start_event(id: String) -> void:
+	event = {"id": id, "until": float(stats.time) + randf_range(90.0, 180.0)}
+	stats.events = int(stats.get("events", 0)) + 1
+	if int(stats.events) >= 10:
+		_unlock("events_10")
+	_toast("ÉVÉNEMENT : %s — %s" % [EVENTS[id].name, EVENTS[id].desc], true)
+	_sfx("win")
+	_update_power()
+	changed.emit()
+
+
+func _end_event() -> void:
+	var id := event_id()
+	event = {}
+	if id == "inspection":
+		var broken := 0
+		for eid in entities:
+			if bool(entities[eid].get("broken", false)):
+				broken += 1
+		if broken == 0 and entities.size() > 10:
+			var prime := 150.0 * level() * level()
+			gain(prime)
+			add_xp(200.0)
+			_toast("L'inspecteur est ravi : aucune panne ! Prime de %s" % Fmt.eur(prime), true)
+			_sfx("win")
+		else:
+			_toast("L'inspecteur repart déçu : %d machine(s) en panne." % broken)
+	_update_power()
+	changed.emit()
+
+
+func _event_tick() -> void:
+	if events_frozen:
+		return
+	if not event.is_empty():
+		if float(stats.time) >= float(event.until):
+			_end_event()
+		return
+	_next_event -= 1.0
+	if _next_event <= 0.0:
+		_next_event = randf_range(360.0, 720.0)
+		var ids := EVENTS.keys()
+		start_event(ids[randi() % ids.size()])
 
 
 func hay_unit_value() -> float:
-	return Data.PILES[pile_size].hay_value * prestige_mult()
+	return Data.PILES[pile_size].hay_value * prestige_mult() * (2.0 if event_id() == "chasse" else 1.0)
 
 
 func pile_radius() -> float:
@@ -1107,6 +1224,8 @@ func available_items() -> Array:
 		out.append("acier")
 	if tree.has("p_compacteuse"):
 		out.append("balle")
+	if tree.has("p_affuteuse"):
+		out.append("affutee")
 	if tree.has("p_fonderie"):
 		out.append("brut")
 	if tree.has("p_purif"):
@@ -1117,6 +1236,12 @@ func available_items() -> Array:
 		out.append("fil")
 	if tree.has("p_aiguilleuse"):
 		out.append("boite")
+	if tree.has("p_epingles"):
+		out.append("epingle")
+	if tree.has("p_couture"):
+		out.append("kit")
+	if tree.has("p_emballeuse"):
+		out.append("carton")
 	return out
 
 
@@ -1177,6 +1302,8 @@ func quest_progress(id: String) -> Vector2:
 			return Vector2(mini(int(stats.sold.get("balle", 0)), 1), 1)
 		"atelier":
 			return Vector2(mini(count_type("atelier"), 1), 1)
+		"kit":
+			return Vector2(mini(int(stats.sold.get("kit", 0)), 1), 1)
 		"ingot":
 			return Vector2(mini(int(stats.sold.get("brut", 0)), 1), 1)
 		"bras":
@@ -1291,6 +1418,9 @@ func _sell(item: Dictionary, cell: Vector2i) -> void:
 	gain(value)
 	add_xp(value * 0.05)
 	stats.sold[t] = int(stats.sold.get(t, 0)) + 1
+	_market_sold(t)
+	if t == "carton":
+		_unlock("carton_1")
 	if t == "vrac" and int(item.get("h", 0)) > 0:
 		# du foin non détecté tombe dans le trou : il est recraché dans le tas
 		pile_h += int(item.h)
@@ -1621,8 +1751,8 @@ func _tick_machine(e: Dictionary, dt: float) -> void:
 			if t == "acier":
 				lot["n"] = Data.LOT
 			e.outq.append(lot)
-	if e.type == "fonderie":
-		stats.ingots += batch
+	if m.out.has("brut"):
+		stats.ingots += int(m.out.brut) * batch
 	_found(hay, false)
 
 
@@ -1688,9 +1818,11 @@ func _process(delta: float) -> void:
 		if field.relax(2):
 			pile_changed.emit()
 	_burn_fuel(delta)
+	_market_tick(delta)
 	_sec_acc += delta
 	if _sec_acc >= 1.0:
 		_sec_acc = 0.0
+		_event_tick()
 		_update_power()
 		_wear_tick(1.0)
 		_check_achievements()
@@ -1797,7 +1929,7 @@ func to_dict() -> Dictionary:
 		"v": 3, "money": money, "field": field.to_save(), "hand_n": hand_n, "hand_h": hand_h,
 		"pile_size": pile_size, "pile_total": pile_total, "pile_n": pile_n, "pile_h": pile_h,
 		"pile_found": pile_found, "pile_done": pile_done, "pile_gold": pile_gold, "hay_spots": _ser(hay_spots),
-		"prestige": prestige, "run_earned": run_earned, "xp": xp,
+		"prestige": prestige, "run_earned": run_earned, "xp": xp, "market": market, "event": event, "next_event": _next_event,
 		"shop": shop, "tree": tree, "ups": ups, "achievements": achievements, "stats": stats,
 		"settings": settings, "contract": contract, "offers": offers, "rates": rates, "quest": quest,
 		"entities": ents, "next_id": next_id, "saved_at": Time.get_unix_time_from_system(),
@@ -1903,6 +2035,15 @@ func from_dict(d: Dictionary) -> bool:
 	pile_gold = clampi(int(d.get("pile_gold", 0)), 0, Data.HAY_PER_PILE)
 	prestige = maxi(0, int(d.get("prestige", 0)))
 	xp = maxf(0.0, float(d.get("xp", 0.0)))
+	market = {}
+	var mk: Dictionary = d.get("market", {})
+	for t in mk:
+		if Data.ITEMS.has(t):
+			market[t] = clampf(float(mk[t]), 0.5, 1.6)
+	event = d.get("event", {})
+	if not event.is_empty() and not EVENTS.has(str(event.get("id", ""))):
+		event = {}
+	_next_event = float(d.get("next_event", 420.0))
 	shop = {}
 	for k in d.get("shop", {}):
 		if Data.SHOP.has(k):

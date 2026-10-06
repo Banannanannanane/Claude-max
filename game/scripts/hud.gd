@@ -26,6 +26,7 @@ var _panel: Control
 var _fps: Label
 var _power: Label
 var _level: Label
+var _event: Label
 var _xp_bar: ProgressBar
 var _det_bar: ProgressBar
 var _det_label: Label
@@ -149,6 +150,9 @@ func _build_info() -> void:
 	v.add_child(_hand)
 	_store = UI.label("", 18, UI.MUTED)
 	v.add_child(_store)
+	_event = UI.label("", 17, Color(1, 0.6, 0.3), true)
+	_event.custom_minimum_size = Vector2(330, 0)
+	v.add_child(_event)
 	_power = UI.label("", 17, UI.MUTED)
 	v.add_child(_power)
 	_quest = UI.label("", 17, UI.GOLD, true)
@@ -353,6 +357,10 @@ func _refresh() -> void:
 	var lv := Game.level()
 	_level.text = "Niveau %d%s" % [lv, "" if lv >= Data.MAX_LEVEL else " — %s / %s XP" % [Fmt.num(Game.xp), Fmt.num(Game.xp_for(lv + 1))]]
 	_xp_bar.value = Game.level_progress()
+	var ev := Game.event_id()
+	_event.visible = ev != ""
+	if ev != "":
+		_event.text = "⚡ %s — encore %d s" % [Game.EVENTS[ev].name, int(Game.event_left())]
 	_hay.text = "Foin trouvé : %d / %d" % [Game.pile_found, Data.HAY_PER_PILE]
 	_hay_bar.value = Game.pile_found
 	_pile.text = "%s · %s aiguilles" % [Data.PILES[Game.pile_size].name, Fmt.needles(Game.pile_n)]

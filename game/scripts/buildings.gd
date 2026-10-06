@@ -56,6 +56,16 @@ static func create(type: String) -> Node3D:
 			_radar(root, p)
 		"compacteuse":
 			_compacteuse(root, p)
+		"affuteuse":
+			_affuteuse(root, p)
+		"haut_fourneau":
+			_haut_fourneau(root, p)
+		"epingles":
+			_epingles(root, p)
+		"couture":
+			_couture(root, p)
+		"emballeuse":
+			_emballeuse(root, p)
 		"trieur":
 			_trieur(root, p)
 		"atelier":
@@ -510,6 +520,98 @@ static func _drone_pad(r: Node3D, p: Dictionary) -> void:
 	p["h"] = 0.3
 
 
+## Affûteuse : établi, meule qui tourne et gerbe d'étincelles.
+static func _affuteuse(r: Node3D, p: Dictionary) -> void:
+	_plinth(r, 2.0, 2.0, 0.1)
+	_cabinet(r, Vector3(1.7, 0.9, 1.2), Vector3(0, 0.55, 0.2), Color(0.35, 0.55, 0.3))
+	var wheel := Mk.pivot(r, Vector3(0, 1.35, -0.25))
+	var disc := Mk.cyl(wheel, 0.42, 0.12, Vector3.ZERO, Mk.paint(Color(0.55, 0.52, 0.48), 0.1, 0.9), -1.0, 24)
+	disc.rotation.z = PI / 2
+	Mk.box(r, Vector3(0.14, 0.5, 0.14), Vector3(0.3, 1.2, -0.25), Mk.dark_steel())
+	Mk.box(r, Vector3(0.14, 0.5, 0.14), Vector3(-0.3, 1.2, -0.25), Mk.dark_steel())
+	var guard := Mk.box(r, Vector3(0.2, 0.06, 0.7), Vector3(0, 1.82, -0.15), Mk.paint(C_ORANGE))
+	guard.rotation.x = 0.3
+	_chute(r, -0.9, 0.5, 0.6, true)
+	p["wheel"] = wheel
+	p["sparks"] = _sparks(r, Vector3(0, 1.0, -0.6))
+	p["h"] = 1.9
+
+
+## Haut fourneau (3 × 3) : tour de briques cerclée d'acier, bouche rougeoyante, grande cheminée.
+static func _haut_fourneau(r: Node3D, p: Dictionary) -> void:
+	_plinth(r, 3.0, 3.0, 0.15)
+	var brick := Mk.brick(Color(0.5, 0.24, 0.16))
+	Mk.cyl(r, 1.25, 2.6, Vector3(0, 1.45, 0.2), brick, 0.95, 20)
+	for y in [0.6, 1.4, 2.2]:
+		Mk.torus(r, 1.18 - y * 0.1, 1.3 - y * 0.1, Vector3(0, y, 0.2), Mk.dark_steel())
+	Mk.cyl(r, 0.4, 2.4, Vector3(0.6, 3.9, 0.8), brick, 0.34, 12)
+	Mk.cyl(r, 0.45, 0.1, Vector3(0.6, 5.1, 0.8), Mk.dark_steel(), -1.0, 12)
+	Mk.box(r, Vector3(1.0, 0.8, 0.1), Vector3(0, 0.8, -1.05), Mk.dark_steel())
+	var mouth := Mk.box(r, Vector3(0.8, 0.6, 0.05), Vector3(0, 0.8, -1.1), Mk.glow(Color(1, 0.4, 0.05), 4.0))
+	p["mouth"] = mouth
+	var light := OmniLight3D.new()
+	light.position = Vector3(0, 1.0, -1.7)
+	light.light_color = Color(1, 0.5, 0.15)
+	light.omni_range = 5.0
+	r.add_child(light)
+	p["light"] = light
+	p["smoke"] = _smoke(r, Vector3(0.6, 5.3, 0.8), Color(0.28, 0.28, 0.3), 24)
+	_chute(r, 1.4, 1.2, 1.2, false)
+	p["h"] = 4.5
+
+
+## Fabrique d'épingles : machine à tambour, bac à épingles dorées.
+static func _epingles(r: Node3D, p: Dictionary) -> void:
+	_plinth(r, 2.0, 2.0, 0.1)
+	_cabinet(r, Vector3(1.6, 1.0, 1.3), Vector3(0, 0.6, 0.15), Color(0.55, 0.42, 0.18))
+	var drum := Mk.pivot(r, Vector3(0, 1.45, 0.15))
+	var dm := Mk.cyl(drum, 0.38, 1.3, Vector3.ZERO, Mk.steel(), -1.0, 16)
+	dm.rotation.z = PI / 2
+	Mk.box(r, Vector3(0.9, 0.18, 0.4), Vector3(0, 0.3, -0.8), Mk.paint(Color(0.2, 0.2, 0.22)))
+	Mk.box(r, Vector3(0.8, 0.06, 0.32), Vector3(0, 0.38, -0.8), Mk.glow(Color(1, 0.8, 0.3), 1.2))
+	p["drum"] = drum
+	p["h"] = 1.9
+
+
+## Machine à coudre géante : socle, bras en col de cygne, aiguille qui pique.
+static func _couture(r: Node3D, p: Dictionary) -> void:
+	_plinth(r, 2.0, 2.0, 0.1)
+	var body := Mk.paint(Color(0.12, 0.12, 0.14), 0.4, 0.3)
+	Mk.box(r, Vector3(1.8, 0.35, 1.2), Vector3(0, 0.3, 0), Mk.paint(C_WOOD, 0.0, 0.7))
+	Mk.box(r, Vector3(0.35, 1.2, 0.5), Vector3(0.65, 1.05, 0), body)
+	Mk.box(r, Vector3(1.5, 0.35, 0.5), Vector3(0.0, 1.6, 0), body)
+	Mk.box(r, Vector3(0.3, 0.45, 0.4), Vector3(-0.65, 1.3, 0), body)
+	Mk.box(r, Vector3(1.52, 0.04, 0.52), Vector3(0.0, 1.62, 0), Mk.paint(C_YELLOW))
+	var needle := Mk.pivot(r, Vector3(-0.65, 1.05, 0))
+	Mk.cyl(needle, 0.02, 0.4, Vector3(0, -0.15, 0), Mk.steel(), 0.005, 6)
+	var flywheel := Mk.cyl(r, 0.22, 0.12, Vector3(0.82, 1.4, 0.3), Mk.steel(), -1.0, 16)
+	flywheel.rotation.x = PI / 2
+	Mk.cyl(r, 0.08, 0.25, Vector3(0.3, 1.9, 0), Mk.paint(Color(0.85, 0.55, 0.3)), -1.0, 10)
+	p["needle"] = needle
+	p["h"] = 2.0
+
+
+## Emballeuse : tapis interne, cartons qui s'empilent, rouleau d'adhésif.
+static func _emballeuse(r: Node3D, p: Dictionary) -> void:
+	_plinth(r, 2.0, 2.0, 0.1)
+	_cabinet(r, Vector3(1.8, 0.7, 1.6), Vector3(0, 0.45, 0), Color(0.3, 0.35, 0.42))
+	Mk.box(r, Vector3(1.9, 0.08, 0.5), Vector3(0, 0.84, 0), Mk.rubber())
+	var arch := Mk.paint(C_ORANGE)
+	for sx in [-0.85, 0.85]:
+		Mk.box(r, Vector3(0.12, 1.3, 0.12), Vector3(sx, 1.45, 0), arch)
+	Mk.box(r, Vector3(1.82, 0.14, 0.2), Vector3(0, 2.1, 0), arch)
+	var tape := Mk.pivot(r, Vector3(0, 1.85, 0))
+	var tr := Mk.cyl(tape, 0.14, 0.1, Vector3.ZERO, Mk.paint(Color(0.8, 0.7, 0.45)), -1.0, 14)
+	tr.rotation.x = PI / 2
+	var boxes: Array = []
+	var carton := Mk.paint(Color(0.72, 0.55, 0.33), 0.0, 0.85)
+	for i in 3:
+		boxes.append(Mk.box(r, Vector3(0.5, 0.4, 0.45), Vector3(0.55 - i * 0.55, 1.08, 0), carton))
+	p["tape"] = tape
+	p["boxes"] = boxes
+	p["h"] = 2.2
+
+
 ## Compacteuse : caisson, piston vertical, balle qui sort.
 static func _compacteuse(r: Node3D, p: Dictionary) -> void:
 	_plinth(r, 2.0, 2.0, 0.1)
@@ -792,6 +894,21 @@ static func animate(root: Node3D, type: String, t: float, state: int, info: Dict
 		"radar":
 			if active:
 				p.head.rotation.y = t * 1.6 + ph
+		"affuteuse":
+			p.wheel.rotation.x = t * 14.0 if active else p.wheel.rotation.x
+			p.sparks.emitting = active
+		"haut_fourneau":
+			p.light.light_energy = (1.6 + 0.6 * sin(t * 9.0 + ph)) if active else 0.2
+			p.smoke.emitting = active
+		"epingles":
+			p.drum.rotation.x = t * 4.0 if active else p.drum.rotation.x
+		"couture":
+			p.needle.position.y = 1.05 - (absf(sin(t * 14.0 + ph)) * 0.18 if active else 0.0)
+		"emballeuse":
+			p.tape.rotation.z = t * 3.0 if active else p.tape.rotation.z
+			var nb := int(fmod(t * 0.6 + ph, 4.0)) if active else 1
+			for i in p.boxes.size():
+				p.boxes[i].visible = i < nb
 		"compacteuse":
 			p.ram.position.y = 1.5 - (pow(absf(sin(t * 1.8 + ph)), 4.0) * 0.6 if active else 0.0)
 			p.bale.visible = active
