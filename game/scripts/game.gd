@@ -32,7 +32,7 @@ var tree := {"p_convoyeur": true} # nœuds achetés
 var ups := {} # niveaux des améliorations de plans
 var achievements := {}
 var stats := {}
-var settings := {"sound": true, "sens": 1.0, "daynight": true}
+var settings := {"sound": true, "sens": 1.0, "daynight": true, "quality": 1, "fps": false, "vibrate": true}
 var contract := {} # contrat en cours
 var offers: Array = [] # contrats proposés
 var rates := {"income": 0.0, "dig": 0.0, "hay": 0.0}
@@ -61,9 +61,36 @@ var _activity := {} # id -> horloge du dernier travail
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_load_device()
 	slot = _last_slot()
 	if not load_slot(slot):
 		new_game()
+
+
+## Réglages propres à l'appareil (qualité, vibration, compteur) : communs à toutes les sauvegardes.
+const DEVICE_KEYS := ["quality", "fps", "vibrate"]
+const DEVICE_PATH := "user://device.json"
+
+
+func _load_device() -> void:
+	var d = _read_json(DEVICE_PATH)
+	if typeof(d) != TYPE_DICTIONARY:
+		return
+	for k in DEVICE_KEYS:
+		if d.has(k):
+			settings[k] = d[k]
+	settings.quality = clampi(int(settings.quality), 0, 2)
+	settings.fps = bool(settings.fps)
+	settings.vibrate = bool(settings.vibrate)
+
+
+func save_device() -> void:
+	var d := {}
+	for k in DEVICE_KEYS:
+		d[k] = settings[k]
+	var f := FileAccess.open(DEVICE_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(d))
 
 
 # ============================================================ nouvelle partie
@@ -1357,7 +1384,7 @@ func from_dict(d: Dictionary) -> bool:
 				stats[k] = int(st[k])
 	var se: Dictionary = d.get("settings", {})
 	for k in settings:
-		if se.has(k):
+		if se.has(k) and k not in DEVICE_KEYS:
 			settings[k] = se[k]
 	quest = clampi(int(d.get("quest", 0)), 0, Data.QUESTS.size())
 	contract = d.get("contract", {})
@@ -1418,3 +1445,9 @@ func new_game_in_slot(s: int) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		save_slot(slot)
+
+
+## Vibration courte, si le joueur ne l'a pas coupée.
+func vibrate(ms: int) -> void:
+	if settings.get("vibrate", true):
+		Input.vibrate_handheld(ms)

@@ -7,7 +7,7 @@ const RINGS := 30
 const SEGS := 72
 const NEEDLE_LEN := 0.22
 const NEEDLE_RAD := 0.0075
-const NEEDLE_COL := Color(0.56, 0.56, 0.57)
+const NEEDLE_COL := Color(0.54, 0.53, 0.5)
 
 const MOUND_SHADER := """
 shader_type spatial;
@@ -57,9 +57,9 @@ void fragment() {
 	vec3 gap = needle_col * 0.36;
 	vec3 col = mix(gap, needle_col * tint, m) * COLOR.r;
 	ALBEDO = col;
-	METALLIC = mix(0.15, 0.25, m);
-	ROUGHNESS = mix(0.8, 0.4, m);
-	SPECULAR = 0.5;
+	METALLIC = mix(0.08, 0.12, m);
+	ROUGHNESS = mix(0.8, 0.5, m);
+	SPECULAR = 0.35;
 }
 """
 
@@ -80,9 +80,9 @@ void vertex() {
 void fragment() {
 	NORMAL = normalize((VIEW_MATRIX * vec4(normalize(hn), 0.0)).xyz);
 	ALBEDO = needle_col * tint * ao * 0.92;
-	METALLIC = 0.25;
-	ROUGHNESS = 0.4;
-	SPECULAR = 0.5;
+	METALLIC = 0.12;
+	ROUGHNESS = 0.5;
+	SPECULAR = 0.35;
 }
 """
 
@@ -196,6 +196,12 @@ func _refresh() -> void:
 		_hay.multimesh.visible_instance_count = mini(Game.pile_h, 3)
 
 
+## Force la reconstruction (changement de qualité graphique).
+func rebuild() -> void:
+	_built_size = ""
+	_refresh()
+
+
 ## Profil du tas : sommet arrondi, flancs raides, pied évasé ; plus des bosses.
 ## th : angle autour du tas, t : 0 au sommet, 1 au pied.
 func _surf(th: float, t: float) -> Vector3:
@@ -263,7 +269,8 @@ func _build(r: float) -> void:
 
 	# petites aiguilles posées sur la surface, réparties selon l'aire ; écrites d'un bloc
 	var area := PI * r * sqrt(r * r + _H * _H)
-	var count := clampi(int(area * 110.0), 2500, 16000)
+	var dens: float = [0.35, 0.65, 1.0][clampi(int(Game.settings.get("quality", 1)), 0, 2)]
+	var count := clampi(int(area * 110.0 * dens), int(2500 * dens), int(16000 * dens))
 	var buf := PackedFloat32Array()
 	buf.resize(count * 20)
 	var o := 0

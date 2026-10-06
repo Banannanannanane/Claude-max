@@ -22,8 +22,9 @@ func _ready() -> void:
 	player.hud = hud
 	player.world = world
 	add_child(hud)
-	_spark_mat = Mk.mat(Color(0.9, 0.92, 0.96), 0.9, 0.2, Color(0.8, 0.85, 1.0), 0.6)
+	_spark_mat = Mk.mat(Color(0.6, 0.6, 0.62), 0.4, 0.4)
 	_hay_mat = Mk.mat(Color(1, 0.85, 0.3), 0.0, 0.5, Color(1, 0.8, 0.2), 2.0)
+	apply_quality()
 	# regarde vers le tas au démarrage
 	player.look_at_from_position(player.position, Vector3(Data.PILE_POS.x, player.position.y, Data.PILE_POS.z))
 	for a in OS.get_cmdline_user_args():
@@ -41,6 +42,20 @@ func _ready() -> void:
 		_catch_up.call_deferred()
 	else:
 		_intro.call_deferred()
+
+
+## Qualité graphique : 0 = Bas (téléphones modestes), 1 = Moyen, 2 = Élevé.
+func apply_quality() -> void:
+	var q := clampi(int(Game.settings.get("quality", 1)), 0, 2)
+	Engine.max_fps = 60
+	var vp := get_viewport()
+	vp.scaling_3d_scale = [0.7, 0.85, 1.0][q]
+	vp.msaa_3d = Viewport.MSAA_DISABLED if q == 0 else Viewport.MSAA_2X
+	RenderingServer.directional_shadow_atlas_set_size([1024, 1024, 2048][q], true)
+	world.sun.shadow_enabled = q > 0
+	world.sun.directional_shadow_max_distance = [30.0, 40.0, 55.0][q]
+	world.env.glow_enabled = q > 0
+	world.pile.rebuild()
 
 
 func _intro() -> void:
@@ -103,9 +118,30 @@ func _burst(point: Vector3, material: Material, amount: int, size: float, speed:
 	get_tree().create_timer(life + 0.2).timeout.connect(p.queue_free)
 
 
+## Ramassage : quelques aiguilles jaillissent du tas vers le joueur.
 func spark_fx(point: Vector3) -> void:
-	if point != Vector3.ZERO:
-		_burst(point, _spark_mat, 10, 0.25, 2.5, 0.6)
+	if point == Vector3.ZERO:
+		return
+	var p := CPUParticles3D.new()
+	p.one_shot = true
+	p.explosiveness = 0.9
+	p.amount = 9
+	p.lifetime = 0.45
+	var to_cam: Vector3 = player.cam.global_position - point
+	p.direction = (to_cam.normalized() + Vector3(0, 0.6, 0)).normalized()
+	p.spread = 28.0
+	p.initial_velocity_min = 2.5
+	p.initial_velocity_max = 4.5
+	p.gravity = Vector3(0, -7, 0)
+	p.particle_flag_align_y = true
+	var m := BoxMesh.new()
+	m.size = Vector3(0.008, 0.22, 0.008)
+	p.mesh = m
+	p.material_override = _spark_mat
+	p.position = point
+	add_child(p)
+	p.emitting = true
+	get_tree().create_timer(0.7).timeout.connect(p.queue_free)
 
 
 func hay_fx() -> void:

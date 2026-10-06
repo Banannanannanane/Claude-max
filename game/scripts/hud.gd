@@ -23,6 +23,7 @@ var _toasts: VBoxContainer
 var _flash: ColorRect
 var _big: Label
 var _panel: Control
+var _fps: Label
 
 var _joy_base: TextureRect
 var _joy_knob: TextureRect
@@ -58,8 +59,8 @@ func _ready() -> void:
 	_build_touch()
 	_toasts = VBoxContainer.new()
 	_toasts.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_toasts.position = Vector2(-330, 150)
-	_toasts.custom_minimum_size = Vector2(660, 0)
+	_toasts.position = Vector2(-280, 96)
+	_toasts.custom_minimum_size = Vector2(560, 0)
 	_toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_toasts.alignment = BoxContainer.ALIGNMENT_BEGIN
 	root.add_child(_toasts)
@@ -77,6 +78,11 @@ func _ready() -> void:
 	_big.modulate.a = 0
 	_big.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_big)
+	_fps = UI.label("", 16, UI.MUTED)
+	_fps.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_fps.position = Vector2(-60, 4)
+	_fps.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_fps)
 	Game.toast.connect(toast)
 	Game.hay_found.connect(_on_hay)
 	Game.changed.connect(_refresh)
@@ -126,7 +132,7 @@ func _build_menu() -> void:
 	_menu.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	_menu.add_theme_constant_override("separation", 8)
 	root.add_child(_menu)
-	for e in [["Boutique", "boutique", "GoldButton"], ["Arbre", "arbre", "GoldButton"], ["Construire", "construire", "BlueButton"], ["Usine", "stock", ""], ["Menu", "reglages", ""]]:
+	for e in [["Boutique", "boutique", "GoldButton"], ["Arbre", "arbre", "GoldButton"], ["Construire", "construire", "BlueButton"], ["Usine", "stock", ""], ["Carte", "carte", ""], ["Menu", "reglages", ""]]:
 		var b := UI.button(e[0], open_panel.bind(e[1]), e[2])
 		b.mouse_filter = Control.MOUSE_FILTER_STOP
 		b.custom_minimum_size = Vector2(0, 64)
@@ -333,6 +339,9 @@ func _process(delta: float) -> void:
 	for b in [_btn_place, _btn_rotate, _btn_cancel]:
 		b.visible = free and building
 	_cross.visible = not building
+	_fps.visible = bool(Game.settings.get("fps", false))
+	if _fps.visible:
+		_fps.text = "%d i/s" % Engine.get_frames_per_second()
 	_update_prompt()
 	_flash.color.a = maxf(0.0, _flash.color.a - delta * 1.5)
 	_big.modulate.a = maxf(0.0, _big.modulate.a - delta * 0.6)
@@ -389,7 +398,7 @@ func toast(text: String, gold := false) -> void:
 	var p := PanelContainer.new()
 	p.theme_type_variation = "Hud"
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var l := UI.label(text, 21, UI.GOLD if gold else Color(0.95, 0.96, 0.98), true)
+	var l := UI.label(text, 19, UI.GOLD if gold else Color(0.95, 0.96, 0.98), true)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	p.add_child(l)
 	_toasts.add_child(p)
@@ -405,7 +414,7 @@ func toast(text: String, gold := false) -> void:
 
 func _on_hay(count: int, by_hand: bool) -> void:
 	_flash.color.a = 0.35 if by_hand else 0.15
-	Input.vibrate_handheld(90 if by_hand else 40)
+	Game.vibrate(90 if by_hand else 40)
 	_big.text = "BRIN DE FOIN !" if by_hand else "Foin détecté !"
 	_big.modulate.a = 1.0
 	if by_hand and main:
@@ -439,6 +448,8 @@ func open_panel(name: String) -> void:
 			p = Panels.OrderPanel.new()
 		"stock":
 			p = Panels.StockPanel.new()
+		"carte":
+			p = Panels.MapPanel.new()
 		"reglages":
 			p = Panels.SettingsPanel.new()
 		_:

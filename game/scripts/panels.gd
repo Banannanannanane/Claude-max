@@ -504,13 +504,21 @@ class SavePanel extends PanelBase:
 
 # ============================================================ succès
 class AchievementsPanel extends PanelBase:
+	var _stats: Label
+
 	func title() -> String:
-		return "Succès"
+		return "Succès et statistiques"
 
 	func sig() -> String:
 		return str(Game.achievements.size())
 
 	func build() -> void:
+		section("Statistiques")
+		var c := UI.card()
+		content.add_child(c)
+		_stats = UI.label("", 19, Color(0.86, 0.88, 0.92), true)
+		c.add_child(_stats)
+		section("Succès")
 		content.add_child(UI.label("%d / %d débloqués" % [Game.achievements.size(), Data.ACHIEVEMENTS.size()], 22, UI.GOLD))
 		for a in Data.ACHIEVEMENTS:
 			var ok: bool = Game.achievements.has(a[0])
@@ -518,12 +526,30 @@ class AchievementsPanel extends PanelBase:
 			if not ok:
 				r.card.modulate = Color(1, 1, 1, 0.5)
 
+	func refresh() -> void:
+		var st: Dictionary = Game.stats
+		var sold := 0
+		for k in st.get("sold", {}):
+			sold += int(st.sold[k])
+		_stats.text = "\n".join([
+			"Temps de jeu : %s" % Fmt.duration(float(st.get("time", 0.0))),
+			"Argent gagné au total : %s" % Fmt.eur(float(st.get("earned", 0.0))),
+			"Aiguilles ramassées : %s" % Fmt.num(float(st.get("needles", 0))),
+			"Brins de foin trouvés : %s   ·   foin perdu dans le trou : %s" % [Fmt.num(float(st.get("hay", 0))), Fmt.num(float(st.get("lost_hay", 0)))],
+			"Tas terminés : %s   ·   contrats livrés : %s" % [Fmt.num(float(st.get("piles", 0))), Fmt.num(float(st.get("contracts", 0)))],
+			"Lingots coulés : %s   ·   objets vendus : %s" % [Fmt.num(float(st.get("ingots", 0))), Fmt.num(float(sold))],
+			"Machines et tapis : %d" % Game.entities.size(),
+		])
+
 
 # ============================================================ réglages
 class SettingsPanel extends PanelBase:
 	var _sound: Button
 	var _day: Button
+	var _vib: Button
+	var _fps: Button
 	var _sens: HSlider
+	var _quality: Array = []
 
 	func title() -> String:
 		return "Menu"
@@ -554,6 +580,26 @@ class SettingsPanel extends PanelBase:
 		content.add_child(_sound)
 		_day = UI.button("", _toggle_day)
 		content.add_child(_day)
+		_vib = UI.button("", func() -> void:
+			Game.settings.vibrate = not bool(Game.settings.vibrate)
+			Game.save_device()
+			refresh())
+		content.add_child(_vib)
+		section("Graphismes")
+		var qh := HBoxContainer.new()
+		content.add_child(qh)
+		_quality.clear()
+		for i in 3:
+			var b := UI.button(["Bas", "Moyen", "Élevé"][i], _set_quality.bind(i))
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			qh.add_child(b)
+			_quality.append(b)
+		content.add_child(UI.label("Bas : sans ombres, image allégée, plus fluide et moins de batterie. Élevé : ombres fines et tas plus détaillé.", 17, UI.MUTED, true))
+		_fps = UI.button("", func() -> void:
+			Game.settings.fps = not bool(Game.settings.fps)
+			Game.save_device()
+			refresh())
+		content.add_child(_fps)
 		section("Comment jouer")
 		var help := UI.card()
 		content.add_child(help)
@@ -568,10 +614,17 @@ class SettingsPanel extends PanelBase:
 			"• Arbre : achète les plans (droits de construction), puis leurs améliorations par niveaux.",
 			"• Bureau : contrats de livraison à prime et commande des tas. L'usine produit aussi hors ligne (8 h max).",
 		]), 19, Color(0.86, 0.88, 0.92), true))
-		content.add_child(UI.label("Trouve le Foin v1.2 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
+		content.add_child(UI.label("Trouve le Foin v1.3 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
 
 	func _toggle_sound() -> void:
 		Game.settings.sound = not Game.settings.sound
+		refresh()
+
+	func _set_quality(q: int) -> void:
+		Game.settings.quality = q
+		Game.save_device()
+		if hud and hud.main:
+			hud.main.apply_quality()
 		refresh()
 
 	func _toggle_day() -> void:
@@ -581,6 +634,11 @@ class SettingsPanel extends PanelBase:
 	func refresh() -> void:
 		_sound.text = "Son : " + ("activé" if Game.settings.sound else "coupé")
 		_day.text = "Cycle jour / nuit : " + ("activé" if Game.settings.get("daynight", true) else "toujours le jour")
+		_vib.text = "Vibrations : " + ("activées" if Game.settings.get("vibrate", true) else "coupées")
+		_fps.text = "Compteur d'images par seconde : " + ("affiché" if Game.settings.get("fps", false) else "masqué")
+		var q := int(Game.settings.get("quality", 1))
+		for i in _quality.size():
+			(_quality[i] as Button).theme_type_variation = "GoldButton" if i == q else ""
 
 
 # ============================================================ message simple
@@ -632,3 +690,121 @@ class QuitPanel extends PanelBase:
 		h.add_child(UI.button("Quitter", func() -> void:
 			Game.save_slot(Game.slot)
 			get_tree().quit(), "RedButton"))
+
+
+# ============================================================ carte
+## Vue de dessus de l'usine : machines, tapis (avec leur sens), tas, trou de vente et joueur.
+class MapPanel extends PanelBase:
+	var view: MapView
+	var _whole := false
+	var _zoom_btn: Button
+
+	func title() -> String:
+		return "Carte de l'usine"
+
+	func header_extra() -> Control:
+		_zoom_btn = UI.button("Tout le terrain", func() -> void:
+			_whole = not _whole
+			view.whole = _whole
+			_zoom_btn.text = "Zoom sur l'usine" if _whole else "Tout le terrain"
+			view.queue_redraw(), "BlueButton")
+		return _zoom_btn
+
+	func build() -> void:
+		view = MapView.new()
+		view.player = hud.player if hud else null
+		view.whole = _whole
+		view.custom_minimum_size = Vector2(0, 470)
+		view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		content.add_child(view)
+		var legend := HFlowContainer.new()
+		content.add_child(legend)
+		for t in ["tremie", "scanner", "bras", "pelle", "fonderie", "purif", "presse", "trefileuse", "aiguilleuse", "tampon", "separateur", "drone"]:
+			if not Game.entities.values().any(func(e: Dictionary) -> bool: return e.type == t):
+				continue
+			var l := UI.label("■ " + Data.MACHINES[t].name, 17, MapView.color_of(t))
+			l.add_theme_constant_override("outline_size", 0)
+			legend.add_child(l)
+			legend.add_child(UI.label("   ", 17))
+
+	func refresh() -> void:
+		if view:
+			view.queue_redraw()
+
+
+class MapView extends Control:
+	var player: Node
+	var whole := false
+	const COLORS := {
+		"tremie": Color(0.95, 0.8, 0.2), "scanner": Color(0.3, 0.85, 0.95), "bras": Color(1.0, 0.55, 0.15),
+		"pelle": Color(0.95, 0.65, 0.1), "fonderie": Color(0.8, 0.35, 0.25), "purif": Color(0.55, 0.85, 1.0),
+		"presse": Color(0.25, 0.45, 0.95), "trefileuse": Color(0.65, 0.45, 0.95), "aiguilleuse": Color(0.95, 0.45, 0.7),
+		"tampon": Color(0.6, 0.62, 0.66), "separateur": Color(0.5, 0.65, 0.8), "drone": Color(0.95, 0.95, 0.95),
+		"bureau": Color(0.3, 0.8, 0.45), "trou": Color(0.08, 0.08, 0.1),
+	}
+
+	static func color_of(t: String) -> Color:
+		return COLORS.get(t, Color(0.7, 0.7, 0.7))
+
+	func _bounds() -> Rect2:
+		var f := float(Data.FIELD)
+		if whole:
+			return Rect2(-f, -f, 2 * f, 2 * f)
+		var pr := maxf(Game.pile_radius(), 2.0)
+		var r := Rect2(Data.PILE_POS.x - pr, Data.PILE_POS.z - pr, pr * 2, pr * 2)
+		for e: Dictionary in Game.entities.values():
+			r = r.expand(Vector2(e.c.x, e.c.y)).expand(Vector2(e.c.x + 1, e.c.y + 1))
+		if player:
+			r = r.expand(Vector2(player.global_position.x, player.global_position.z))
+		r = r.grow(4.0)
+		# au moins 30 m de côté, sans dépasser le terrain
+		var c := r.get_center()
+		var sz := Vector2(maxf(r.size.x, 30.0), maxf(r.size.y, 30.0))
+		r = Rect2(c - sz * 0.5, sz)
+		return r.intersection(Rect2(-f - 2, -f - 2, 2 * f + 4, 2 * f + 4))
+
+	func _draw() -> void:
+		var b := _bounds()
+		var sc := minf(size.x / b.size.x, size.y / b.size.y)
+		var off := (size - b.size * sc) * 0.5 - b.position * sc
+		var to := func(p: Vector2) -> Vector2: return p * sc + off
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0.12, 0.2, 0.13))
+		var f := float(Data.FIELD)
+		draw_rect(Rect2(to.call(Vector2(-f, -f)), Vector2(2 * f + 1, 2 * f + 1) * sc), Color(0.2, 0.36, 0.2))
+		draw_rect(Rect2(to.call(Vector2(-f, -f)), Vector2(2 * f + 1, 2 * f + 1) * sc), Color(0.55, 0.45, 0.3), false, 2.0)
+		# tas
+		var pc: Vector2 = to.call(Vector2(Data.PILE_POS.x, Data.PILE_POS.z))
+		if Game.pile_items() > 0:
+			draw_circle(pc, maxf(Game.pile_radius() * sc, 3.0), Color(0.6, 0.62, 0.66))
+			draw_arc(pc, maxf(Game.pile_radius() * sc, 3.0), 0, TAU, 48, Color(0.3, 0.3, 0.33), 2.0)
+		# tapis d'abord, machines par-dessus
+		for pass_belts in [true, false]:
+			for e: Dictionary in Game.entities.values():
+				var belt: bool = e.type == "convoyeur"
+				if belt != pass_belts:
+					continue
+				var col := Color(0.32, 0.34, 0.38) if belt else color_of(e.type)
+				for cell in Game.footprint(e.type, e.c, e.r):
+					draw_rect(Rect2(to.call(Vector2(cell.x, cell.y)), Vector2(sc, sc)).grow(-0.5), col)
+				if e.type == "trou":
+					var cs: Array = Game.footprint(e.type, e.c, e.r)
+					var lo: Vector2i = cs[0]
+					var hi: Vector2i = cs[0]
+					for cell: Vector2i in cs:
+						lo = Vector2i(mini(lo.x, cell.x), mini(lo.y, cell.y))
+						hi = Vector2i(maxi(hi.x, cell.x), maxi(hi.y, cell.y))
+					draw_rect(Rect2(to.call(Vector2(lo)), Vector2(hi - lo + Vector2i.ONE) * sc), UI.GOLD, false, 3.0)
+				if belt and sc >= 6.0:
+					var d: Vector2i = Data.DIRS[e.r]
+					var ctr: Vector2 = to.call(Vector2(e.c) + Vector2(0.5, 0.5))
+					var dv := Vector2(d) * sc * 0.3
+					draw_line(ctr - dv, ctr + dv, Color(0.95, 0.8, 0.25), maxf(1.0, sc * 0.12))
+		# joueur : flèche dans le sens du regard
+		if player:
+			var pp: Vector2 = to.call(Vector2(player.global_position.x, player.global_position.z))
+			var fw3: Vector3 = -player.global_transform.basis.z
+			var fw := Vector2(fw3.x, fw3.z).normalized()
+			var side := Vector2(-fw.y, fw.x)
+			var s := 11.0
+			draw_colored_polygon(PackedVector2Array([pp + fw * s, pp - fw * s * 0.6 + side * s * 0.7, pp - fw * s * 0.3, pp - fw * s * 0.6 - side * s * 0.7]), Color(1, 0.3, 0.3))
+			draw_polyline(PackedVector2Array([pp + fw * s, pp - fw * s * 0.6 + side * s * 0.7, pp - fw * s * 0.3, pp - fw * s * 0.6 - side * s * 0.7, pp + fw * s]), Color.WHITE, 2.0)

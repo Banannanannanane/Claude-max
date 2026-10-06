@@ -556,6 +556,17 @@ func _test_save() -> void:
 	_run(10.0)
 	check(true, "la simulation repart après chargement")
 	check(not Game.slot_info(2).is_empty(), "infos des emplacements")
+	var q0 = Game.settings.quality
+	Game.settings.quality = 0
+	Game.save_device()
+	Game.settings.quality = 2
+	Game._load_device()
+	var q_ok: bool = int(Game.settings.quality) == 0
+	Game.settings.quality = 2
+	Game.load_slot(2)
+	check(q_ok and int(Game.settings.quality) == 2, "la qualité graphique est propre à l'appareil, pas à la sauvegarde")
+	Game.settings.quality = q0
+	Game.save_device()
 	Game.delete_slot(3)
 	check(Game.slot_info(3).is_empty(), "suppression d'un emplacement")
 	var f := FileAccess.open(Game.slot_path(3), FileAccess.WRITE)
@@ -637,7 +648,7 @@ func _ui() -> void:
 	hud.close_panel()
 	await _frames(2)
 	_rich()
-	for p in ["boutique", "arbre", "construire", "commandes", "stock", "reglages", "sauvegardes", "succes", "objectifs"]:
+	for p in ["boutique", "arbre", "construire", "commandes", "stock", "carte", "reglages", "sauvegardes", "succes", "objectifs"]:
 		hud.open_panel(p)
 		await _frames(2)
 		var panel: Node = hud._panel
@@ -882,7 +893,7 @@ func _shots() -> void:
 	await _shot("07_aiguilleuse", 20)
 	_face(Vector3(-6.5, 0, 5.5), Vector3(-5.5, 1, 2.5), -16)
 	await _shot("08_borne", 20)
-	for p in ["arbre", "construire", "objectifs"]:
+	for p in ["arbre", "construire", "objectifs", "carte", "reglages", "succes"]:
 		main.hud.open_panel(p)
 		await _shot("09_" + p, 6)
 	main.hud.close_panel()
@@ -904,6 +915,9 @@ func _shots() -> void:
 	main.player.head.position.y = 4.0
 	_face(Vector3(0, 0, 20), Data.PILE_POS + Vector3(0, 3, 0), -6)
 	await _shot("12_montagne", 30)
+	Game.settings.quality = 0
+	main.apply_quality()
+	await _shot("13_qualite_basse", 30)
 	get_tree().quit()
 
 

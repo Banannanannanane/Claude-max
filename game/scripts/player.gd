@@ -15,6 +15,7 @@ var world: Node3D
 var head: Node3D
 var cam: Camera3D
 var ray: RayCast3D
+const HAND_NEEDLES := 70
 var hand: MultiMeshInstance3D
 var stamina := 100.0
 var target := {}
@@ -81,15 +82,20 @@ func _make_hand() -> void:
 	hand = MultiMeshInstance3D.new()
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = Mk.needle_mesh(0.42, 0.006)
-	mm.instance_count = 30
+	mm.mesh = Mk.needle_mesh(0.3, 0.0035)
+	mm.instance_count = HAND_NEEDLES
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
-	for i in 30:
-		var b := Basis(Vector3.FORWARD, PI / 2 + rng.randf_range(-0.12, 0.12)) * Basis(Vector3.RIGHT, rng.randf_range(-0.15, 0.15))
-		mm.set_instance_transform(i, Transform3D(b, Vector3(rng.randf_range(-0.04, 0.04), rng.randf_range(-0.03, 0.03), rng.randf_range(-0.05, 0.05))))
+	# une botte serrée : les premières aiguilles au cœur, les suivantes autour
+	for i in HAND_NEEDLES:
+		var k := float(i) / HAND_NEEDLES
+		var rad := 0.006 + 0.03 * sqrt(k)
+		var a := rng.randf() * TAU
+		var b := Basis(Vector3.FORWARD, PI / 2 + rng.randf_range(-0.1, 0.1)) * Basis(Vector3.RIGHT, rng.randf_range(-0.12, 0.12))
+		mm.set_instance_transform(i, Transform3D(b, Vector3(rng.randf_range(-0.03, 0.03), cos(a) * rad, sin(a) * rad)))
 	hand.multimesh = mm
-	hand.material_override = Mk.needle_material()
+	hand.material_override = Mk.mat(Color(0.47, 0.46, 0.43), 0.1, 0.6)
+	hand.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	hand.position = Vector3(0.3, -0.27, -0.55)
 	hand.rotation = Vector3(0.35, 0.55, 0.25)
 	cam.add_child(hand)
@@ -147,7 +153,7 @@ func _physics_process(delta: float) -> void:
 	_hand_kick = maxf(0.0, _hand_kick - delta * 4.0)
 	hand.position = Vector3(0.3 + cos(_bob * 0.5) * 0.01, -0.27 + sin(_bob) * 0.012 - _hand_kick * 0.08, -0.55 + _hand_kick * 0.12)
 	var fill := float(Game.hand_n + Game.hand_h) / float(Game.hand_cap())
-	hand.multimesh.visible_instance_count = int(ceil(fill * 30.0))
+	hand.multimesh.visible_instance_count = int(ceil(fill * HAND_NEEDLES))
 
 	_grab_cd = maxf(0.0, _grab_cd - delta)
 	_drop_cd = maxf(0.0, _drop_cd - delta)
@@ -286,7 +292,7 @@ func try_grab() -> void:
 		return
 	stamina -= GRAB_COST
 	_hand_kick = 1.0
-	Input.vibrate_handheld(12)
+	Game.vibrate(12)
 	Sfx.play("needle", randf_range(0.9, 1.15))
 	if hud:
 		hud.grab_fx(target.get("point", Vector3.ZERO))

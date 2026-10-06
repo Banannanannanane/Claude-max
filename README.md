@@ -31,12 +31,17 @@ Chaque push compile le jeu automatiquement (GitHub Actions → onglet **Releases
 | **Arbre technologique** | 5 étapes. Les **plans** donnent le droit de construire chaque machine, et chacun a ses **améliorations à niveaux** : tapis plus rapides, fonte plus rapide, grand creuset (plus de lingots par fournée), qualité (meilleur prix), portée des bras… On y achète aussi les **contrats** pour les tas plus gros et des bonus (trou élargi, automatisation avancée). |
 | **Boutique** | Capacité de la main, fourche, endurance, récupération, bottes, longs bras (ramasser et placer plus loin), œil de lynx, trémies géantes. |
 | **Bureau** | Commande des tas et **contrats de livraison** à prime, avec un délai. |
-| **Sauvegardes** | 3 emplacements avec sauvegarde automatique, sauvegarde manuelle et chargement. La production continue hors ligne (8 h maximum). Il y a aussi 12 **succès** à débloquer. |
+| **Sauvegardes** | 3 emplacements avec sauvegarde automatique, sauvegarde manuelle et chargement. La production continue hors ligne (8 h maximum). Il y a aussi 12 **succès** à débloquer et des **statistiques** de partie. |
+| **Carte** | Vue de dessus de l'usine : machines par couleur, sens des tapis, tas, trou de vente et ta position. |
+| **Graphismes** | Qualité Basse, Moyenne ou Élevée (ombres, résolution, détail du tas), compteur d'images par seconde et vibrations désactivables. Ces réglages sont propres au téléphone. |
 
 Chaque machine prend ce qui arrive par l'arrière (flèche verte) et rend sa production par
 l'avant (flèche bleue). La plupart des machines occupent 2×2 cases, et la zone constructible fait
 160×160 cases. Un voyant sur chaque machine indique son état : vert en marche, orange en attente,
 rouge si elle est bloquée (sortie pleine ou trop loin du tas).
+
+Le tas est un vrai monticule, haut et bosselé, couvert de fines aiguilles qui se fondent dans sa
+surface. Il rétrécit à mesure qu'on le vide.
 
 Il y a aussi des **objectifs guidés** avec primes pour apprendre le jeu, et un **cycle jour/nuit**
 avec lampadaires (désactivable). Le bouton Retour d'Android ferme les fenêtres et demande
