@@ -74,6 +74,8 @@ func _rich() -> void:
 	for id in Data.TREE:
 		Game.tree[id] = true
 	Game.stats.piles = 10
+	Game.free_power = true # les tests de production ne dépendent pas du réseau électrique
+	Game._update_power()
 
 
 ## Trouve une ancre pour poser `type` juste après le tapis de la case `belt` (sens r).
@@ -202,9 +204,117 @@ func _logic() -> void:
 	_test_save()
 	_test_golden_recycle()
 	_test_relief()
+	_test_hay_spots_detector()
+	_test_power()
 	await _test_weather_audio()
 	_test_stress()
 	_finish()
+
+
+func _test_hay_spots_detector() -> void:
+	Game.new_game()
+	var buried := Game.hay_spots.size() == Game.pile_h and Game.pile_h == 22
+	for sp: Vector3 in Game.hay_spots:
+		if sp.y >= Game.field.height_at(sp.x, sp.z):
+			buried = false
+	check(buried, "les 22 brins sont enfouis à des endroits précis du tas")
+	# creuser loin de tout brin ne trouve rien
+	var far := Vector3.INF
+	for t in 3000:
+		var a := randf() * TAU
+		var d := Game.field.radius * randf_range(0.2, 0.9)
+		var c := Data.PILE_POS + Vector3(cos(a) * d, 0, sin(a) * d)
+		var ok := true
+		for sp: Vector3 in Game.hay_spots:
+			if Vector2(sp.x - c.x, sp.z - c.z).length() < 1.6:
+				ok = false
+		if ok:
+			far = c
+			break
+	check(far != Vector3.INF, "un endroit du tas sans foin")
+	var h0 := Game.pile_h
+	for i in 25:
+		Game.hand_n = 0
+		Game.hand_h = 0
+		Game.grab(far)
+	check(Game.pile_h == h0, "creuser là où il n'y a pas de foin ne trouve rien")
+	# détecteur
+	var near: Array = Game.nearest_hay(Game.hay_spots[0] + Vector3(0, 1, 0))
+	check(float(near[1]) <= 1.0 + 0.001, "le détecteur mesure la distance au brin le plus proche")
+	# creuser juste au-dessus d'un brin finit par le libérer
+	var target: Vector3 = Game.hay_spots[0]
+	var found := false
+	for i in 400:
+		Game.hand_n = 0
+		Game.hand_h = 0
+		Game.grab(target)
+		if not Game.hay_spots.has(target):
+			found = true
+			break
+	check(found and Game.pile_h < h0 and Game.hay_spots.size() == Game.pile_h, "en creusant au-dessus d'un brin, on finit par le déterrer")
+	var r0 := Game.detector_range()
+	Game.shop["detecteur"] = 4
+	check(Game.detector_range() > r0 + 5.0, "améliorer le détecteur augmente sa portée")
+	Game.shop["poignee"] = 10
+	check(Game.tool_name() == "Aspirateur" and Game.tool_name(0) == "Mains nues" and Game.grab_radius() > 0.9, "les outils évoluent jusqu'à l'aspirateur (creux plus large)")
+	# radar
+	_rich()
+	var rid := _beside_pile(1, 1)
+	check(Game.build("radar", rid, 0), "construction d'un radar à foin")
+	var rc := Game.machine_center("radar", rid, 0)
+	var expect := 0
+	for sp: Vector3 in Game.hay_spots:
+		if Vector2(sp.x - rc.x, sp.z - rc.z).length() <= Game.radar_range():
+			expect += 1
+	check(Game.revealed_hay().size() == expect and expect > 0, "le radar révèle les brins à portée (%d)" % expect)
+	# sauvegarde des positions
+	var spots := Game.hay_spots.duplicate()
+	Game.save_slot(2)
+	Game.new_game()
+	Game.load_slot(2)
+	var same := Game.hay_spots.size() == spots.size() and Game.hay_spots.size() == Game.pile_h
+	if same:
+		for i in spots.size():
+			if (Game.hay_spots[i] as Vector3).distance_to(spots[i]) > 0.001:
+				same = false
+	check(same, "les positions du foin sont sauvegardées")
+	Game.shop.erase("detecteur")
+	Game.shop.erase("poignee")
+
+
+func _test_power() -> void:
+	Game.new_game()
+	_rich()
+	Game.free_power = false
+	Game.settings.daynight = true
+	for i in 6:
+		Game.build("fonderie", Vector2i(-40 + i * 3, 40), 0)
+	Game._update_power()
+	check(absf(Game.power_demand - 36.0) < 0.01 and absf(Game.power_factor - 10.0 / 36.0) < 0.01, "6 fonderies (36 kW) sur le réseau de 10 kW : tout ralentit")
+	var slow := Game.machine_speed("fonderie")
+	Game.build("groupe", Vector2i(-40, 30), 0)
+	Game._update_power()
+	check(Game.power_factor > 0.6 and Game.machine_speed("fonderie") > slow * 2.0, "un groupe électrogène ajoute 15 kW")
+	var m0 := Game.money
+	Game._burn_fuel(10.0)
+	check(absf(m0 - Game.money - 10.0 * Data.FUEL_COST) < 0.001, "le groupe brûle du carburant")
+	Game.build("solaire", Vector2i(-34, 30), 0)
+	Game.stats.time = 0.0
+	var day := Game.generator_output("solaire")
+	Game.stats.time = 0.8 * 900.0
+	var night := Game.generator_output("solaire")
+	Game.weather_rain = 1.0
+	Game.stats.time = 0.0
+	var rainy := Game.generator_output("solaire")
+	var windy := Game.wind()
+	Game.weather_rain = 0.0
+	check(day > 13.0 and night < 0.5 and rainy < day * 0.4, "panneaux solaires : plein le jour, rien la nuit, peu sous la pluie")
+	check(windy > Game.wind(), "l'éolienne tourne plus fort sous la pluie")
+	Game.build("eolienne", Vector2i(-28, 30), 0)
+	Game._update_power()
+	check(Game.power_supply > 25.0 and Game.power_factor > 0.75, "l'éolienne complète le réseau (%s kW)" % Fmt.num(Game.power_supply, 1))
+	Game.free_power = true
+	Game._update_power()
 
 
 func _test_relief() -> void:
@@ -672,7 +782,7 @@ func _test_contracts_quests() -> void:
 	check(Game.money >= 55.0, "les objectifs rapportent leur prime")
 	var all_known := true
 	for q in Data.QUESTS:
-		if Game.quest_progress(q[0]) == Vector2(0, 1) and not q[0] in ["plan_scan", "scanner", "pile1", "fonderie", "ingot", "bras", "moyen", "contrat", "purif", "gros", "presse", "boite", "montagne"]:
+		if Game.quest_progress(q[0]) == Vector2(0, 1) and not q[0] in ["plan_scan", "scanner", "pile1", "fonderie", "energie", "ingot", "bras", "radar", "moyen", "contrat", "purif", "gros", "presse", "boite", "montagne"]:
 			all_known = false
 	check(all_known, "tous les objectifs ont une progression calculée")
 	Game.stats.belts = 1
@@ -835,6 +945,10 @@ func _ui() -> void:
 	Game.build("bras", Vector2i(5, -16), 1)
 	Game.build("pelle", Vector2i(-6, -16), 3)
 	Game.build("separateur", Vector2i(-20, 40), 0)
+	Game.build("radar", Vector2i(-16, 40), 0)
+	Game.build("groupe", Vector2i(-12, 40), 0)
+	Game.build("eolienne", Vector2i(-8, 40), 0)
+	Game.build("solaire", Vector2i(-5, 40), 0)
 	await _frames(3)
 	var types_seen := {}
 	for id in Game.entities.keys():
@@ -1037,6 +1151,13 @@ func _pile_shots() -> void:
 	for i in 20:
 		Game.field.relax(2)
 	await _shot("p2_poignees", 10)
+	# détecteur : on vise le tas juste au-dessus d'un brin caché
+	var hs: Vector3 = Game.hay_spots[0]
+	var dir2 := Vector3(hs.x - P.x, 0, hs.z - P.z).normalized()
+	var surf := Game.field.height_at(hs.x, hs.z)
+	_face(Vector3(hs.x, 0, hs.z) + dir2 * 2.2, Vector3(hs.x, surf, hs.z), -12)
+	main.player.head.rotation.x = -atan2(1.62 - surf + 0.1, 2.2)
+	await _shot("p2b_detecteur", 20)
 	_rich()
 	var R := float(Data.PILES.petit.radius)
 	for k in 3:
@@ -1058,6 +1179,16 @@ func _pile_shots() -> void:
 	main.player.head.position.y = 7.0
 	_face(P + Vector3(12, 0, 9), P + Vector3(3, 0, -1), -30)
 	await _shot("p3_bras", 20)
+	main.player.head.position.y = 1.62
+	# radar et énergie
+	Game.build("radar", _beside_pile(-1, 1) + Vector2i(0, 2), 0)
+	Game.build("groupe", _beside_pile(-1, 3) + Vector2i(-1, -3), 0)
+	Game.build("eolienne", _beside_pile(-1, 6) + Vector2i(0, 3), 0)
+	Game.build("solaire", _beside_pile(-1, 5) + Vector2i(0, -6), 0)
+	await _frames(5)
+	main.player.head.position.y = 5.0
+	_face(P + Vector3(-15, 0, 9), P + Vector3(-4, 1, -1), -16)
+	await _shot("p3b_radar_energie", 40)
 	main.player.head.position.y = 1.62
 	Game.pile_done = true
 	Game.stats.piles = 10

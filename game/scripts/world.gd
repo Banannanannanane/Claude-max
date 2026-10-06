@@ -340,6 +340,7 @@ func _update_weather(delta: float) -> void:
 				_rain_target = randf_range(0.55, 1.0)
 				_weather_timer = randf_range(90.0, 180.0)
 	rain = move_toward(rain, _rain_target, delta * 0.05)
+	Game.weather_rain = rain
 	Sfx.set_rain(rain)
 	var g := rain * 0.75
 	if g > 0.001:
@@ -631,6 +632,11 @@ func _animate_machines(delta: float) -> void:
 				info["alert"] = _t - float(_alerts.get(id, -10.0)) < 2.0
 			"trou":
 				info["cash"] = ("+" + Fmt.eur(_last_cash)) if _cash_timer > 0.0 else ""
+			"eolienne":
+				info["wind"] = Game.wind()
+			"radar":
+				if Game.power_factor < 0.2:
+					state = 2
 		if e.has("outq") and e.outq.size() >= 4:
 			state = 2
 		Buildings.animate(node, e.type, _t, state, info)

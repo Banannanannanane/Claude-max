@@ -3,7 +3,7 @@
 
 Usage : python3 tools/gen_audio.py  (écrit dans game/audio/)
 Fichiers : music.wav (boucle), ambiance.wav (vent + oiseaux, boucle), rain.wav (pluie, boucle),
-step.wav (pas dans l'herbe), golden.wav (brin doré), recycle.wav (recyclage).
+step.wav (pas dans l'herbe), golden.wav (brin doré), recycle.wav (recyclage), beep.wav (détecteur).
 """
 import math
 import os
@@ -203,6 +203,17 @@ def recycle():
     write("recycle.wav", out, rate)
 
 
+def beep():
+    rate = 44100
+    n = int(0.07 * rate)
+    out = []
+    for i in range(n):
+        t = i / rate
+        env = min(1, t / 0.004) * min(1, (0.07 - t) / 0.02)
+        out.append((math.sin(math.tau * 1900 * t) + 0.25 * math.sin(math.tau * 3800 * t)) * env)
+    write("beep.wav", out, rate)
+
+
 if __name__ == "__main__":
     music()
     ambiance()
@@ -210,3 +221,4 @@ if __name__ == "__main__":
     step()
     golden()
     recycle()
+    beep()

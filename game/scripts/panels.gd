@@ -46,7 +46,9 @@ class ShopPanel extends PanelBase:
 			"main":
 				return "%s aiguilles" % Fmt.needles(15 + 10 * l)
 			"poignee":
-				return "%d par geste" % (3 + 2 * l)
+				return "%s : %s aiguilles par geste" % [Game.tool_name(l), Fmt.needles(3 + 2 * l)]
+			"detecteur":
+				return "%s m de portée" % Fmt.num(3.0 + 1.5 * l, 1)
 			"endurance":
 				return "%d d'endurance" % (100 + 25 * l)
 			"recup":
@@ -396,7 +398,10 @@ class StockPanel extends PanelBase:
 				on_belts += 1
 		_lines.text = "\n".join([
 			"%s : %s aiguilles restantes, foin trouvé %d / 22" % [p.name, Fmt.needles(Game.pile_n), Game.pile_found],
-			"Dans ta main : %d / %d" % [Game.hand_n + Game.hand_h, Game.hand_cap()],
+			"Dans ta main : %s / %s aiguilles · outil : %s" % [Fmt.needles(Game.hand_n + Game.hand_h), Fmt.needles(Game.hand_cap()), Game.tool_name()],
+			"Énergie : %s kW consommés / %s kW produits%s" % [Fmt.num(Game.power_demand, 1), Fmt.num(Game.power_supply, 1),
+				"" if Game.power_factor >= 0.999 else " — les machines tournent à %d %% : construis des générateurs !" % int(Game.power_factor * 100)],
+			"Brins encore cachés : %d · repérés par les radars : %d" % [Game.pile_h, Game.revealed_hay().size()],
 			"Objets sur les tapis : %d · vitesse des tapis : %s cases/s" % [on_belts, Fmt.num(Game.belt_speed(), 1)],
 			"Revenus récents : %s / min · aiguilles ramassées : %s / min" % [Fmt.eur(float(Game.rates.income) * 60.0), Fmt.needles(float(Game.rates.dig) * 60.0)],
 			"Foin perdu dans le trou (non détecté) : %d" % int(Game.stats.lost_hay),
@@ -468,8 +473,22 @@ class EntityPanel extends PanelBase:
 				s.append("Stock : %d / %d objets" % [e.q.size(), int(m.cap)])
 			"drone":
 				s.append("Charge : %s aiguilles par voyage" % Fmt.needles(30 + 20 * Game.up_lvl("u_drone_charge")))
+			"radar":
+				s.append("Portée : %s m · brins repérés : %d" % [Fmt.num(Game.radar_range(), 1), Game.revealed_hay().size()])
+			"groupe", "eolienne", "solaire":
+				s.append("Production actuelle : %s kW" % Fmt.num(Game.generator_output(e.type), 1))
+				match e.type:
+					"groupe":
+						s.append("Carburant : %s par minute" % Fmt.eur(Data.FUEL_COST * 60.0))
+					"eolienne":
+						s.append("Vent : %d %%" % int(Game.wind() * 100))
+					"solaire":
+						s.append("Soleil : %d %%%s" % [int(Game.daylight() * 100), " · averse en cours" if Game.weather_rain > 0.1 else ""])
+				s.append("Réseau : %s / %s kW" % [Fmt.num(Game.power_demand, 1), Fmt.num(Game.power_supply, 1)])
 			"trou":
 				s.append("Ventes totales : %s" % Fmt.eur(float(Game.stats.earned)))
+		if m.has("power"):
+			s.append("Consommation : %s kW%s" % [Fmt.num(float(m.power), 1), "" if Game.power_factor >= 0.999 else " (courant insuffisant : %d %%)" % int(Game.power_factor * 100)])
 		if m.has("in"):
 			s.append("Vitesse : ×%s" % Fmt.num(Game.machine_speed(e.type), 2))
 			s.append("En attente à l'entrée : %d · prêts en sortie : %d" % [e.inq.size(), e.outq.size()])
@@ -664,12 +683,14 @@ class SettingsPanel extends PanelBase:
 			"• On ne vend qu'au TROU DE VENTE : amène-y tout par convoyeurs. Construire > Convoyeur, puis garde PLACER appuyé en marchant.",
 			"• Le foin non détecté qui tombe dans le trou retourne dans le tas : place des SCANNERS sur tes tapis.",
 			"• Bras robots et pelleteuses ne creusent que dans leur rayon d'action : quand leur voyant passe au rouge, déplace-les plus près du tas.",
+			"• Chaque brin de foin est enfoui à un endroit précis : suis les bips du DÉTECTEUR et creuse là où le cercle doré se resserre. Le RADAR à foin les révèle de loin.",
+			"• Les machines consomment de l'électricité : au-delà des 10 kW du réseau, construis groupes électrogènes, éoliennes (vent, pluie) et panneaux solaires (jour).",
 			"• Chaîne de valeur : vrac → scanner → fonderie → purificateur → presse / tréfileuse → aiguilleuse.",
 			"• Chaque machine prend par l'arrière (flèche verte) et sort par l'avant (flèche bleue). Les séparateurs répartissent.",
 			"• Arbre : achète les plans (droits de construction), puis leurs améliorations par niveaux.",
 			"• Bureau : contrats de livraison à prime et commande des tas. L'usine produit aussi hors ligne (8 h max).",
 		]), 19, Color(0.86, 0.88, 0.92), true))
-		content.add_child(UI.label("Trouve le Foin v1.5 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
+		content.add_child(UI.label("Trouve le Foin v1.6 — aucune donnée personnelle collectée, jeu 100 % hors ligne.", 17, UI.MUTED, true))
 
 	func _toggle_sound() -> void:
 		Game.settings.sound = not Game.settings.sound
@@ -778,7 +799,7 @@ class MapPanel extends PanelBase:
 		content.add_child(view)
 		var legend := HFlowContainer.new()
 		content.add_child(legend)
-		for t in ["tremie", "scanner", "bras", "pelle", "fonderie", "purif", "presse", "trefileuse", "aiguilleuse", "tampon", "separateur", "drone"]:
+		for t in ["tremie", "scanner", "bras", "pelle", "fonderie", "purif", "presse", "trefileuse", "aiguilleuse", "tampon", "separateur", "drone", "radar", "groupe", "eolienne", "solaire"]:
 			if not Game.entities.values().any(func(e: Dictionary) -> bool: return e.type == t):
 				continue
 			var l := UI.label("■ " + Data.MACHINES[t].name, 17, MapView.color_of(t))
@@ -800,6 +821,7 @@ class MapView extends Control:
 		"presse": Color(0.25, 0.45, 0.95), "trefileuse": Color(0.65, 0.45, 0.95), "aiguilleuse": Color(0.95, 0.45, 0.7),
 		"tampon": Color(0.6, 0.62, 0.66), "separateur": Color(0.5, 0.65, 0.8), "drone": Color(0.95, 0.95, 0.95),
 		"bureau": Color(0.3, 0.8, 0.45), "trou": Color(0.08, 0.08, 0.1),
+		"radar": Color(1.0, 0.85, 0.35), "groupe": Color(0.85, 0.62, 0.12), "eolienne": Color(0.95, 0.96, 0.98), "solaire": Color(0.15, 0.25, 0.6),
 	}
 
 	static func color_of(t: String) -> Color:
@@ -858,6 +880,11 @@ class MapView extends Control:
 					var ctr: Vector2 = to.call(Vector2(e.c) + Vector2(0.5, 0.5))
 					var dv := Vector2(d) * sc * 0.3
 					draw_line(ctr - dv, ctr + dv, Color(0.95, 0.8, 0.25), maxf(1.0, sc * 0.12))
+		# brins repérés par les radars : étoiles dorées
+		for sp: Vector3 in Game.revealed_hay():
+			var hp: Vector2 = to.call(Vector2(sp.x, sp.z))
+			draw_circle(hp, 6.0, Color(1, 0.8, 0.2))
+			draw_arc(hp, 9.0, 0, TAU, 16, Color(1, 0.9, 0.4, 0.8), 2.0)
 		# joueur : flèche dans le sens du regard
 		if player:
 			var pp: Vector2 = to.call(Vector2(player.global_position.x, player.global_position.z))

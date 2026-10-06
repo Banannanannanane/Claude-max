@@ -2,9 +2,9 @@ extends Node
 ## Bruitages : un petit pool de lecteurs par son, avec anti-rafale.
 ## Plus les boucles : musique, ambiance (vent et oiseaux) et pluie, en fondu.
 
-const SOUNDS := ["needle", "hay", "prick", "cash", "buy", "cast", "win", "click", "step", "golden", "recycle"]
+const SOUNDS := ["needle", "hay", "prick", "cash", "buy", "cast", "win", "click", "step", "golden", "recycle", "beep"]
 const VOLUME := {"needle": -10.0, "hay": -2.0, "prick": -4.0, "cash": -6.0, "buy": -4.0, "cast": -4.0, "win": -3.0, "click": -8.0,
-	"step": -17.0, "golden": -1.0, "recycle": -2.0}
+	"step": -17.0, "golden": -1.0, "recycle": -2.0, "beep": -12.0}
 const MUSIC_DB := -15.0
 const AMBIANCE_DB := -19.0
 const RAIN_DB := -12.0

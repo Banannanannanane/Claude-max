@@ -24,6 +24,11 @@ var _flash: ColorRect
 var _big: Label
 var _panel: Control
 var _fps: Label
+var _power: Label
+var _det_bar: ProgressBar
+var _det_label: Label
+var _det_signal := 0.0
+var _beep_t := 0.0
 
 var _joy_base: TextureRect
 var _joy_knob: TextureRect
@@ -135,6 +140,8 @@ func _build_info() -> void:
 	v.add_child(_hand)
 	_store = UI.label("", 18, UI.MUTED)
 	v.add_child(_store)
+	_power = UI.label("", 17, UI.MUTED)
+	v.add_child(_power)
 	_quest = UI.label("", 17, UI.GOLD, true)
 	_quest.custom_minimum_size = Vector2(330, 0)
 	v.add_child(_quest)
@@ -145,6 +152,12 @@ func _build_info() -> void:
 	v.add_child(sl)
 	_stamina = UI.bar()
 	v.add_child(_stamina)
+	_det_label = UI.label("Détecteur de foin", 16, UI.MUTED)
+	v.add_child(_det_label)
+	_det_bar = UI.bar("HayBar")
+	_det_bar.max_value = 1.0
+	_det_bar.step = 0.01
+	v.add_child(_det_bar)
 
 
 func _build_menu() -> void:
@@ -166,7 +179,11 @@ func _build_center() -> void:
 	_cross.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_cross.draw.connect(func() -> void:
 		_cross.draw_circle(Vector2.ZERO, 5.0, Color(1, 1, 1, 0.9))
-		_cross.draw_arc(Vector2.ZERO, 11.0, 0, TAU, 24, Color(0, 0, 0, 0.6), 2.0))
+		_cross.draw_arc(Vector2.ZERO, 11.0, 0, TAU, 24, Color(0, 0, 0, 0.6), 2.0)
+		# le détecteur s'emballe : cercle doré qui se resserre
+		if _det_signal > 0.05:
+			var r := lerpf(34.0, 14.0, _det_signal)
+			_cross.draw_arc(Vector2.ZERO, r, 0, TAU, 32, Color(1, 0.8, 0.2, 0.35 + 0.6 * _det_signal), 3.0))
 	root.add_child(_cross)
 	_prompt = UI.label("", 24)
 	_prompt.set_anchors_preset(Control.PRESET_CENTER)
@@ -331,6 +348,9 @@ func _refresh() -> void:
 	_hand.text = "Main : %s / %s" % [Fmt.needles(held), Fmt.needles(Game.hand_cap())]
 	_hand.add_theme_color_override("font_color", UI.BAD if held >= Game.hand_cap() else Color(0.93, 0.94, 0.96))
 	_store.text = "Revenus : %s / min" % Fmt.eur(float(Game.rates.income) * 60.0)
+	_power.text = "Énergie : %s / %s kW%s" % [Fmt.num(Game.power_demand, 1), Fmt.num(Game.power_supply, 1), "  — manque de courant !" if Game.power_factor < 0.999 else ""]
+	_power.add_theme_color_override("font_color", UI.BAD if Game.power_factor < 0.999 else UI.MUTED)
+	_power.visible = Game.power_demand > 0.0 or Game.power_supply > Data.GRID_POWER
 	if Game.prestige > 0:
 		_store.text += "  ·  ★ %d jeton%s" % [Game.prestige, "s" if Game.prestige > 1 else ""]
 	if Game.quest < Data.QUESTS.size():
@@ -361,12 +381,41 @@ func _process(delta: float) -> void:
 	for b in [_btn_place, _btn_rotate, _btn_cancel]:
 		b.visible = free and building
 	_cross.visible = not building
+	_update_detector(delta)
 	_fps.visible = bool(Game.settings.get("fps", false))
 	if _fps.visible:
 		_fps.text = "%d i/s" % Engine.get_frames_per_second()
 	_update_prompt()
 	_flash.color.a = maxf(0.0, _flash.color.a - delta * 1.5)
 	_big.modulate.a = maxf(0.0, _big.modulate.a - delta * 0.6)
+
+
+## Détecteur de foin (comme le détecteur de métaux de Find the Needle) : distance entre
+## l'endroit visé (ou soi-même) et le brin caché le plus proche ; bips de plus en plus rapides.
+func _update_detector(delta: float) -> void:
+	var origin: Vector3 = player.global_position + Vector3(0, 0.8, 0)
+	if player.target.get("kind", "") == "pile":
+		origin = player.target.get("point", origin)
+	var near: Array = Game.nearest_hay(origin)
+	var rng := Game.detector_range()
+	var sig := clampf(1.0 - float(near[1]) / rng, 0.0, 1.0) if Game.pile_h > 0 else 0.0
+	_det_signal = lerpf(_det_signal, sig, minf(1.0, delta * 8.0))
+	_det_bar.value = _det_signal
+	if sig <= 0.0:
+		_det_label.text = "Détecteur de foin : rien à %s m" % Fmt.num(rng, 1)
+	elif sig > 0.8:
+		_det_label.text = "Détecteur de foin : ICI ! Creuse !"
+	else:
+		_det_label.text = "Détecteur de foin : à %s m" % Fmt.num(float(near[1]), 1)
+	_det_label.add_theme_color_override("font_color", UI.GOLD if sig > 0.0 else UI.MUTED)
+	_cross.queue_redraw()
+	if sig > 0.0 and not panel_open():
+		_beep_t -= delta
+		if _beep_t <= 0.0:
+			_beep_t = lerpf(1.1, 0.09, sig)
+			Sfx.play("beep", 1.0 + sig * 0.5)
+	else:
+		_beep_t = 0.0
 
 
 func _update_prompt() -> void:

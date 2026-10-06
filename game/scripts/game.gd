@@ -29,6 +29,7 @@ var pile_found := 0
 var pile_done := false
 var pile_gold := 0 # rang du brin doré dans ce tas (0 = aucun)
 var field := PileField.new() # relief du tas, creusé localement
+var hay_spots: Array = [] # position (monde) de chaque brin encore caché ; autant que pile_h
 var _take_carry := 0.0
 var _relax_acc := 0.0
 var prestige := 0 # jetons de recyclage (bonus permanent)
@@ -69,6 +70,7 @@ var _activity := {} # id -> horloge du dernier travail
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	entities_changed.connect(_update_power)
 	_load_device()
 	slot = _last_slot()
 	if not load_slot(slot):
@@ -178,6 +180,19 @@ func grab_amount() -> int:
 	return 3 + 2 * shop_lvl("poignee")
 
 
+## Rayon de la poignée : l'outil creuse plus large à mesure qu'il grandit.
+func grab_radius() -> float:
+	return 0.4 + 0.06 * shop_lvl("poignee")
+
+
+## Outil de fouille selon le niveau de la boutique (comme la pelle, la fourche… de Find the Needle).
+func tool_name(lvl := -1) -> String:
+	if lvl < 0:
+		lvl = shop_lvl("poignee")
+	var names := ["Mains nues", "Pelle", "Pelle", "Fourche", "Fourche", "Fourche", "Brouette", "Brouette", "Brouette", "Brouette", "Aspirateur"]
+	return names[mini(lvl, names.size() - 1)]
+
+
 func stamina_max() -> float:
 	return 100.0 + 25.0 * shop_lvl("endurance")
 
@@ -215,7 +230,98 @@ func machine_speed(type: String) -> float:
 	var s := 1.0
 	if m.has("speed"):
 		s += (0.3 if type == "scanner" else 0.25) * up_lvl(m.speed)
+	if m.has("power"):
+		s *= power_factor
 	return s * auto_mult()
+
+
+# ============================================================ électricité
+## Le réseau est commun à toute l'usine : production (raccordement + générateurs) contre consommation.
+## S'il manque du courant, toutes les machines électriques ralentissent d'autant.
+var power_factor := 1.0
+var power_supply := Data.GRID_POWER
+var power_demand := 0.0
+var weather_rain := 0.0 # intensité de l'averse en cours (fixée par le décor)
+var free_power := false # tests uniquement
+
+
+## Ensoleillement de 0 (nuit) à 1 (plein jour), d'après le même cycle que le décor (900 s).
+func daylight() -> float:
+	if not settings.get("daynight", true):
+		return 1.0
+	var ph := fmod(float(stats.get("time", 0.0)) / 900.0, 1.0)
+	return 1.0 - smoothstep(0.62, 0.72, ph) * (1.0 - smoothstep(0.9, 1.0, ph))
+
+
+## Force du vent de 0,5 à 1,5 : rafales lentes, plus fort sous la pluie.
+func wind() -> float:
+	return clampf(0.75 + 0.25 * sin(_clock * 0.07) * sin(_clock * 0.023 + 1.0) + 0.6 * weather_rain, 0.5, 1.5)
+
+
+func generator_output(type: String) -> float:
+	var m: Dictionary = Data.MACHINES[type]
+	var g := float(m.get("gen", 0.0)) * (1.0 + 0.15 * up_lvl("u_energie"))
+	match str(m.get("kind", "")):
+		"fuel":
+			return g if money > 0.0 else 0.0
+		"solar":
+			return g * daylight() * (1.0 - 0.7 * weather_rain)
+		"wind":
+			return g * wind()
+	return 0.0
+
+
+func _update_power() -> void:
+	var sup := Data.GRID_POWER
+	var dem := 0.0
+	for id in entities:
+		var m: Dictionary = Data.MACHINES[entities[id].type]
+		if m.has("gen"):
+			var out := generator_output(entities[id].type)
+			sup += out
+			if out > 0.0:
+				_activity[id] = _clock
+		dem += float(m.get("power", 0.0))
+	power_supply = sup
+	power_demand = dem
+	power_factor = 1.0 if free_power or dem <= sup else clampf(sup / dem, 0.0, 1.0)
+
+
+func _burn_fuel(dt: float) -> void:
+	if money <= 0.0:
+		return
+	for id in entities:
+		if Data.MACHINES[entities[id].type].get("kind", "") == "fuel":
+			money -= Data.FUEL_COST * dt
+
+
+# ============================================================ radar et détecteur
+func radar_range() -> float:
+	return 6.0 + 3.0 * up_lvl("u_radar_portee")
+
+
+func detector_range() -> float:
+	return 3.0 + 1.5 * shop_lvl("detecteur")
+
+
+## Brins de foin cachés repérés par au moins un radar alimenté.
+func revealed_hay() -> Array:
+	var out: Array = []
+	if hay_spots.is_empty():
+		return out
+	var radars: Array = []
+	for id in entities:
+		if entities[id].type == "radar":
+			radars.append(machine_center("radar", entities[id].c, entities[id].r))
+	if radars.is_empty():
+		return out
+	var rr := radar_range() * clampf(power_factor * 1.2, 0.0, 1.0)
+	for sp: Vector3 in hay_spots:
+		for c: Vector3 in radars:
+			if Vector2(sp.x - c.x, sp.z - c.z).length() <= rr:
+				out.append(sp)
+				break
+	return out
 
 
 func dig_range(type: String) -> float:
@@ -506,6 +612,7 @@ func demolish(id: int) -> bool:
 			field.scale_all(float(pile_items() + back) / float(pile_items()))
 		pile_n += int(e.n)
 		pile_h += int(e.h)
+		_hay_bury(int(e.h))
 	_return_hay_of(e)
 	_remove(id)
 	money += refund
@@ -524,6 +631,7 @@ func _return_hay_of(e: Dictionary) -> void:
 	for it in lots:
 		if it.get("h", 0) > 0:
 			pile_h += int(it.h)
+			_hay_bury(int(it.h))
 
 
 # ============================================================ actions du joueur
@@ -647,12 +755,9 @@ func grab(at := Vector3.INF) -> int:
 		return -1
 	if at == Vector3.INF:
 		at = field.top_near(Data.PILE_POS.x, Data.PILE_POS.z, field.radius)
-	var k := _take_units(at.x, at.z, maxf(0.4, field.cell * 1.3), mini(grab_amount(), room))
-	var got := _draw_mix(k, pile_n, pile_h)
+	var got := _dig(at.x, at.z, maxf(grab_radius(), field.cell * 1.3), mini(grab_amount(), room))
 	if got.x + got.y <= 0:
 		return 0
-	pile_n -= got.x
-	pile_h -= got.y
 	hand_n += got.x
 	stats.needles += got.x
 	var seen := 0
@@ -788,6 +893,8 @@ func _set_pile(size: String) -> void:
 	pile_gold = randi_range(1, Data.HAY_PER_PILE) if randf() < 0.4 else 0
 	field.generate(float(Data.PILES[size].radius), randi())
 	_take_carry = 0.0
+	hay_spots.clear()
+	_hay_bury(pile_h)
 	hand_h = 0
 	# le foin caché de l'ancien tas ne compte plus ; ce que le nouveau tas recouvre est remboursé
 	var removed := 0
@@ -882,6 +989,10 @@ func quest_progress(id: String) -> Vector2:
 			return Vector2(stats.piles, 1)
 		"fonderie":
 			return Vector2(mini(count_type("fonderie"), 1), 1)
+		"energie":
+			return Vector2(mini(count_type("groupe") + count_type("eolienne") + count_type("solaire"), 1), 1)
+		"radar":
+			return Vector2(mini(count_type("radar"), 1), 1)
 		"ingot":
 			return Vector2(mini(int(stats.sold.get("brut", 0)), 1), 1)
 		"bras":
@@ -997,6 +1108,7 @@ func _sell(item: Dictionary, cell: Vector2i) -> void:
 	if t == "vrac" and int(item.get("h", 0)) > 0:
 		# du foin non détecté tombe dans le trou : il est recraché dans le tas
 		pile_h += int(item.h)
+		_hay_bury(int(item.h))
 		stats.lost_hay += int(item.h)
 		if _clock - _lost_toast > 8.0:
 			_lost_toast = _clock
@@ -1080,8 +1192,11 @@ func _step(dt: float) -> void:
 			continue
 		var e: Dictionary = entities[id]
 		match e.type:
-			"convoyeur", "separateur", "trou", "bureau":
+			"convoyeur", "separateur", "trou", "bureau", "groupe", "eolienne", "solaire":
 				pass
+			"radar":
+				if power_factor > 0.2:
+					_activity[e.id] = _clock
 			"tremie":
 				_tick_tremie(e, dt)
 			"bras", "pelle":
@@ -1147,6 +1262,66 @@ func _take_units(x: float, z: float, rad: float, k: int) -> int:
 	return units
 
 
+## Creuse k unités autour de (x, z) : retire les aiguilles du relief et libère les brins de foin
+## que la surface a atteints. Renvoie Vector2i(aiguilles, foin).
+func _dig(x: float, z: float, rad: float, k: int) -> Vector2i:
+	var units := _take_units(x, z, rad, mini(k, pile_n))
+	pile_n -= units
+	var hay := _hay_release(x, z, rad)
+	if pile_n <= 0 and pile_h > 0:
+		# plus une aiguille : tout le foin restant est à découvert
+		hay += pile_h
+		pile_h = 0
+		hay_spots.clear()
+	if pile_items() <= 0:
+		field.clear()
+	return Vector2i(units, hay)
+
+
+## Libère les brins proches de (x, z) dont la surface du tas est descendue jusqu'à eux.
+func _hay_release(x: float, z: float, rad: float) -> int:
+	var n := 0
+	var i := hay_spots.size() - 1
+	while i >= 0:
+		var s: Vector3 = hay_spots[i]
+		if Vector2(s.x - x, s.z - z).length() <= rad + 0.35 and s.y >= field.height_at(s.x, s.z) - 0.3:
+			hay_spots.remove_at(i)
+			n += 1
+		i -= 1
+	n = mini(n, pile_h)
+	pile_h -= n
+	return n
+
+
+## Cache n brins de foin au hasard dans le tas (plus il y a d'aiguilles à un endroit, plus c'est probable).
+func _hay_bury(n: int) -> void:
+	var top := maxf(0.5, field.top_near(Data.PILE_POS.x, Data.PILE_POS.z, field.radius).y)
+	for i in n:
+		var spot := Vector3(Data.PILE_POS.x, 0.0, Data.PILE_POS.z)
+		for t in 60:
+			var a := randf() * TAU
+			var d := field.radius * PileField.WOBBLE * sqrt(randf())
+			var x := Data.PILE_POS.x + cos(a) * d
+			var z := Data.PILE_POS.z + sin(a) * d
+			var hh := field.height_at(x, z)
+			if hh > 0.3 and randf() < hh / top:
+				spot = Vector3(x, randf_range(0.1, hh - 0.15), z)
+				break
+		hay_spots.append(spot)
+
+
+## Brin caché le plus proche d'un point : [position, distance] (distance INF s'il n'y en a pas).
+func nearest_hay(p: Vector3) -> Array:
+	var best := INF
+	var bs := Vector3.ZERO
+	for s: Vector3 in hay_spots:
+		var d := s.distance_to(p)
+		if d < best:
+			best = d
+			bs = s
+	return [bs, best]
+
+
 ## Point de creusage d'une machine : l'endroit le plus haut parmi quelques essais dans sa portée.
 func _scoop_point(center: Vector3, reach_r: float) -> Vector3:
 	var best := Vector3(center.x, -1.0, center.z)
@@ -1195,12 +1370,9 @@ func _tick_digger(e: Dictionary, dt: float) -> void:
 		var sp := _scoop_point(c, dig_range(e.type) + 0.6)
 		if sp.y <= 0.0:
 			break
-		var k := _take_units(sp.x, sp.z, maxf(scoop, field.cell * 1.3), Data.LOT)
-		if k <= 0:
+		var mix := _dig(sp.x, sp.z, maxf(scoop, field.cell * 1.3), Data.LOT)
+		if mix.x + mix.y <= 0:
 			break
-		var mix := _draw_mix(k, pile_n, pile_h)
-		pile_n -= mix.x
-		pile_h -= mix.y
 		stats.needles += mix.x
 		e.outq.append({"t": "vrac", "n": mix.x, "h": mix.y, "p": 0.0})
 		dug = true
@@ -1261,7 +1433,7 @@ func _tick_machine(e: Dictionary, dt: float) -> void:
 
 
 func _tick_drone(e: Dictionary, dt: float) -> void:
-	var speed := 5.0 * (1.0 + 0.25 * up_lvl("u_drone_vitesse")) * auto_mult()
+	var speed := 5.0 * (1.0 + 0.25 * up_lvl("u_drone_vitesse")) * auto_mult() * maxf(power_factor, 0.1)
 	var carry := 30 + 20 * up_lvl("u_drone_charge")
 	var target: Vector3
 	match int(e.state):
@@ -1276,11 +1448,8 @@ func _tick_drone(e: Dictionary, dt: float) -> void:
 					e["goal_t"] = _clock + 4.0
 				target = e.goal
 				if e.pos.distance_to(target) < 0.6:
-					var k := _take_units(target.x, target.z, maxf(1.2, field.cell * 2.0), carry)
+					var mix := _dig(target.x, target.z, maxf(1.2, field.cell * 2.0), carry)
 					e["goal_t"] = 0.0
-					var mix := _draw_mix(k, pile_n, pile_h)
-					pile_n -= mix.x
-					pile_h -= mix.y
 					stats.needles += mix.x
 					e.carry_n = mix.x
 					e.carry_h = mix.y
@@ -1324,9 +1493,11 @@ func _process(delta: float) -> void:
 		_relax_acc = 0.0
 		if field.relax(2):
 			pile_changed.emit()
+	_burn_fuel(delta)
 	_sec_acc += delta
 	if _sec_acc >= 1.0:
 		_sec_acc = 0.0
+		_update_power()
 		_check_achievements()
 		_check_quest()
 		if not contract.is_empty() and stats.time > float(contract.until):
@@ -1371,6 +1542,8 @@ func simulate_offline(seconds: float) -> Dictionary:
 	offline = true
 	gain(money_gain)
 	pile_h -= hay
+	for i in mini(hay, hay_spots.size()):
+		hay_spots.remove_at(randi() % hay_spots.size())
 	_found(hay, false)
 	offline = false
 	stats.time += seconds
@@ -1428,7 +1601,7 @@ func to_dict() -> Dictionary:
 	return {
 		"v": 3, "money": money, "field": field.to_save(), "hand_n": hand_n, "hand_h": hand_h,
 		"pile_size": pile_size, "pile_total": pile_total, "pile_n": pile_n, "pile_h": pile_h,
-		"pile_found": pile_found, "pile_done": pile_done, "pile_gold": pile_gold,
+		"pile_found": pile_found, "pile_done": pile_done, "pile_gold": pile_gold, "hay_spots": _ser(hay_spots),
 		"prestige": prestige, "run_earned": run_earned,
 		"shop": shop, "tree": tree, "ups": ups, "achievements": achievements, "stats": stats,
 		"settings": settings, "contract": contract, "offers": offers, "rates": rates, "quest": quest,
@@ -1522,6 +1695,14 @@ func from_dict(d: Dictionary) -> bool:
 	elif typeof(d.get("field")) != TYPE_DICTIONARY or not field.from_save(d.field, radius_now):
 		field.generate(radius_now, hash(ps), float(pile_n + pile_h) / full)
 	_take_carry = 0.0
+	hay_spots.clear()
+	for sp in d.get("hay_spots", []):
+		var v3 = _deser(sp)
+		if v3 is Vector3:
+			hay_spots.append(v3)
+	if hay_spots.size() != pile_h:
+		hay_spots.clear()
+		_hay_bury(pile_h)
 	pile_found = int(d.pile_found)
 	pile_done = bool(d.pile_done)
 	pile_gold = clampi(int(d.get("pile_gold", 0)), 0, Data.HAY_PER_PILE)

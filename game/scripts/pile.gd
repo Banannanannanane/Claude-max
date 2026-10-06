@@ -136,7 +136,8 @@ var _needles: MultiMeshInstance3D
 var _needle_mat: ShaderMaterial
 var _scatter: MultiMeshInstance3D
 var _hay: MultiMeshInstance3D
-var _hay_spots: Array = []
+var _beacons: MultiMeshInstance3D
+var _marks_t := 0.0
 var _body: StaticBody3D
 var _shape: HeightMapShape3D
 var _cs: CollisionShape3D
@@ -194,6 +195,28 @@ func _ready() -> void:
 	_hay.multimesh = hm
 	_hay.material_override = Mk.hay_material()
 	add_child(_hay)
+	# balises des radars : colonnes dorées au-dessus des brins repérés
+	_beacons = MultiMeshInstance3D.new()
+	var bm := MultiMesh.new()
+	bm.transform_format = MultiMesh.TRANSFORM_3D
+	var col := CylinderMesh.new()
+	col.top_radius = 0.02
+	col.bottom_radius = 0.07
+	col.height = 3.5
+	col.radial_segments = 8
+	col.rings = 1
+	bm.mesh = col
+	_beacons.multimesh = bm
+	var bmat := StandardMaterial3D.new()
+	bmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	bmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	bmat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	bmat.albedo_color = Color(1.0, 0.75, 0.2, 0.4)
+	bmat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_beacons.material_override = bmat
+	_beacons.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_beacons.custom_aabb = AABB(Vector3(-30, -1, -30), Vector3(60, 40, 60))
+	add_child(_beacons)
 
 	_body = StaticBody3D.new()
 	_body.collision_layer = 3
@@ -267,9 +290,7 @@ func _refresh() -> void:
 	var q := clampi(int(Game.settings.get("quality", 1)), 0, 2)
 	if _built_size != Game.pile_size or _built_quality != q:
 		_build_needles(q)
-	_hay.visible = Game.pile_h > 0 and not empty
-	if _hay.visible:
-		_hay.multimesh.visible_instance_count = mini(Game.pile_h, 3)
+	_update_marks()
 
 
 ## Force la reconstruction (changement de qualité graphique).
@@ -287,6 +308,36 @@ func _process(delta: float) -> void:
 		_upload(false)
 	if f.version != _shape_ver and _shape_t >= 0.3:
 		_update_shape()
+	_marks_t += delta
+	if _marks_t >= 0.5:
+		_update_marks()
+
+
+## Brins de foin visibles : ceux que le creusage a mis à nu (posés sur la surface)
+## et ceux qu'un radar a repérés (balise dorée au-dessus, même s'ils sont enfouis).
+func _update_marks() -> void:
+	_marks_t = 0.0
+	var f: PileField = Game.field
+	var hm := _hay.multimesh
+	var exposed: Array = []
+	for sp: Vector3 in Game.hay_spots:
+		var surf := f.height_at(sp.x, sp.z)
+		if sp.y > surf - 0.05:
+			exposed.append(Vector3(sp.x, surf, sp.z))
+	hm.instance_count = exposed.size()
+	for i in exposed.size():
+		var e: Vector3 = exposed[i]
+		var b := Basis(Vector3.UP, float(i) * 2.1) * Basis(Vector3.RIGHT, 1.25)
+		hm.set_instance_transform(i, Transform3D(b, e - Data.PILE_POS + Vector3(0, 0.04, 0)))
+	_hay.visible = exposed.size() > 0
+	var rev: Array = Game.revealed_hay()
+	var bm := _beacons.multimesh
+	bm.instance_count = rev.size()
+	for i in rev.size():
+		var sp2: Vector3 = rev[i]
+		var top := f.height_at(sp2.x, sp2.z)
+		bm.set_instance_transform(i, Transform3D(Basis(), Vector3(sp2.x, top + 1.75, sp2.z) - Data.PILE_POS))
+	_beacons.visible = rev.size() > 0
 
 
 ## Envoie le relief au GPU (texture) et replace les brins de foin visibles.
@@ -300,12 +351,6 @@ func _upload(force: bool) -> void:
 	_tex.update(_img)
 	_mound_mat.set_shader_parameter("cell", f.cell)
 	_needle_mat.set_shader_parameter("cell", f.cell)
-	var hm := _hay.multimesh
-	for i in _hay_spots.size():
-		var s: Vector3 = _hay_spots[i]
-		var y := f.height_at(s.x + Data.PILE_POS.x, s.z + Data.PILE_POS.z)
-		var b := Basis(Vector3(cos(s.y), 0.0, sin(s.y)).normalized().cross(Vector3.UP), 0.9)
-		hm.set_instance_transform(i, Transform3D(b, Vector3(s.x, y + 0.05, s.z)))
 	if force:
 		_update_shape()
 
@@ -381,13 +426,6 @@ func _build_needles(q: int) -> void:
 	sm.instance_count = ns
 	sm.buffer = sb
 
-	# quelques brins de foin qui dépassent : un indice qu'il en reste (x, angle, z)
-	_hay_spots.clear()
-	_hay.multimesh.instance_count = 3
-	for k in 3:
-		var a2 := rng.randf() * TAU
-		var d2 := r * rng.randf_range(0.35, 0.75)
-		_hay_spots.append(Vector3(cos(a2) * d2, rng.randf() * TAU, sin(a2) * d2))
 	_upload(true)
 
 

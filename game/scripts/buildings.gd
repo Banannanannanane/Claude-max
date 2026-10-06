@@ -52,6 +52,14 @@ static func create(type: String) -> Node3D:
 			_trou(root, p)
 		"bureau":
 			_bureau(root, p)
+		"radar":
+			_radar(root, p)
+		"groupe":
+			_groupe(root, p)
+		"eolienne":
+			_eolienne(root, p)
+		"solaire":
+			_solaire(root, p)
 	if m.has("in") or type in ["tremie", "tampon", "bras", "pelle"]:
 		_ports(root, type, sz)
 	if not p.has("status") and type not in ["convoyeur", "separateur", "trou", "bureau"]:
@@ -496,6 +504,74 @@ static func _drone_pad(r: Node3D, p: Dictionary) -> void:
 	p["h"] = 0.3
 
 
+## Radar à foin : mât, parabole qui tourne, voyant doré au sommet.
+static func _radar(r: Node3D, p: Dictionary) -> void:
+	Mk.cyl(r, 0.45, 0.12, Vector3(0, 0.06, 0), Mk.dark_steel(), -1.0, 20)
+	Mk.box(r, Vector3(0.5, 0.5, 0.4), Vector3(0, 0.37, 0), Mk.paint(C_TEAL, 0.3, 0.45))
+	Mk.cyl(r, 0.06, 1.5, Vector3(0, 1.3, 0), Mk.steel(), 0.05, 10)
+	var head := Mk.pivot(r, Vector3(0, 2.05, 0))
+	var dish := Mk.cyl(head, 0.42, 0.06, Vector3(0, 0.1, -0.05), Mk.paint(C_CREAM, 0.3, 0.35), 0.18, 20)
+	dish.rotation.x = deg_to_rad(65)
+	Mk.bar(head, Vector3(0, 0.1, -0.05), Vector3(0, 0.25, -0.32), 0.015, Mk.steel(), 6)
+	Mk.sphere(head, 0.05, Vector3(0, 0.25, -0.33), Mk.glow(Color(1, 0.8, 0.25), 3.0))
+	p["head"] = head
+	p["h"] = 2.4
+
+
+## Groupe électrogène : moteur sur châssis, radiateur, pot d'échappement qui fume.
+static func _groupe(r: Node3D, p: Dictionary) -> void:
+	_plinth(r, 2.0, 2.0, 0.1)
+	var body := Mk.paint(Color(0.85, 0.62, 0.12), 0.25, 0.5)
+	var eng := Mk.pivot(r, Vector3.ZERO)
+	Mk.box(eng, Vector3(1.6, 0.9, 1.1), Vector3(0, 0.62, 0), body)
+	Mk.box(eng, Vector3(1.62, 0.12, 1.12), Vector3(0, 1.1, 0), Mk.dark_steel())
+	var fin_mat := Mk.dark_steel()
+	for i in 6:
+		Mk.box(eng, Vector3(0.03, 0.6, 0.06), Vector3(-0.81, 0.62, -0.4 + i * 0.16), fin_mat)
+	Mk.box(eng, Vector3(0.5, 0.25, 0.02), Vector3(0.35, 0.75, 0.56), Mk.paint(Color(0.15, 0.15, 0.17)))
+	Mk.label(eng, "15 kW", Vector3(0.35, 0.75, 0.58), 24, Color(0.4, 1, 0.5))
+	Mk.cyl(eng, 0.07, 0.8, Vector3(0.55, 1.5, -0.35), Mk.dark_steel(), -1.0, 10)
+	p["smoke"] = _smoke(r, Vector3(0.55, 2.0, -0.35), Color(0.35, 0.35, 0.37), 10)
+	p["engine"] = eng
+	p["h"] = 1.6
+
+
+## Éolienne : grand mât effilé, nacelle et trois pales qui tournent selon le vent.
+static func _eolienne(r: Node3D, p: Dictionary) -> void:
+	Mk.cyl(r, 0.45, 0.2, Vector3(0, 0.1, 0), Mk.paint(Color(0.6, 0.6, 0.62)), -1.0, 20)
+	var white := Mk.paint(Color(0.94, 0.95, 0.96), 0.15, 0.4, 0.05)
+	Mk.cyl(r, 0.2, 7.0, Vector3(0, 3.6, 0), white, 0.11, 14)
+	Mk.box(r, Vector3(0.36, 0.36, 0.9), Vector3(0, 7.2, 0.1), white)
+	var rotor := Mk.pivot(r, Vector3(0, 7.2, -0.42))
+	Mk.sphere(rotor, 0.2, Vector3.ZERO, white)
+	for k in 3:
+		var arm := Mk.pivot(rotor, Vector3.ZERO)
+		arm.rotation.z = k * TAU / 3.0
+		Mk.box(arm, Vector3(0.22, 2.6, 0.05), Vector3(0, 1.4, 0), white)
+	p["rotor"] = rotor
+	p["h"] = 7.5
+
+
+## Panneaux solaires : deux rangées de cellules inclinées sur un châssis.
+static func _solaire(r: Node3D, p: Dictionary) -> void:
+	_plinth(r, 2.0, 2.0, 0.08)
+	var frame := Mk.steel()
+	var cells := Mk.mat(Color(0.08, 0.14, 0.32), 0.6, 0.2)
+	var line := Mk.mat(Color(0.75, 0.78, 0.82), 0.6, 0.3)
+	for row in 2:
+		var z := -0.5 + row * 1.0
+		var tilt := Mk.pivot(r, Vector3(0, 0.75, z))
+		tilt.rotation.x = deg_to_rad(-28)
+		Mk.box(tilt, Vector3(1.9, 0.04, 0.85), Vector3.ZERO, cells)
+		for i in 5:
+			Mk.box(tilt, Vector3(0.015, 0.045, 0.85), Vector3(-0.76 + i * 0.38, 0.002, 0), line)
+		Mk.box(tilt, Vector3(1.9, 0.045, 0.015), Vector3(0, 0.002, 0), line)
+		for sx in [-0.85, 0.85]:
+			Mk.box(r, Vector3(0.05, 0.75, 0.05), Vector3(sx, 0.4, z + 0.25), frame)
+			Mk.box(r, Vector3(0.05, 0.45, 0.05), Vector3(sx, 0.25, z - 0.25), frame)
+	p["h"] = 1.5
+
+
 ## Le drone lui-même (il vole, ajouté à part).
 static func create_drone() -> Node3D:
 	var d := Node3D.new()
@@ -646,3 +722,11 @@ static func animate(root: Node3D, type: String, t: float, state: int, info: Dict
 				p.crates[i].visible = i < n
 		"trou":
 			p.cash.text = info.get("cash", "")
+		"radar":
+			if active:
+				p.head.rotation.y = t * 1.6 + ph
+		"groupe":
+			p.smoke.emitting = active
+			p.engine.position.y = sin(t * 60.0) * 0.006 if active else 0.0
+		"eolienne":
+			p.rotor.rotation.z = t * 1.8 * float(info.get("wind", 1.0)) + ph
