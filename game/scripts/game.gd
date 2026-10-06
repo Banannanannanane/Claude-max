@@ -2114,9 +2114,15 @@ func _ser(v):
 func _deser(v):
 	if v is Dictionary:
 		if v.has("__v2"):
-			return Vector2i(int(v.__v2[0]), int(v.__v2[1]))
+			var a2 = v.__v2
+			if a2 is Array and a2.size() == 2 and _num(a2[0]) and _num(a2[1]):
+				return Vector2i(int(a2[0]), int(a2[1]))
+			return null
 		if v.has("__v3"):
-			return Vector3(v.__v3[0], v.__v3[1], v.__v3[2])
+			var a3 = v.__v3
+			if a3 is Array and a3.size() == 3 and _num(a3[0]) and _num(a3[1]) and _num(a3[2]):
+				return Vector3(float(a3[0]), float(a3[1]), float(a3[2]))
+			return null
 		var d := {}
 		for k in v:
 			d[k] = _deser(v[k])
@@ -2127,6 +2133,26 @@ func _deser(v):
 			a.append(_deser(x))
 		return a
 	return v
+
+
+static func _num(x) -> bool:
+	return (x is float or x is int) and not is_nan(float(x)) and not is_inf(float(x))
+
+
+## Lecture prudente d'une sauvegarde : la valeur si elle a le bon type, sinon la valeur par défaut.
+static func _dget(d: Dictionary, k: String) -> Dictionary:
+	var v = d.get(k)
+	return v if v is Dictionary else {}
+
+
+static func _aget(d: Dictionary, k: String) -> Array:
+	var v = d.get(k)
+	return v if v is Array else []
+
+
+static func _fget(d: Dictionary, k: String, def := 0.0) -> float:
+	var v = d.get(k)
+	return float(v) if _num(v) else def
 
 
 func to_dict() -> Dictionary:
@@ -2145,11 +2171,24 @@ func to_dict() -> Dictionary:
 
 
 func save_slot(s: int) -> bool:
-	var f := FileAccess.open(slot_path(s), FileAccess.WRITE)
+	# écriture sûre : fichier temporaire, puis l'ancienne sauvegarde devient la copie de secours
+	# et le nouveau fichier prend sa place (un téléphone qui s'éteint en pleine écriture ne perd rien)
+	var path := slot_path(s)
+	var tmp := path + ".tmp"
+	var f := FileAccess.open(tmp, FileAccess.WRITE)
 	if not f:
 		return false
 	f.store_string(JSON.stringify(to_dict()))
 	f.close()
+	if typeof(_read_json(tmp)) != TYPE_DICTIONARY:
+		DirAccess.remove_absolute(tmp)
+		return false
+	if FileAccess.file_exists(path):
+		if FileAccess.file_exists(path + ".bak"):
+			DirAccess.remove_absolute(path + ".bak")
+		DirAccess.rename_absolute(path, path + ".bak")
+	if DirAccess.rename_absolute(tmp, path) != OK:
+		return false
 	last_save = int(Time.get_unix_time_from_system())
 	var m := FileAccess.open("user://last_slot.txt", FileAccess.WRITE)
 	if m:
@@ -2175,46 +2214,67 @@ func _read_json(path: String):
 	return j.data
 
 
+## Contenu lisible d'un emplacement : la sauvegarde, ou à défaut sa copie de secours.
+func _slot_data(s: int):
+	for path in [slot_path(s), slot_path(s) + ".bak"]:
+		var d = _read_json(path)
+		if typeof(d) == TYPE_DICTIONARY and _valid_save(d):
+			return d
+	return null
+
+
 func slot_info(s: int) -> Dictionary:
-	if not FileAccess.file_exists(slot_path(s)):
+	var d = _slot_data(s)
+	if d == null:
 		return {}
-	var d = _read_json(slot_path(s))
-	if typeof(d) != TYPE_DICTIONARY:
-		return {}
-	return {"money": float(d.get("money", 0)), "pile": Data.PILES.get(d.get("pile_size", "petit"), Data.PILES.petit).name,
-		"found": int(d.get("pile_found", 0)), "time": float(d.get("stats", {}).get("time", 0.0)),
-		"saved_at": int(d.get("saved_at", 0))}
+	return {"money": _fget(d, "money"), "pile": Data.PILES.get(str(d.get("pile_size", "petit")), Data.PILES.petit).name,
+		"found": int(_fget(d, "pile_found")), "time": _fget(_dget(d, "stats"), "time"),
+		"saved_at": int(_fget(d, "saved_at"))}
 
 
 func delete_slot(s: int) -> void:
-	if FileAccess.file_exists(slot_path(s)):
-		DirAccess.remove_absolute(slot_path(s))
+	for path in [slot_path(s), slot_path(s) + ".bak", slot_path(s) + ".tmp"]:
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(path)
 
 
 func load_slot(s: int) -> bool:
-	if not FileAccess.file_exists(slot_path(s)):
-		return false
-	var d = _read_json(slot_path(s))
-	if typeof(d) != TYPE_DICTIONARY or not from_dict(d):
+	var d = _slot_data(s)
+	if d == null or not from_dict(d):
 		return false
 	slot = s
 	return true
 
 
+## Une sauvegarde est utilisable si sa version, son tas et ses compteurs essentiels sont lisibles.
+func _valid_save(d: Dictionary) -> bool:
+	var v := int(_fget(d, "v"))
+	var ps: String = str(d.get("pile_size", ""))
+	if v == 2 and ps == "enorme":
+		ps = "gros"
+	if (v != 2 and v != 3) or not Data.PILES.has(ps):
+		return false
+	for k in ["money", "pile_total", "pile_n", "pile_h", "pile_found"]:
+		if not _num(d.get(k)):
+			return false
+	return true
+
+
 func from_dict(d: Dictionary) -> bool:
-	var v := int(d.get("v", 0))
+	# tout est vérifié avant de toucher à la partie en cours : un fichier abîmé ne la casse pas
+	if not _valid_save(d):
+		return false
+	var v := int(_fget(d, "v"))
 	var ps: String = str(d.get("pile_size", ""))
 	if v == 2 and ps == "enorme":
 		ps = "gros" # le tas énorme n'existe plus
-	if (v != 2 and v != 3) or not Data.PILES.has(ps):
-		return false
-	money = float(d.money)
-	hand_n = int(d.get("hand_n", 0))
-	hand_h = int(d.get("hand_h", 0))
+	money = _fget(d, "money")
+	hand_n = maxi(0, int(_fget(d, "hand_n")))
+	hand_h = clampi(int(_fget(d, "hand_h")), 0, Data.HAY_PER_PILE)
 	pile_size = ps
-	pile_total = int(d.pile_total)
-	pile_n = int(d.pile_n)
-	pile_h = int(d.pile_h)
+	pile_total = maxi(1, int(_fget(d, "pile_total")))
+	pile_n = maxi(0, int(_fget(d, "pile_n")))
+	pile_h = clampi(int(_fget(d, "pile_h")), 0, Data.HAY_PER_PILE)
 	if v == 2:
 		# anciennes tailles de tas : on garde la proportion restante dans le nouveau tas
 		var frac := float(pile_n + pile_h) / float(maxi(1, pile_total + Data.HAY_PER_PILE))
@@ -2227,78 +2287,100 @@ func from_dict(d: Dictionary) -> bool:
 	if pile_n + pile_h <= 0:
 		field.generate(radius_now, 1, 0.0)
 		field.clear()
-	elif typeof(d.get("field")) != TYPE_DICTIONARY or not field.from_save(d.field, radius_now):
+	elif not (d.get("field") is Dictionary) or not field.from_save(d.field, radius_now):
 		field.generate(radius_now, hash(ps), float(pile_n + pile_h) / full)
 	_take_carry = 0.0
 	hay_spots.clear()
-	for sp in d.get("hay_spots", []):
+	for sp in _aget(d, "hay_spots"):
 		var v3 = _deser(sp)
 		if v3 is Vector3:
 			hay_spots.append(v3)
 	if hay_spots.size() != pile_h:
 		hay_spots.clear()
 		_hay_bury(pile_h)
-	pile_found = int(d.pile_found)
-	pile_done = bool(d.pile_done)
-	pile_gold = clampi(int(d.get("pile_gold", 0)), 0, Data.HAY_PER_PILE)
-	prestige = maxi(0, int(d.get("prestige", 0)))
-	xp = maxf(0.0, float(d.get("xp", 0.0)))
+	pile_found = clampi(int(_fget(d, "pile_found")), 0, Data.HAY_PER_PILE)
+	pile_done = bool(d.get("pile_done", false))
+	pile_gold = clampi(int(_fget(d, "pile_gold")), 0, Data.HAY_PER_PILE)
+	prestige = maxi(0, int(_fget(d, "prestige")))
+	xp = maxf(0.0, _fget(d, "xp"))
 	market = {}
-	var mk: Dictionary = d.get("market", {})
+	var mk := _dget(d, "market")
 	for t in mk:
-		if Data.ITEMS.has(t):
+		if Data.ITEMS.has(t) and _num(mk[t]):
 			market[t] = clampf(float(mk[t]), 0.5, 1.6)
-	event = d.get("event", {})
-	if not event.is_empty() and not EVENTS.has(str(event.get("id", ""))):
+	event = _dget(d, "event")
+	if not event.is_empty() and (not EVENTS.has(str(event.get("id", ""))) or not _num(event.get("until"))):
 		event = {}
-	_next_event = float(d.get("next_event", 420.0))
+	_next_event = _fget(d, "next_event", 420.0)
 	shop = {}
-	for k in d.get("shop", {}):
-		if Data.SHOP.has(k):
-			shop[k] = int(d.shop[k])
+	var sh := _dget(d, "shop")
+	for k in sh:
+		if Data.SHOP.has(k) and _num(sh[k]):
+			shop[k] = clampi(int(sh[k]), 0, int(Data.SHOP[k].max))
 	tree = {"p_convoyeur": true}
-	for k in d.get("tree", {}):
+	for k in _dget(d, "tree"):
 		if Data.TREE.has(k):
 			tree[k] = true
 	ups = {}
-	for k in d.get("ups", {}):
-		if Data.TREE_UPS.has(k):
-			ups[k] = int(d.ups[k])
-	achievements = d.get("achievements", {})
+	var up := _dget(d, "ups")
+	for k in up:
+		if Data.TREE_UPS.has(k) and _num(up[k]):
+			ups[k] = clampi(int(up[k]), 0, int(Data.TREE_UPS[k].max))
+	achievements = _dget(d, "achievements")
 	stats = _blank_stats()
-	var st: Dictionary = d.get("stats", {})
+	var st := _dget(d, "stats")
 	for k in stats:
 		if st.has(k):
-			if typeof(stats[k]) == TYPE_FLOAT:
+			if typeof(stats[k]) == TYPE_DICTIONARY:
+				if st[k] is Dictionary:
+					stats[k] = st[k]
+			elif not _num(st[k]):
+				continue
+			elif typeof(stats[k]) == TYPE_FLOAT:
 				stats[k] = float(st[k])
-			elif typeof(stats[k]) == TYPE_DICTIONARY:
-				stats[k] = st[k]
 			else:
 				stats[k] = int(st[k])
-	var se: Dictionary = d.get("settings", {})
+	var se := _dget(d, "settings")
 	for k in settings:
-		if se.has(k) and k not in DEVICE_KEYS:
+		if se.has(k) and k not in DEVICE_KEYS and typeof(se[k]) == typeof(settings[k]):
 			settings[k] = se[k]
-	run_earned = maxf(0.0, float(d.get("run_earned", stats.earned)))
-	quest = clampi(int(d.get("quest", 0)), 0, Data.QUESTS.size())
-	contract = d.get("contract", {})
-	offers = d.get("offers", [])
-	var ra: Dictionary = d.get("rates", {})
+	run_earned = maxf(0.0, _fget(d, "run_earned", float(stats.earned)))
+	quest = clampi(int(_fget(d, "quest")), 0, Data.QUESTS.size())
+	contract = _valid_contract(_dget(d, "contract"))
+	offers = []
+	for o in _aget(d, "offers"):
+		if o is Dictionary and not _valid_contract(o).is_empty():
+			offers.append(o)
+	var ra := _dget(d, "rates")
 	for k in rates:
-		rates[k] = float(ra.get(k, 0.0))
+		rates[k] = maxf(0.0, _fget(ra, k))
 	entities = {}
 	grid = {}
-	for raw in d.get("entities", []):
+	for raw in _aget(d, "entities"):
+		if not (raw is Dictionary):
+			continue
 		var e: Dictionary = _deser(raw)
-		if not Data.MACHINES.has(e.get("type", "")) or not (e.get("c") is Vector2i):
+		if not Data.MACHINES.has(str(e.get("type", ""))) or not (e.get("c") is Vector2i) or not _num(e.get("id")) or not _num(e.get("r")):
 			continue
 		e.id = int(e.id)
-		e.r = int(e.r)
+		e.r = posmod(int(e.r), 4)
+		if entities.has(e.id) or not _sane_entity(e):
+			continue
+		# deux machines sur la même case (fichier abîmé) : on garde la première
+		var cells := footprint(e.type, e.c, e.r)
+		var clash := false
+		for cell in cells:
+			if grid.has(cell):
+				clash = true
+				break
+		if clash:
+			continue
 		_normalize(e)
 		entities[e.id] = e
-		for cell in footprint(e.type, e.c, e.r):
+		for cell in cells:
 			grid[cell] = e.id
-	next_id = int(d.get("next_id", 1))
+	_ensure_fixed()
+	next_id = int(_fget(d, "next_id", 1.0))
 	for id in entities:
 		next_id = maxi(next_id, id + 1)
 	last_save = int(d.get("saved_at", Time.get_unix_time_from_system()))
@@ -2308,6 +2390,71 @@ func from_dict(d: Dictionary) -> bool:
 	entities_changed.emit()
 	pile_changed.emit()
 	changed.emit()
+	return true
+
+
+## Le trou de vente et la borne existent toujours (remis à leur place si la sauvegarde les a perdus).
+func _ensure_fixed() -> void:
+	for f in [["trou", Vector2i(12, -2), 0], ["bureau", Vector2i(-6, 2), 2]]:
+		if count_type(f[0]) > 0:
+			continue
+		for cell in footprint(f[0], f[1], f[2]):
+			if grid.has(cell) and entities.has(grid[cell]):
+				_remove(grid[cell])
+		_add(f[0], f[1], f[2])
+
+
+## Contrat ou offre lisible ({} sinon) ; un contrat en cours a aussi son avancement et son échéance.
+func _valid_contract(c: Dictionary) -> Dictionary:
+	if c.is_empty() or not Data.ITEMS.has(str(c.get("t", ""))):
+		return {}
+	for k in ["qty", "reward"]:
+		if not _num(c.get(k)):
+			return {}
+	if c.has("done") or c.has("until"):
+		# contrat accepté : avancement et échéance
+		if not _num(c.get("done")) or not _num(c.get("until")):
+			return {}
+		c.done = maxi(0, int(c.done))
+		c.until = float(c.until)
+	elif _num(c.get("time")):
+		c.time = float(c.time) # offre : durée accordée
+	else:
+		return {}
+	c.qty = maxi(1, int(c.qty))
+	c.reward = float(c.reward)
+	return c
+
+
+static func _sane_item(it) -> bool:
+	return it is Dictionary and Data.ITEMS.has(str(it.get("t", ""))) and _num(it.get("n", 0)) and _num(it.get("h", 0)) \
+		and int(it.get("n", 0)) >= 0 and int(it.get("h", 0)) >= 0 and int(it.get("h", 0)) <= Data.HAY_PER_PILE
+
+
+## État interne d'une machine relue : s'il est incohérent, la machine repart à vide (sans perdre sa place).
+func _sane_entity(e: Dictionary) -> bool:
+	var ok := true
+	if e.has("item") and e.item != null and not _sane_item(e.item):
+		ok = false
+	for k in ["outq", "inq", "q", "busy"]:
+		if e.has(k):
+			if not (e[k] is Array):
+				ok = false
+				break
+			for it in e[k]:
+				if not _sane_item(it):
+					ok = false
+					break
+	for k in ["n", "h", "k", "oi", "state", "carry_n", "carry_h", "acc", "prog", "charge", "wear"]:
+		if e.has(k) and not _num(e[k]):
+			ok = false
+	if (e.type == "drone" or e.type == "ouvrier") and not (e.get("pos") is Vector3):
+		ok = false
+	if not ok:
+		var keep := {"id": e.id, "type": e.type, "c": e.c, "r": e.r}
+		e.clear()
+		e.merge(keep)
+		_init_state(e)
 	return true
 
 

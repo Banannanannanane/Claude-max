@@ -52,6 +52,7 @@ var _buttons: Array = [] # [TouchScreenButton, rayon]
 var _menu: HBoxContainer
 var _info: PanelContainer
 var _fold: Button
+var _pill: Button
 var _stamina_label: Label
 
 const JOY_R := 90.0
@@ -132,51 +133,51 @@ func _build_info() -> void:
 	_info = p
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 3)
-	v.custom_minimum_size = Vector2(330, 0)
+	v.custom_minimum_size = Vector2(290, 0)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.add_child(v)
 	var top := HBoxContainer.new()
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(top)
-	_money = UI.label("", 30, UI.GOLD)
+	_money = UI.label("", 26, UI.GOLD)
 	_money.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(_money)
 	# replie / déplie le panneau (les lignes secondaires disparaissent)
 	_fold = UI.button("–", _toggle_fold)
 	_fold.mouse_filter = Control.MOUSE_FILTER_STOP
-	_fold.custom_minimum_size = Vector2(52, 44)
+	_fold.custom_minimum_size = Vector2(48, 40)
 	_fold.add_theme_font_size_override("font_size", 24)
 	top.add_child(_fold)
-	_level = UI.label("", 17, UI.BLUE)
+	_level = UI.label("", 15, UI.BLUE)
 	v.add_child(_level)
 	_xp_bar = UI.bar()
 	_xp_bar.max_value = 1.0
 	_xp_bar.step = 0.001
 	_xp_bar.custom_minimum_size = Vector2(0, 8)
 	v.add_child(_xp_bar)
-	_hay = UI.label("", 21)
+	_hay = UI.label("", 19)
 	v.add_child(_hay)
 	_hay_bar = UI.bar("HayBar")
 	_hay_bar.max_value = Data.HAY_PER_PILE
 	v.add_child(_hay_bar)
-	_pile = UI.label("", 18, UI.MUTED)
+	_pile = UI.label("", 16, UI.MUTED)
 	v.add_child(_pile)
-	_hand = UI.label("", 21)
+	_hand = UI.label("", 19)
 	v.add_child(_hand)
-	_store = UI.label("", 18, UI.MUTED)
+	_store = UI.label("", 16, UI.MUTED)
 	v.add_child(_store)
-	_event = UI.label("", 17, Color(1, 0.6, 0.3), true)
-	_event.custom_minimum_size = Vector2(330, 0)
+	_event = UI.label("", 15, Color(1, 0.6, 0.3), true)
+	_event.custom_minimum_size = Vector2(290, 0)
 	v.add_child(_event)
-	_power = UI.label("", 17, UI.MUTED)
+	_power = UI.label("", 15, UI.MUTED)
 	v.add_child(_power)
-	_quest = UI.label("", 17, UI.GOLD, true)
-	_quest.custom_minimum_size = Vector2(330, 0)
+	_quest = UI.label("", 15, UI.GOLD, true)
+	_quest.custom_minimum_size = Vector2(290, 0)
 	v.add_child(_quest)
-	_contract = UI.label("", 17, UI.BLUE, true)
-	_contract.custom_minimum_size = Vector2(330, 0)
+	_contract = UI.label("", 15, UI.BLUE, true)
+	_contract.custom_minimum_size = Vector2(290, 0)
 	v.add_child(_contract)
-	_det_label = UI.label("Détecteur de foin", 16, UI.MUTED)
+	_det_label = UI.label("Détecteur de foin", 14, UI.MUTED)
 	v.add_child(_det_label)
 	_det_bar = UI.bar("HayBar")
 	_det_bar.max_value = 1.0
@@ -184,10 +185,17 @@ func _build_info() -> void:
 	_det_bar.custom_minimum_size = Vector2(0, 8)
 	v.add_child(_det_bar)
 	# endurance : n'apparaît que lorsqu'elle n'est pas pleine
-	_stamina_label = UI.label("Endurance", 16, UI.MUTED)
+	_stamina_label = UI.label("Endurance", 14, UI.MUTED)
 	v.add_child(_stamina_label)
 	_stamina = UI.bar()
 	v.add_child(_stamina)
+	_pill = UI.button("", _toggle_fold)
+	_pill.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pill.position = Vector2(16, 12)
+	_pill.custom_minimum_size = Vector2(0, 56)
+	_pill.add_theme_font_size_override("font_size", 22)
+	_pill.add_theme_color_override("font_color", UI.GOLD)
+	root.add_child(_pill)
 	_apply_fold()
 
 
@@ -198,12 +206,11 @@ func _toggle_fold() -> void:
 	_apply_fold()
 
 
-## Panneau replié : argent, foin, main, objectif et alertes seulement.
+## Panneau caché : il ne reste qu'une petite pastille (argent et foin) qu'on touche pour le rouvrir.
 func _apply_fold() -> void:
-	var compact := bool(Game.settings.get("hud_compact", false))
-	_fold.text = "+" if compact else "–"
-	for c: Control in [_level, _xp_bar, _pile, _store]:
-		c.visible = not compact
+	var hidden := bool(Game.settings.get("hud_compact", false))
+	_info.visible = not hidden
+	_pill.visible = hidden
 	_info.reset_size()
 
 
@@ -327,7 +334,7 @@ func _over_button(p: Vector2) -> bool:
 
 
 func _over_ui(p: Vector2) -> bool:
-	if _menu.get_global_rect().has_point(p) or _fold.get_global_rect().grow(6).has_point(p):
+	if _menu.get_global_rect().has_point(p) or (_fold.visible and _info.visible and _fold.get_global_rect().grow(6).has_point(p)) or (_pill.visible and _pill.get_global_rect().has_point(p)):
 		return true
 	return _over_button(p)
 
@@ -397,6 +404,7 @@ func _refresh() -> void:
 		_event.text = "⚡ %s — encore %d s" % [Game.EVENTS[ev].name, int(Game.event_left())]
 	_hay.text = "Foin trouvé : %d / %d" % [Game.pile_found, Data.HAY_PER_PILE]
 	_hay_bar.value = Game.pile_found
+	_pill.text = "  %s  ·  foin %d / %d    +  " % [Fmt.eur(Game.money), Game.pile_found, Data.HAY_PER_PILE]
 	_pile.text = "%s · %s aiguilles" % [Data.PILES[Game.pile_size].name, Fmt.needles(Game.pile_n)]
 	var held := Game.hand_n + Game.hand_h
 	_hand.text = "Main : %s / %s" % [Fmt.needles(held), Fmt.needles(Game.hand_cap())]
@@ -404,8 +412,7 @@ func _refresh() -> void:
 	_store.text = "Revenus : %s / min" % Fmt.eur(float(Game.rates.income) * 60.0)
 	_power.text = "Énergie : %s / %s kW%s" % [Fmt.num(Game.power_demand, 1), Fmt.num(Game.power_supply, 1), "  — manque de courant !" if Game.power_factor < 0.999 else ""]
 	_power.add_theme_color_override("font_color", UI.BAD if Game.power_factor < 0.999 else UI.MUTED)
-	var compact := bool(Game.settings.get("hud_compact", false))
-	_power.visible = (Game.power_demand > 0.0 or Game.power_supply > Data.GRID_POWER) and (not compact or Game.power_factor < 0.999)
+	_power.visible = Game.power_demand > 0.0 or Game.power_supply > Data.GRID_POWER
 	if Game.prestige > 0:
 		_store.text += "  ·  ★ %d jeton%s" % [Game.prestige, "s" if Game.prestige > 1 else ""]
 	if Game.quest < Data.QUESTS.size():

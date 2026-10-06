@@ -737,7 +737,8 @@ func _test_start_and_hand() -> void:
 	check(Game.money == 0.0 and Game.quest == 0, "départ à 0 € sur le premier objectif")
 	var tremie := _tremie_id()
 	var guard := 0
-	while Game.grab() > 0 and guard < 50:
+	# une poignée peut ne rien rapporter (reste d'arrondi) : on continue jusqu'à la main pleine (-1)
+	while Game.grab() >= 0 and guard < 200:
 		guard += 1
 	check(Game.hand_n + Game.hand_h == Game.hand_cap(), "la main se remplit jusqu'à sa capacité")
 	check(Game.grab() == -1, "main pleine : on ne peut plus ramasser")
@@ -1111,10 +1112,65 @@ func _test_save() -> void:
 	f.close()
 	check(not Game.load_slot(3), "une sauvegarde de l'ancienne version est refusée proprement")
 	Game.delete_slot(3)
+	_test_save_damage()
 	Game.rates = {"income": 5.0, "dig": 3.0, "hay": 0.01}
 	var pile0 := Game.pile_n
 	var r := Game.simulate_offline(1e7)
 	check(is_equal_approx(float(r.seconds), Game.MAX_OFFLINE) and r.money > 0.0 and Game.pile_n <= pile0, "production hors ligne plafonnée à 8 h")
+
+
+## Sauvegardes abîmées : copie de secours, valeurs de mauvais type, machines superposées.
+func _test_save_damage() -> void:
+	var keep_money := Game.money
+	Game.money = 111.0
+	Game.save_slot(3)
+	Game.money = 222.0
+	Game.save_slot(3)
+	# le téléphone s'éteint pendant l'écriture : le fichier est tronqué
+	var txt := FileAccess.get_file_as_string(Game.slot_path(3))
+	var f := FileAccess.open(Game.slot_path(3), FileAccess.WRITE)
+	f.store_string(txt.substr(0, txt.length() / 2))
+	f.close()
+	check(Game.load_slot(3) and is_equal_approx(Game.money, 111.0), "sauvegarde tronquée : la copie de secours est rechargée")
+	check(not FileAccess.file_exists(Game.slot_path(3) + ".tmp"), "pas de fichier temporaire qui traîne")
+	# un fichier rempli de valeurs farfelues se charge quand même, en partie remise à zéro
+	var d := Game.to_dict()
+	d.market = [1, 2]
+	d.shop = "beaucoup"
+	d.stats = 5
+	d.tree = null
+	d.settings = {"sound": "oui", "daynight": 3}
+	d.hay_spots = "ici"
+	d.field = {"n": "a"}
+	d.contract = {"t": "plutonium", "qty": 3}
+	d.offers = [3, {"t": "vrac"}, {"t": "acier", "qty": 10, "reward": 50.0, "time": 300.0}]
+	d.event = {"id": "foire", "until": "demain"}
+	var ents: Array = []
+	for raw in d.entities:
+		if str(raw.get("type", "")) != "trou":
+			ents.append(raw)
+	ents.append(42)
+	ents.append({"type": "scanner", "c": "ici", "r": 0, "id": 900})
+	ents.append({"type": "bidule", "c": {"__v2": [1, 1]}, "r": 0, "id": 901})
+	ents.append({"type": "convoyeur", "c": {"__v2": [40, 40]}, "r": 1, "id": 902, "item": {"t": "zz", "n": -3}})
+	ents.append({"type": "convoyeur", "c": {"__v2": [40, 40]}, "r": 1, "id": 903, "item": null, "k": 0})
+	ents.append({"type": "drone", "c": {"__v2": [44, 40]}, "r": 0, "id": 904, "state": "vole"})
+	ents.append({"type": "tampon", "c": {"__v2": [48, 40]}, "r": 0, "id": 905, "q": "plein"})
+	d.entities = ents
+	f = FileAccess.open(Game.slot_path(3), FileAccess.WRITE)
+	f.store_string(JSON.stringify(d))
+	f.close()
+	var loaded := Game.load_slot(3)
+	var ok := loaded and Game.count_type("trou") == 1 and Game.contract.is_empty() and Game.offers.size() == 1 \
+		and Game.entities.has(902) and not Game.entities.has(903) and Game.entities[902].item == null \
+		and Game.entities.has(904) and Game.entities[904].pos is Vector3 and Game.entities[905].q is Array \
+		and Game.settings.sound is bool and Game.hay_spots.size() == Game.pile_h and Game.event.is_empty()
+	check(ok, "sauvegarde aux valeurs farfelues : chargée et réparée (trou remis, machines superposées écartées)")
+	_run(5.0)
+	var inv := _invariants()
+	check(inv == "", "la partie réparée tourne sans incohérence%s" % ("" if inv == "" else " — " + inv))
+	Game.delete_slot(3)
+	Game.money = keep_money
 
 
 ## Foin présent ailleurs que dans le tas : tapis, files des machines, trémies, ouvriers, main.
@@ -1351,10 +1407,12 @@ func _ui() -> void:
 	var was := bool(Game.settings.get("hud_compact", false))
 	hud._toggle_fold()
 	await _frames(2)
-	var folded: bool = not hud._level.visible and not hud._pile.visible and hud._money.visible and hud._hay.visible
+	var folded: bool = not hud._info.visible and hud._pill.visible and hud._pill.text.contains("foin")
+	var pill_w: float = hud._pill.size.x
 	hud._toggle_fold()
 	await _frames(2)
-	check(folded and hud._level.visible and bool(Game.settings.hud_compact) == was, "le panneau d'infos se replie et se déplie")
+	check(folded and pill_w < 420.0 and hud._info.visible and not hud._pill.visible and bool(Game.settings.hud_compact) == was,
+		"le panneau d'infos se cache (petite pastille de %d px) et se rouvre" % int(pill_w))
 	# message court : la fenêtre prend la hauteur de son texte
 	hud.message("Test", "Une ligne.")
 	await _frames(4)
@@ -1744,6 +1802,9 @@ func _shots() -> void:
 	main.hud.close_panel()
 	_face(Vector3(9, 0, -18), Data.PILE_POS + Vector3(2, 0, 4), -10)
 	await _shot("02_depart", 10)
+	main.hud._toggle_fold()
+	await _shot("02b_hud_cache", 6)
+	main.hud._toggle_fold()
 	_face(Data.PILE_POS + Vector3(-2.5, 0, Game.field.radius * PileField.WOBBLE + 1.0), Data.PILE_POS + Vector3(-2.5, 0, 0), -12)
 	for i in 4:
 		main.player._grab_cd = 0

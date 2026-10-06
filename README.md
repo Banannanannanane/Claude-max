@@ -44,12 +44,12 @@ Chaque push compile le jeu automatiquement (GitHub Actions → onglet **Releases
 | **Arbre technologique** | 5 étapes. Les **plans** donnent le droit de construire chaque machine, et chacun a ses **améliorations à niveaux** : tapis plus rapides, fonte plus rapide, grand creuset (plus de lingots par fournée), qualité (meilleur prix), portée des bras… On y achète aussi les **contrats** pour les tas plus gros et des bonus (trou élargi, automatisation avancée). |
 | **Boutique** | Capacité de la main, fourche, endurance, récupération, bottes, longs bras (ramasser et placer plus loin), œil de lynx, trémies géantes. |
 | **Bureau** | Commande des tas et **contrats de livraison** à prime, avec un délai. |
-| **Sauvegardes** | 3 emplacements avec sauvegarde automatique, sauvegarde manuelle et chargement. La production continue hors ligne (8 h maximum). Il y a aussi 21 **succès** à débloquer et des **statistiques** de partie. |
+| **Sauvegardes** | 3 emplacements avec sauvegarde automatique (écriture sûre et copie de secours : un fichier abîmé ne fait pas perdre la partie), sauvegarde manuelle et chargement. La production continue hors ligne (8 h maximum). Il y a aussi 21 **succès** à débloquer et des **statistiques** de partie. |
 | **Brin doré** | 4 tas sur 10 cachent un brin de foin doré qui vaut dix brins. Le bureau annonce sa présence quand le tas est livré. |
 | **Recyclage** | Au bureau, recycle toute l'usine pour gagner des **jetons** (+10 % sur les ventes et les primes par jeton, pour toujours). On repart de zéro en gardant succès et statistiques. Le premier jeton s'obtient après 50 000 € gagnés, le n-ième après n² × 50 000 €. |
 | **Ambiance** | Écran titre animé, musique d'accompagnement, vent et oiseaux, bruits de pas, averses de pluie avec ciel gris et brouillard, champ de vision qui s'élargit en courant. Musique et météo se coupent dans le Menu. |
 | **Carte** | Vue de dessus de l'usine : machines par couleur, sens des tapis, tas, trou de vente et ta position. |
-| **Interface** | Le panneau d'infos se replie d'un geste (bouton –). L'endurance et la jauge du détecteur n'apparaissent que lorsqu'elles servent. |
+| **Interface** | Le panneau d'infos se cache d'un geste (bouton –) : il ne reste qu'une petite pastille avec l'argent et le foin, qu'on touche pour le rouvrir. L'endurance et la jauge du détecteur n'apparaissent que lorsqu'elles servent. |
 | **Graphismes** | Qualité Basse, Moyenne ou Élevée (ombres, résolution, détail du tas), compteur d'images par seconde et vibrations désactivables. Ces réglages sont propres au téléphone. |
 
 Chaque machine prend ce qui arrive par l'arrière (flèche verte) et rend sa production par
